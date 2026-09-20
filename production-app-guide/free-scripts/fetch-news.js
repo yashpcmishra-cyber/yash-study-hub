@@ -16,6 +16,7 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
 const parser = new Parser({
+  timeout: 20000,
   customFields: { item: [["media:content", "mediaContent"], ["media:thumbnail", "mediaThumbnail"]] },
 });
 
@@ -42,7 +43,7 @@ function extractRssImage(item) {
 
 async function fetchOgImage(url) {
   try {
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) });
     const html = await res.text();
     const match = html.match(/<meta[^>]+property="og:image"[^>]+content="([^">]+)"/i);
     return match ? match[1] : null;
@@ -57,21 +58,41 @@ async function fetchCategory(feed) {
   const batch = db.batch();
   for (const item of items) {
     let image = extractRssImage(item);
-    if (!image && !feed.hasImages && item.link) image = await fetchOgImage(item.link);
-    const docId = Buffer.from(item.link || item.guid || item.title).toString("base64").slice(0, 120);
+    // Google News links only lead to Google's own generic picture, so those
+    // are skipped (the app shows a neat icon instead of the same logo 15 times).
+    if (!image && !feed.hasImages && item.link && !item.link.includes("news.google.com")) image = await fetchOgImage(item.link);
+    // base64url, not raw base64: a plain "/" here would be read by Firestore
+    // as a path separator inside .doc(id), silently sending that item to the
+    // wrong place (or failing the whole batch.commit() for this category).
+    const docId = Buffer.from(item.link || item.guid || item.title).toString("base64").replace(/\//g, "_").replace(/\+/g, "-").slice(0, 120);
     const ref = db.collection("newsItems").doc(`${feed.category}_${docId}`);
+    // An invalid/missing date would make Firestore reject the whole batch.
+    const parsedDate = item.pubDate ? new Date(item.pubDate) : null;
+    const pubDate = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : admin.firestore.FieldValue.serverTimestamp();
     batch.set(ref, {
       category: feed.category,
       categoryLabel: feed.label,
       title: item.title || "",
       link: item.link || "",
       image: image || null,
-      pubDate: item.pubDate ? new Date(item.pubDate) : admin.firestore.FieldValue.serverTimestamp(),
+      pubDate,
       fetchedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
   }
   await batch.commit();
   console.log(`[${feed.category}] saved ${items.length} items`);
+}
+
+// News that is no longer in any feed is deleted after 14 days, so the
+// database does not grow forever (keeps it inside the free storage limit).
+async function pruneOld() {
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const snap = await db.collection("newsItems").where("fetchedAt", "<", cutoff).limit(400).get();
+  if (snap.empty) return;
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  console.log(`Pruned ${snap.size} old news items.`);
 }
 
 (async () => {
@@ -81,6 +102,11 @@ async function fetchCategory(feed) {
     } catch (err) {
       console.error(`Failed ${feed.category}:`, err.message);
     }
+  }
+  try {
+    await pruneOld();
+  } catch (err) {
+    console.error("Prune failed (not important):", err.message);
   }
   process.exit(0);
 })();
