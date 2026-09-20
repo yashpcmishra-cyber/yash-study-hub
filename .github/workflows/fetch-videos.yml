@@ -1,18 +1,18 @@
-name: Fetch News (free, no Blaze needed)
+name: Fetch YouTube Videos (free, no Blaze needed)
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # every 30 minutes
+    - cron: '0 * * * *'   # every hour (videos are posted far less often than news)
   workflow_dispatch: {}
 
 concurrency:
-  group: fetch-news
+  group: fetch-videos
   cancel-in-progress: false
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,7 +20,9 @@ jobs:
           node-version: '20'
       - run: npm install
         working-directory: production-app-guide/free-scripts
-      - run: node fetch-news.js
+      - run: node fetch-videos.js
         working-directory: production-app-guide/free-scripts
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}

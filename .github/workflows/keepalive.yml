@@ -1,0 +1,29 @@
+name: Keep automation alive
+
+# GitHub automatically PAUSES scheduled jobs (news, notifications, videos)
+# in a public repo when nobody has changed the repo for 60 days. This tiny
+# job makes one harmless commit on the 1st of every month so that never
+# happens. Free, nothing to do.
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make a tiny commit
+        run: |
+          git config user.name "keepalive-bot"
+          git config user.email "keepalive-bot@users.noreply.github.com"
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/keepalive.txt
+          git add .github/keepalive.txt
+          git commit -m "chore: keepalive $(date -u +%F)"
+          git push
