@@ -25,7 +25,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.7'
+          flutter-version: '3.24.0'
           channel: 'stable'
           cache: true
 
@@ -36,11 +36,28 @@ jobs:
       - name: Generate the Android platform folder
         run: flutter create --platforms=android --org com.yashstudyhub --project-name yash_study_hub .
 
+      # STABLE APP SIGNING (one-time setup): once you add the two secrets
+      # ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD (Settings >
+      # Secrets and variables > Actions), every build from here on is signed
+      # with the SAME key, so a new APK installs as an UPDATE over the old
+      # one - no more uninstalling first. Skipped cleanly if the secret isn't
+      # set yet: the APK still builds, just signed with the usual debug key.
+      - name: Set up stable app signing (only if the secret is set)
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
+          cat > android/key.properties <<PROPS
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=upload
+          storeFile=upload-keystore.jks
+          PROPS
+
       # Sets the app id (com.yashstudyhub.app), minSdk 23 and puts the correct
       # AndroidManifest.xml in place. See flutter-app/tools/patch_android.py
       - name: Apply Yash Study Hub Android settings
         run: python3 tools/patch_android.py .
-        
+
       - name: Install dependencies
         run: flutter pub get
 
