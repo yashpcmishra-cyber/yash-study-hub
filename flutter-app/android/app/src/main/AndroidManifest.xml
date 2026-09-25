@@ -1,0 +1,89 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- NOTE: there is intentionally NO package="..." attribute here. Modern
+         Android builds take the package from android/app/build.gradle
+         (namespace + applicationId), and an old package= attribute here can
+         make the build fail or warn. -->
+
+    <!-- Needed for: Firestore/Firebase network calls, News RSS fetch,
+         GitHub-hosted images, YouTube/direct-video playback, Drive/YouTube
+         links, admin GitHub uploads. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Required on Android 13+ (API 33+) for FirebaseMessaging.requestPermission()
+         in main.dart to actually be able to show notifications. Without this,
+         push notifications silently never appear on newer phones. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- image_picker / file_picker: picking an image or file from the
+         gallery on Android 12 and below needs this. Android 13+ uses the
+         modern photo picker instead, which needs no permission at all. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Android 11+ (API 30+) hides other apps from your app by default.
+         url_launcher's canLaunchUrl()/launchUrl() for the Telegram/WhatsApp/
+         YouTube social links, and the news "read more" / PDF Drive links,
+         need this <queries> block or canLaunchUrl() will wrongly return
+         false and the links silently won't open. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <!-- Needed for the "tap UPI ID to pay" button in batch_detail_screen.dart,
+             which opens a upi://pay deep link. Without this, canLaunchUrl() would
+             always return false on Android 11+ even with GPay/PhonePe installed. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
+        <!-- Needed for the "Email code" button in admin_panel_screen.dart
+             (shown when a student didn't leave a phone/WhatsApp number),
+             which opens a mailto: link. Without this, canLaunchUrl() would
+             always return false on Android 11+ even with Gmail installed. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mailto" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="Yash Study Hub"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!--
+              IMPORTANT — do not add android:screenOrientation="portrait" (or
+              any fixed value) here. Leaving orientation unset is what lets
+              the in-built video player (video_player_screen.dart, via
+              Chewie's allowFullScreen and the YouTube player's fullscreen
+              button) actually rotate to landscape fullscreen. Locking this
+              to portrait silently breaks that feature — the fullscreen
+              button will do nothing.
+            -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below. This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+</manifest>
