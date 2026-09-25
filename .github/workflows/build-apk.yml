@@ -1,0 +1,82 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'flutter-app/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch: {}   # also lets you press "Run workflow" by hand
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: flutter-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      # The ZIP contains lib/, pubspec.yaml, assets/ and a ready manifest.
+      # The android/ platform folder is generated fresh here on every run.
+      # `flutter create` only fills in what is missing - it never touches
+      # lib/, pubspec.yaml or assets/.
+      - name: Generate the Android platform folder
+        run: flutter create --platforms=android --org com.yashstudyhub --project-name yash_study_hub .
+
+      # Sets the app id (com.yashstudyhub.app), minSdk 23 and puts the correct
+      # AndroidManifest.xml in place. See flutter-app/tools/patch_android.py
+      - name: Apply Yash Study Hub Android settings
+        run: python3 tools/patch_android.py .
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        # IMAGE_UPLOAD_TOKEN comes from a repository secret (Settings >
+        # Secrets and variables > Actions > New repository secret) - never
+        # from the source code. If the secret is not created, the APK still
+        # builds; only image uploads (logo/banners/icons) will not work.
+        #
+        # continue-on-error: if this FULL build fails, the next step rebuilds
+        # in SAFE MODE so you still get a working APK (see tools/safe_mode.py).
+        id: full_build
+        continue-on-error: true
+        env:
+          IMAGE_UPLOAD_TOKEN: ${{ secrets.IMAGE_UPLOAD_TOKEN }}
+        run: flutter build apk --release --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
+
+      # Safety net. Runs ONLY when the full build above failed. Switches off
+      # the two newest add-ons (in-app PDF viewer + Firebase google-services)
+      # and builds again. If this also fails, the real error is in the step
+      # "Build release APK" above - open that step and look for the first
+      # line that starts with "error:" / "Error:".
+      - name: Rebuild in SAFE MODE (only if the full build failed)
+        if: steps.full_build.outcome == 'failure'
+        env:
+          IMAGE_UPLOAD_TOKEN: ${{ secrets.IMAGE_UPLOAD_TOKEN }}
+        run: |
+          echo "::warning title=Full build failed::Rebuilding in SAFE MODE (no in-app PDF viewer, no google-services). Open the step 'Build release APK' to see the real error."
+          echo "### Built in SAFE MODE" >> "$GITHUB_STEP_SUMMARY"
+          echo "The full build failed, so the in-app PDF viewer and google-services were switched off. Send the first error line from the step 'Build release APK' to get them back." >> "$GITHUB_STEP_SUMMARY"
+          python3 tools/safe_mode.py .
+          flutter pub get
+          flutter build apk --release --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: yash-study-hub-apk
+          path: flutter-app/build/app/outputs/flutter-apk/app-release.apk
