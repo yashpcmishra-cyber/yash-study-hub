@@ -40,7 +40,9 @@ jobs:
       # AndroidManifest.xml in place. See flutter-app/tools/patch_android.py
       - name: Apply Yash Study Hub Android settings
         run: python3 tools/patch_android.py .
-
+      - name: Bump Kotlin Gradle plugin version
+        run: sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*" apply false/id "org.jetbrains.kotlin.android" version "2.4.20" apply false/' android/settings.gradle
+        
       - name: Install dependencies
         run: flutter pub get
 
