@@ -63,6 +63,23 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Some older plugins (downloaded fresh into the pub-cache on every run,
+      # not part of our own code) still ship their own android/build.gradle
+      # pointing at the old proguard-android.txt, which newer R8 now refuses
+      # outright. This finds every such file across ALL downloaded plugins
+      # and switches it to the optimizing file Google recommends - the exact
+      # fix the build error itself suggests.
+      - name: Work around old plugins still referencing proguard-android.txt
+        run: |
+          found=$(find "$HOME/.pub-cache" \( -name "build.gradle" -o -name "build.gradle.kts" \) -print 2>/dev/null | xargs -r grep -l "proguard-android\.txt" || true)
+          if [ -n "$found" ]; then
+            echo "$found" | xargs sed -i "s/proguard-android\.txt/proguard-android-optimize.txt/g"
+            echo "Patched:"
+            echo "$found"
+          else
+            echo "No plugin build.gradle files referenced the old proguard-android.txt"
+          fi
+
       - name: Build release APK
         # IMAGE_UPLOAD_TOKEN comes from a repository secret (Settings >
         # Secrets and variables > Actions > New repository secret) - never
@@ -92,6 +109,10 @@ jobs:
           echo "The full build failed, so the in-app PDF viewer and google-services were switched off. Send the first error line from the step 'Build release APK' to get them back." >> "$GITHUB_STEP_SUMMARY"
           python3 tools/safe_mode.py .
           flutter pub get
+          found=$(find "$HOME/.pub-cache" \( -name "build.gradle" -o -name "build.gradle.kts" \) -print 2>/dev/null | xargs -r grep -l "proguard-android\.txt" || true)
+          if [ -n "$found" ]; then
+            echo "$found" | xargs sed -i "s/proguard-android\.txt/proguard-android-optimize.txt/g"
+          fi
           flutter build apk --release --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
 
       - name: Upload APK
