@@ -9,13 +9,6 @@ Run it ONCE right after `flutter create` has generated the android/ folder
     python3 tools/patch_android.py <folder>   (or give the project folder)
 
 What it does (safe to run again and again):
-  0. Bumps the Android Gradle Plugin, Kotlin plugin and Gradle wrapper
-     versions in settings.gradle / gradle-wrapper.properties if they are
-     older than a known-compatible, JDK-17-safe combination (AGP 8.3.2 /
-     Kotlin 2.1.20 / Gradle 8.6, per Google's official AGP-Gradle
-     compatibility table). Fixes build failures like "requires a newer
-     version of the Kotlin Gradle plugin" or "Android Gradle Plugin Version
-     Incompatible with Kotlin Gradle Plugin". Only ever raises versions.
   1. Sets the app id to  com.yashstudyhub.app  (must match Firebase).
   2. Makes sure the minimum Android version (minSdk) is at least 23, which
      the Firebase libraries need.
@@ -23,16 +16,25 @@ What it does (safe to run again and again):
      no screen-orientation lock so video fullscreen can rotate).
   4. Replaces the default Flutter launcher icon with the Yash Study Hub logo
      (ready-made PNGs in tools/icons/mipmap-*/).
+  0. (Runs first) Works around a long-standing bug in some OLDER Flutter
+     plugins: their own android/build.gradle (published by the plugin
+     author, not us) reads compileSdkVersion the old way and crashes with
+     "compileSdkVersion is not specified" against a current Flutter SDK.
+     Seen so far in package_info_plus and wakelock_plus, but it can hit any
+     old-enough plugin - this makes the value available everywhere such a
+     plugin might look for it, so the next one also finds it.
   5. Push notifications: a small white status-bar icon (tools/notify_icons/)
      and the standard Firebase "google-services" setup (google-services.json
      is generated from lib/firebase_options.dart, so there is one source of
      truth). If anything about the Gradle files looks unexpected, step 5b is
      skipped completely - nothing is half-applied.
-  6. Optional: if android/key.properties exists (see
-     production-app-guide/RELEASE_SIGNING.md), wires up a real release
-     signing config so every build - local or GitHub Actions - uses the same
-     signing key. Without that file, this step does nothing and release
-     builds keep using the debug key exactly as before.
+  6. STABLE SIGNING: if the CI workflow has already written
+     android/key.properties (from the ANDROID_KEYSTORE_BASE64 /
+     ANDROID_KEYSTORE_PASSWORD secrets), release builds are signed with that
+     same key every time, so a new APK installs as an UPDATE over the old
+     one instead of needing an uninstall. Purely additive - if key.properties
+     is missing, nothing changes and the release build signs with the debug
+     key exactly as before.
 
 It never touches lib/, pubspec.yaml or assets/.
 """
@@ -43,9 +45,10 @@ import sys
 
 APP_ID = "com.yashstudyhub.app"
 MIN_SDK = 23
+COMPAT_SDK = 34  # same number this project's own compileSdk resolves to
 
 
-GMS_PLUGIN_VERSION = "4.3.15"  # works with the Android Gradle Plugin of Flutter 3.24
+GMS_PLUGIN_VERSION = "4.4.2"  # 4.3.x can crash under AGP 8+ (Flutter 3.24 uses AGP 8); 4.4.x is the AGP-8-safe line
 
 
 def read_android_firebase_options(root):
@@ -153,178 +156,151 @@ def setup_google_services(root, android_dir, app_gradle_path):
     return "done (google-services.json created + plugin %s applied)" % GMS_PLUGIN_VERSION
 
 
-def setup_release_signing(android_dir, app_gradle_path, is_kts):
-    """Optional step 6. Only runs if android/key.properties exists (written
-    by the GitHub Actions workflow from repo secrets, or created by hand for
-    a local build - see production-app-guide/RELEASE_SIGNING.md). Wires up a
-    real release signing config so every build - local or GitHub Actions -
-    uses the SAME signing key, which lets a new APK install straight over an
-    older one. Without key.properties, nothing is touched and release builds
-    keep using the debug key exactly as before. Never leaves things half
-    applied: any unexpected template shape and this step is skipped with an
-    explanation, same spirit as setup_google_services() above."""
-    key_props_path = os.path.join(android_dir, "key.properties")
-    if not os.path.isfile(key_props_path):
-        return "skipped (android/key.properties not found - release still signed with the debug key)"
+def patch_legacy_plugin_compat(root):
+    """Step 0 (see module docstring). Returns a short status string."""
+    touched = []
 
-    with open(app_gradle_path, encoding="utf-8") as f:
+    # A) android/local.properties - the flat "flutter.xVersion=NN" lines
+    #    some old plugins still read directly, instead of the modern
+    #    `flutter.compileSdkVersion` Gradle extension.
+    local_props = os.path.join(root, "android", "local.properties")
+    if os.path.isfile(local_props):
+        with open(local_props, encoding="utf-8") as f:
+            text = f.read()
+        needed = {
+            "flutter.compileSdkVersion": str(COMPAT_SDK),
+            "flutter.targetSdkVersion": str(COMPAT_SDK),
+            "flutter.minSdkVersion": str(MIN_SDK),
+        }
+        added = False
+        for key, value in needed.items():
+            if not re.search(r"(?m)^%s=" % re.escape(key), text):
+                if text and not text.endswith("\n"):
+                    text += "\n"
+                text += "%s=%s\n" % (key, value)
+                added = True
+        if added:
+            with open(local_props, "w", encoding="utf-8") as f:
+                f.write(text)
+            touched.append("local.properties")
+
+    # B) android/build.gradle(.kts) - the ROOT one (android/app has its own,
+    #    untouched by this). Old plugins also look here, via
+    #    rootProject.ext.compileSdkVersion. Root project code runs before
+    #    any plugin subproject is configured, so plain numbers set at the
+    #    very top are visible to every plugin by the time it evaluates.
+    root_gradle = None
+    for name in ("build.gradle", "build.gradle.kts"):
+        candidate = os.path.join(root, "android", name)
+        if os.path.isfile(candidate):
+            root_gradle = candidate
+            break
+    if root_gradle is not None:
+        with open(root_gradle, encoding="utf-8") as f:
+            text = f.read()
+        if "YASH_STUDY_HUB_LEGACY_PLUGIN_COMPAT" not in text:
+            if root_gradle.endswith(".kts"):
+                block = (
+                    "// YASH_STUDY_HUB_LEGACY_PLUGIN_COMPAT: some older plugins read these\n"
+                    "// old-style values instead of the modern flutter.compileSdkVersion API.\n"
+                    "extra[\"compileSdkVersion\"] = %d\n"
+                    "extra[\"targetSdkVersion\"] = %d\n"
+                    "extra[\"minSdkVersion\"] = %d\n\n"
+                ) % (COMPAT_SDK, COMPAT_SDK, MIN_SDK)
+            else:
+                block = (
+                    "// YASH_STUDY_HUB_LEGACY_PLUGIN_COMPAT: some older plugins read these\n"
+                    "// old-style values instead of the modern flutter.compileSdkVersion API.\n"
+                    "ext {\n"
+                    "    compileSdkVersion = %d\n"
+                    "    targetSdkVersion = %d\n"
+                    "    minSdkVersion = %d\n"
+                    "}\n\n"
+                ) % (COMPAT_SDK, COMPAT_SDK, MIN_SDK)
+            with open(root_gradle, "w", encoding="utf-8") as f:
+                f.write(block + text)
+            touched.append(os.path.basename(root_gradle))
+
+    if not touched:
+        return "already in place"
+    return "added to " + " + ".join(touched)
+
+
+def setup_release_signing(gradle, is_kts):
+    """Step 6 (see module docstring). Purely additive: adds a `release`
+    signingConfig, and only actually assigns it to buildTypes.release when
+    android/key.properties exists at BUILD time. Never edits or removes
+    anything the file already has, so a missing key.properties (secrets not
+    added yet) leaves today's working debug-signed build untouched."""
+    with open(gradle, encoding="utf-8") as f:
         text = f.read()
-
-    if "keystoreProperties" in text:
-        return "already set up"
-
-    # locate buildTypes { release { ... } } - assumes no braces inside it,
-    # true for the stock Flutter template this script targets everywhere else
-    m_release = re.search(r'release\s*\{([^{}]*)\}', text)
-    if not m_release:
-        return "skipped (could not find the release{} build type in build.gradle)"
-    release_body = m_release.group(1)
-
-    signing_ref = 'signingConfigs.getByName("release")' if is_kts else 'signingConfigs.release'
-    assign = 'signingConfig = ' if is_kts else 'signingConfig '
-
-    if "signingConfig" in release_body:
-        new_release_body, n_ref = re.subn(
-            r'signingConfig\s*=?\s*signingConfigs\.\w+(?:\([^)]*\))?',
-            assign + signing_ref,
-            release_body,
-            count=1,
-        )
-        if n_ref == 0:
-            return "skipped (release{} has an unexpected signingConfig line - set it to %s by hand)" % signing_ref
-    else:
-        new_release_body = release_body.rstrip() + "\n            " + assign + signing_ref + "\n        "
-
-    text = text[: m_release.start(1)] + new_release_body + text[m_release.end(1):]
-
-    m_android = re.search(r'\nandroid\s*\{', text)
-    if not m_android:
-        return "skipped (could not find the android { } block)"
+    if "YASH_STUDY_HUB_RELEASE_SIGNING" in text:
+        return "already in place"
 
     if is_kts:
         signing_configs_block = (
             "\n    signingConfigs {\n"
-            '        create("release") {\n'
-            '            keyAlias = keystoreProperties["keyAlias"] as String\n'
-            '            keyPassword = keystoreProperties["keyPassword"] as String\n'
-            '            storeFile = file(keystoreProperties["storeFile"] as String)\n'
-            '            storePassword = keystoreProperties["storePassword"] as String\n'
+            "        create(\"release\") {\n"
+            "            val keyPropsFile = rootProject.file(\"key.properties\")\n"
+            "            if (keyPropsFile.exists()) {\n"
+            "                val keystoreProperties = java.util.Properties()\n"
+            "                keystoreProperties.load(java.io.FileInputStream(keyPropsFile))\n"
+            "                keyAlias = keystoreProperties[\"keyAlias\"]\n"
+            "                keyPassword = keystoreProperties[\"keyPassword\"]\n"
+            "                storeFile = rootProject.file(keystoreProperties[\"storeFile\"])\n"
+            "                storePassword = keystoreProperties[\"storePassword\"]\n"
+            "            }\n"
             "        }\n"
             "    }\n"
         )
-        loader = (
-            "val keystoreProperties = java.util.Properties()\n"
-            'val keystorePropertiesFile = rootProject.file("key.properties")\n'
-            "if (keystorePropertiesFile.exists()) {\n"
-            "    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))\n"
-            "}\n\n"
+        wire_up = (
+            "\n// YASH_STUDY_HUB_RELEASE_SIGNING: only takes effect once the CI workflow\n"
+            "// has written key.properties from the ANDROID_KEYSTORE_* secrets; until then\n"
+            "// this block does nothing and the usual debug-signed build is unchanged.\n"
+            "if (rootProject.file(\"key.properties\").exists()) {\n"
+            "    android.buildTypes.getByName(\"release\").signingConfig = android.signingConfigs.getByName(\"release\")\n"
+            "}\n"
         )
     else:
         signing_configs_block = (
             "\n    signingConfigs {\n"
             "        release {\n"
-            '            keyAlias keystoreProperties["keyAlias"]\n'
-            '            keyPassword keystoreProperties["keyPassword"]\n'
-            '            storeFile keystoreProperties["storeFile"] ? file(keystoreProperties["storeFile"]) : null\n'
-            '            storePassword keystoreProperties["storePassword"]\n'
+            "            def keyPropsFile = rootProject.file(\"key.properties\")\n"
+            "            if (keyPropsFile.exists()) {\n"
+            "                def keystoreProperties = new Properties()\n"
+            "                keystoreProperties.load(new FileInputStream(keyPropsFile))\n"
+            "                keyAlias keystoreProperties[\"keyAlias\"]\n"
+            "                keyPassword keystoreProperties[\"keyPassword\"]\n"
+            "                storeFile rootProject.file(keystoreProperties[\"storeFile\"])\n"
+            "                storePassword keystoreProperties[\"storePassword\"]\n"
+            "            }\n"
             "        }\n"
             "    }\n"
         )
-        loader = (
-            "def keystoreProperties = new Properties()\n"
-            'def keystorePropertiesFile = rootProject.file("key.properties")\n'
-            "if (keystorePropertiesFile.exists()) {\n"
-            "    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\n"
-            "}\n\n"
+        wire_up = (
+            "\n// YASH_STUDY_HUB_RELEASE_SIGNING: only takes effect once the CI workflow\n"
+            "// has written key.properties from the ANDROID_KEYSTORE_* secrets; until then\n"
+            "// this block does nothing and the usual debug-signed build is unchanged.\n"
+            "if (rootProject.file(\"key.properties\").exists()) {\n"
+            "    android.buildTypes.release.signingConfig = android.signingConfigs.release\n"
+            "}\n"
         )
 
-    text = text[: m_android.end()] + signing_configs_block + text[m_android.end():]
-    text = text[: m_android.start()] + "\n" + loader + text[m_android.start():]
-
-    with open(app_gradle_path, "w", encoding="utf-8") as f:
-        f.write(text)
-    return "done (release build now signed with android/upload-keystore.jks)"
-
-
-def _bump_version_in_file(path, name_pattern, target_version, label):
-    """Finds `name_pattern version "X.Y.Z"` (Groovy or Kotlin DSL, quotes
-    either style) in the file at path and raises it to target_version if it
-    is currently lower. Returns a one-line status string; never raises."""
-    if not os.path.isfile(path):
-        return None
-    with open(path, encoding="utf-8") as f:
-        text = f.read()
-    pattern = name_pattern + r'["\']\)?\s*version\s*["\']([\d.]+)["\']'
-    m = re.search(pattern, text)
-    if not m:
-        return None
-    current = tuple(int(p) for p in m.group(1).split("."))
-    target = tuple(int(p) for p in target_version.split("."))
-    if current >= target:
-        return "%s already up to date (%s)" % (label, m.group(1))
-    new_text = text[: m.start(1)] + target_version + text[m.end(1):]
-    with open(path, "w", encoding="utf-8") as f:
+    new_text, n = re.subn(r"(android\s*\{)", lambda m: m.group(1) + signing_configs_block, text, count=1)
+    if not n:
+        return "skipped (could not find the android {} block)"
+    new_text = new_text.rstrip("\n") + "\n" + wire_up
+    with open(gradle, "w", encoding="utf-8") as f:
         f.write(new_text)
-    return "%s %s -> %s" % (label, m.group(1), target_version)
-
-
-def bump_gradle_toolchain(android_dir):
-    """Step 0 - always runs. A freshly generated project's Android Gradle
-    Plugin (AGP) / Kotlin plugin / Gradle wrapper versions can lag behind
-    what current JDKs and Kotlin need, which shows up as build failures like
-    "[!] Your project requires a newer version of the Kotlin Gradle plugin"
-    or "Android Gradle Plugin Version Incompatible with Kotlin Gradle
-    Plugin". This bumps all three together to a combination Google's own
-    compatibility table confirms works with JDK 17:
-      AGP 8.3.2 (JDK 17 is its own minimum) needs Gradle >= 8.4 -> use 8.6
-      Kotlin 2.1.20 needs AGP >= 7.3.1, comfortably met by 8.3.2
-    Only ever raises versions, never lowers them, and is safe to run again."""
-    AGP_VERSION = "8.3.2"
-    KOTLIN_VERSION = "2.1.20"
-    GRADLE_WRAPPER_VERSION = "8.6"
-    results = []
-
-    for rel in ("settings.gradle", "settings.gradle.kts"):
-        path = os.path.join(android_dir, rel)
-        r = _bump_version_in_file(path, r'com\.android\.application', AGP_VERSION, "AGP")
-        if r:
-            results.append(r + " in " + rel)
-        r = _bump_version_in_file(path, r'org\.jetbrains\.kotlin\.android', KOTLIN_VERSION, "kotlin plugin")
-        if r:
-            results.append(r + " in " + rel)
-
-    wrapper_path = os.path.join(android_dir, "gradle", "wrapper", "gradle-wrapper.properties")
-    if os.path.isfile(wrapper_path):
-        with open(wrapper_path, encoding="utf-8") as f:
-            wtext = f.read()
-        m = re.search(r'gradle-([\d.]+)-(all|bin)\.zip', wtext)
-        if m:
-            current = tuple(int(p) for p in m.group(1).split("."))
-            target = tuple(int(p) for p in GRADLE_WRAPPER_VERSION.split("."))
-            if current >= target:
-                results.append("gradle wrapper already up to date (%s)" % m.group(1))
-            else:
-                new_wtext = (
-                    wtext[: m.start(1)] + GRADLE_WRAPPER_VERSION + wtext[m.end(1):]
-                )
-                with open(wrapper_path, "w", encoding="utf-8") as f:
-                    f.write(new_wtext)
-                results.append("gradle wrapper %s -> %s" % (m.group(1), GRADLE_WRAPPER_VERSION))
-
-    if not results:
-        return "skipped (could not find AGP/kotlin plugin lines or gradle-wrapper.properties)"
-    return "; ".join(results)
+    return "added (signs releases with key.properties when present)"
 
 
 def main():
     root = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.getcwd()
     android_app = os.path.join(root, "android", "app")
 
-    # 0) Android Gradle Plugin / Kotlin plugin / Gradle wrapper versions ----
-    try:
-        toolchain_status = bump_gradle_toolchain(os.path.join(root, "android"))
-    except Exception as exc:  # never break the whole build because of an optional step
-        toolchain_status = "skipped (%s)" % exc
+    # Step 0, see module docstring and patch_legacy_plugin_compat() above.
+    legacy_compat_status = patch_legacy_plugin_compat(root)
 
     gradle = None
     for name in ("build.gradle", "build.gradle.kts"):
@@ -426,21 +402,17 @@ def main():
     except Exception as exc:  # never break the whole build because of an optional step
         gms_status = "skipped (%s)" % exc
 
-    # 6) Real release signing key (only if android/key.properties exists)
-    try:
-        signing_status = setup_release_signing(os.path.join(root, "android"), gradle, is_kts)
-    except Exception as exc:  # never break the whole build because of an optional step
-        signing_status = "skipped (%s)" % exc
+    signing_status = setup_release_signing(gradle, is_kts)
 
     print("Patched: " + gradle)
-    print("  gradle toolchain  -> %s" % toolchain_status)
+    print("  old-plugin compileSdk fix -> %s" % legacy_compat_status)
+    print("  stable release signing    -> %s" % signing_status)
     print("  applicationId  -> %s   [%s]" % (APP_ID, "done" if n_app else "NOT FOUND - set it by hand"))
     print("  minSdk         -> at least %d   [%s]" % (MIN_SDK, "done" if (n_min or already_ok) else "NOT FOUND - set it by hand"))
     print("  AndroidManifest.xml -> %s" % ("replaced with the correct one" if manifest_ok else "left as it was (tools/AndroidManifest.xml missing)"))
     print("  launcher icon  -> %s" % ("logo set (%d sizes)" % icons_done if icons_done else "left as the default Flutter icon (tools/icons missing)"))
     print("  notification icon -> %s" % ("set (%d sizes)" % notify_done if notify_done else "not set (tools/notify_icons missing)"))
     print("  google-services   -> %s" % gms_status)
-    print("  release signing   -> %s" % signing_status)
     if not n_app or not (n_min or already_ok):
         print("")
         print("MANUAL STEP: open android/app/build.gradle and set:")
