@@ -242,28 +242,42 @@ def setup_release_signing(gradle, is_kts):
         return "already in place"
 
     if is_kts:
+        needed_imports = ""
+        if "import java.util.Properties" not in text:
+            needed_imports += "import java.util.Properties\n"
+        if "import java.io.FileInputStream" not in text:
+            needed_imports += "import java.io.FileInputStream\n"
+        if needed_imports:
+            # Must go at the very top: Kotlin scripts require imports before
+            # any other code, and this also avoids Gradle's own `java`
+            # (JavaPluginExtension) accessor shadowing `java.util` / `java.io`
+            # when referenced with the full "java.xxx" prefix further below.
+            text = needed_imports + "\n" + text
+
         signing_configs_block = (
             "\n    signingConfigs {\n"
             "        create(\"release\") {\n"
             "            val keyPropsFile = rootProject.file(\"key.properties\")\n"
             "            if (keyPropsFile.exists()) {\n"
-            "                val keystoreProperties = java.util.Properties()\n"
-            "                keystoreProperties.load(java.io.FileInputStream(keyPropsFile))\n"
-            "                keyAlias = keystoreProperties[\"keyAlias\"]\n"
-            "                keyPassword = keystoreProperties[\"keyPassword\"]\n"
-            "                storeFile = rootProject.file(keystoreProperties[\"storeFile\"])\n"
-            "                storePassword = keystoreProperties[\"storePassword\"]\n"
+            "                val keystoreProperties = Properties()\n"
+            "                keystoreProperties.load(FileInputStream(keyPropsFile))\n"
+            "                keyAlias = keystoreProperties[\"keyAlias\"] as String\n"
+            "                keyPassword = keystoreProperties[\"keyPassword\"] as String\n"
+            "                storeFile = rootProject.file(keystoreProperties[\"storeFile\"] as String)\n"
+            "                storePassword = keystoreProperties[\"storePassword\"] as String\n"
             "            }\n"
             "        }\n"
             "    }\n"
-        )
-        wire_up = (
-            "\n// YASH_STUDY_HUB_RELEASE_SIGNING: only takes effect once the CI workflow\n"
-            "// has written key.properties from the ANDROID_KEYSTORE_* secrets; until then\n"
-            "// this block does nothing and the usual debug-signed build is unchanged.\n"
-            "if (rootProject.file(\"key.properties\").exists()) {\n"
-            "    android.buildTypes.getByName(\"release\").signingConfig = android.signingConfigs.getByName(\"release\")\n"
-            "}\n"
+            "    buildTypes {\n"
+            "        getByName(\"release\") {\n"
+            "            // YASH_STUDY_HUB_RELEASE_SIGNING: only takes effect once the CI workflow\n"
+            "            // has written key.properties from the ANDROID_KEYSTORE_* secrets; until\n"
+            "            // then this does nothing and the usual debug-signed build is unchanged.\n"
+            "            if (rootProject.file(\"key.properties\").exists()) {\n"
+            "                signingConfig = signingConfigs.getByName(\"release\")\n"
+            "            }\n"
+            "        }\n"
+            "    }\n"
         )
     else:
         signing_configs_block = (
@@ -280,20 +294,21 @@ def setup_release_signing(gradle, is_kts):
             "            }\n"
             "        }\n"
             "    }\n"
-        )
-        wire_up = (
-            "\n// YASH_STUDY_HUB_RELEASE_SIGNING: only takes effect once the CI workflow\n"
-            "// has written key.properties from the ANDROID_KEYSTORE_* secrets; until then\n"
-            "// this block does nothing and the usual debug-signed build is unchanged.\n"
-            "if (rootProject.file(\"key.properties\").exists()) {\n"
-            "    android.buildTypes.release.signingConfig = android.signingConfigs.release\n"
-            "}\n"
+            "    buildTypes {\n"
+            "        release {\n"
+            "            // YASH_STUDY_HUB_RELEASE_SIGNING: only takes effect once the CI workflow\n"
+            "            // has written key.properties from the ANDROID_KEYSTORE_* secrets; until\n"
+            "            // then this does nothing and the usual debug-signed build is unchanged.\n"
+            "            if (rootProject.file(\"key.properties\").exists()) {\n"
+            "                signingConfig signingConfigs.release\n"
+            "            }\n"
+            "        }\n"
+            "    }\n"
         )
 
     new_text, n = re.subn(r"(android\s*\{)", lambda m: m.group(1) + signing_configs_block, text, count=1)
     if not n:
         return "skipped (could not find the android {} block)"
-    new_text = new_text.rstrip("\n") + "\n" + wire_up
     with open(gradle, "w", encoding="utf-8") as f:
         f.write(new_text)
     return "added (signs releases with key.properties when present)"
