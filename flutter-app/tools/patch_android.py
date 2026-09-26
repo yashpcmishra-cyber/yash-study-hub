@@ -35,6 +35,9 @@ What it does (safe to run again and again):
      one instead of needing an uninstall. Purely additive - if key.properties
      is missing, nothing changes and the release build signs with the debug
      key exactly as before.
+  7. Bumps the Kotlin Gradle plugin version (see KOTLIN_VERSION above) -
+     the Firebase SDK versions this app depends on need a newer Kotlin than
+     the one Flutter 3.24's own template ships by default.
 
 It never touches lib/, pubspec.yaml or assets/.
 """
@@ -49,6 +52,7 @@ COMPAT_SDK = 34  # same number this project's own compileSdk resolves to
 
 
 GMS_PLUGIN_VERSION = "4.4.2"  # 4.3.x can crash under AGP 8+ (Flutter 3.24 uses AGP 8); 4.4.x is the AGP-8-safe line
+KOTLIN_VERSION = "1.9.24"  # the Firebase SDK versions this app uses need a newer Kotlin than the Flutter 3.24 template ships
 
 
 def read_android_firebase_options(root):
@@ -295,12 +299,61 @@ def setup_release_signing(gradle, is_kts):
     return "added (signs releases with key.properties when present)"
 
 
+def bump_kotlin_version(root):
+    """Step 7 (see module docstring). Raises the Kotlin Gradle plugin version
+    wherever this project's generated files declare one, so it is new enough
+    for the Firebase SDK versions in pubspec.yaml. Purely a version-number
+    swap - nothing else in these files is touched."""
+    touched = []
+
+    # Modern style (Flutter 3.19+): android/settings.gradle(.kts)
+    #   id "org.jetbrains.kotlin.android" version "1.9.10" apply false
+    for name in ("settings.gradle", "settings.gradle.kts"):
+        path = os.path.join(root, "android", name)
+        if not os.path.isfile(path):
+            continue
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        new_text, n = re.subn(
+            r'(id\s*\(?\s*["\']org\.jetbrains\.kotlin\.android["\']\s*\)?\s+version\s+["\'])[^"\']+(["\'])',
+            lambda m: m.group(1) + KOTLIN_VERSION + m.group(2),
+            text,
+        )
+        if n:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(new_text)
+            touched.append(name)
+
+    # Older style (pre-3.19 templates, kept as a fallback): root
+    # android/build.gradle(.kts) with a plain ext.kotlin_version assignment.
+    for name in ("build.gradle", "build.gradle.kts"):
+        path = os.path.join(root, "android", name)
+        if not os.path.isfile(path):
+            continue
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        if name.endswith(".kts"):
+            pattern = r'(extra\[\s*["\']kotlin_version["\']\s*\]\s*=\s*["\'])[^"\']+(["\'])'
+        else:
+            pattern = r'(ext(?:\.kotlin_version|\[\s*["\']kotlin_version["\']\s*\])\s*=\s*["\'])[^"\']+(["\'])'
+        new_text, n = re.subn(pattern, lambda m: m.group(1) + KOTLIN_VERSION + m.group(2), text)
+        if n:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(new_text)
+            touched.append(name)
+
+    if not touched:
+        return "skipped (no Kotlin version declaration found)"
+    return "set to %s in %s" % (KOTLIN_VERSION, " + ".join(touched))
+
+
 def main():
     root = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.getcwd()
     android_app = os.path.join(root, "android", "app")
 
     # Step 0, see module docstring and patch_legacy_plugin_compat() above.
     legacy_compat_status = patch_legacy_plugin_compat(root)
+    kotlin_status = bump_kotlin_version(root)
 
     gradle = None
     for name in ("build.gradle", "build.gradle.kts"):
@@ -406,6 +459,7 @@ def main():
 
     print("Patched: " + gradle)
     print("  old-plugin compileSdk fix -> %s" % legacy_compat_status)
+    print("  Kotlin Gradle plugin      -> %s" % kotlin_status)
     print("  stable release signing    -> %s" % signing_status)
     print("  applicationId  -> %s   [%s]" % (APP_ID, "done" if n_app else "NOT FOUND - set it by hand"))
     print("  minSdk         -> at least %d   [%s]" % (MIN_SDK, "done" if (n_min or already_ok) else "NOT FOUND - set it by hand"))
