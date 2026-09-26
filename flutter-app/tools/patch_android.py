@@ -451,6 +451,30 @@ def main():
         text, n_min = re.subn(r'(minSdk(?:Version)?\s*=?\s*)(\d+)', bump, text, count=1)
     already_ok = ("Math.max(flutter.minSdkVersion" in text) or ("maxOf(flutter.minSdkVersion" in text)
 
+    # 2b) compile SDK - some plugins (e.g. file_picker's own dependency
+    # flutter_plugin_android_lifecycle) now require compileSdk >= COMPAT_SDK,
+    # which can be higher than what Flutter's own flutter.compileSdkVersion
+    # currently defaults to. This is the ONLY place that actually controls
+    # the app's real compileSdk (unlike patch_legacy_plugin_compat's
+    # local.properties/ext values above, which only old plugins read).
+    compile_max_expr = (
+        "maxOf(flutter.compileSdkVersion, %d)" % COMPAT_SDK
+        if is_kts
+        else "Math.max(flutter.compileSdkVersion, %d)" % COMPAT_SDK
+    )
+    text, n_compile = re.subn(
+        r'(compileSdk(?:Version)?\s*=?\s*)flutter\.compileSdkVersion',
+        lambda m: m.group(1) + compile_max_expr,
+        text,
+        count=1,
+    )
+    if n_compile == 0:
+        def bump_compile(m):
+            return m.group(1) + str(max(int(m.group(2)), COMPAT_SDK))
+
+        text, n_compile = re.subn(r'(compileSdk(?:Version)?\s*=?\s*)(\d+)', bump_compile, text, count=1)
+    compile_already_ok = ("Math.max(flutter.compileSdkVersion" in text) or ("maxOf(flutter.compileSdkVersion" in text)
+
     with open(gradle, "w", encoding="utf-8") as f:
         f.write(text)
 
@@ -522,6 +546,7 @@ def main():
     print("  proguard config           -> %s" % proguard_status)
     print("  applicationId  -> %s   [%s]" % (APP_ID, "done" if n_app else "NOT FOUND - set it by hand"))
     print("  minSdk         -> at least %d   [%s]" % (MIN_SDK, "done" if (n_min or already_ok) else "NOT FOUND - set it by hand"))
+    print("  compileSdk     -> at least %d   [%s]" % (COMPAT_SDK, "done" if (n_compile or compile_already_ok) else "NOT FOUND - set it by hand"))
     print("  AndroidManifest.xml -> %s" % ("replaced with the correct one" if manifest_ok else "left as it was (tools/AndroidManifest.xml missing)"))
     print("  launcher icon  -> %s" % ("logo set (%d sizes)" % icons_done if icons_done else "left as the default Flutter icon (tools/icons missing)"))
     print("  notification icon -> %s" % ("set (%d sizes)" % notify_done if notify_done else "not set (tools/notify_icons missing)"))
