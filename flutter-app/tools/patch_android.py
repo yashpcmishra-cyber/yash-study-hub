@@ -38,6 +38,8 @@ What it does (safe to run again and again):
   7. Bumps the Kotlin Gradle plugin version (see KOTLIN_VERSION above) -
      the Firebase SDK versions this app depends on need a newer Kotlin than
      the one Flutter 3.24's own template ships by default.
+  8. Swaps the old proguard-android.txt (which newer R8 refuses outright)
+     for proguard-android-optimize.txt in the release buildType.
 
 It never touches lib/, pubspec.yaml or assets/.
 """
@@ -314,6 +316,27 @@ def setup_release_signing(gradle, is_kts):
     return "added (signs releases with key.properties when present)"
 
 
+def fix_proguard_config(gradle):
+    """Step 8 (see module docstring). Flutter's own generated build.gradle(.kts)
+    still points buildTypes.release at the old `proguard-android.txt` template.
+    Newer R8 (bundled with recent AGP) refuses that file outright because it
+    forces `-dontoptimize`, which blocks R8's optimizations - the build fails
+    with 'is no longer supported'. Swap it for the optimizing file Google now
+    recommends. Safe to run again and again."""
+    with open(gradle, encoding="utf-8") as f:
+        text = f.read()
+    new_text, n = re.subn(
+        r'(getDefaultProguardFile\(\s*["\'])proguard-android\.txt(["\'])',
+        r"\g<1>proguard-android-optimize.txt\g<2>",
+        text,
+    )
+    if n == 0:
+        return "not found (nothing to change)"
+    with open(gradle, "w", encoding="utf-8") as f:
+        f.write(new_text)
+    return "switched to proguard-android-optimize.txt (%d place%s)" % (n, "" if n == 1 else "s")
+
+
 def bump_kotlin_version(root):
     """Step 7 (see module docstring). Raises the Kotlin Gradle plugin version
     wherever this project's generated files declare one, so it is new enough
@@ -471,11 +494,13 @@ def main():
         gms_status = "skipped (%s)" % exc
 
     signing_status = setup_release_signing(gradle, is_kts)
+    proguard_status = fix_proguard_config(gradle)
 
     print("Patched: " + gradle)
     print("  old-plugin compileSdk fix -> %s" % legacy_compat_status)
     print("  Kotlin Gradle plugin      -> %s" % kotlin_status)
     print("  stable release signing    -> %s" % signing_status)
+    print("  proguard config           -> %s" % proguard_status)
     print("  applicationId  -> %s   [%s]" % (APP_ID, "done" if n_app else "NOT FOUND - set it by hand"))
     print("  minSdk         -> at least %d   [%s]" % (MIN_SDK, "done" if (n_min or already_ok) else "NOT FOUND - set it by hand"))
     print("  AndroidManifest.xml -> %s" % ("replaced with the correct one" if manifest_ok else "left as it was (tools/AndroidManifest.xml missing)"))
