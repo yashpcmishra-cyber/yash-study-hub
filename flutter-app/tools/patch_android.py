@@ -37,7 +37,7 @@ What it does (safe to run again and again):
      key exactly as before.
   7. Bumps the Kotlin Gradle plugin version (see KOTLIN_VERSION above) -
      the Firebase SDK versions this app depends on need a newer Kotlin than
-     the one Flutter 3.24's own template ships by default.
+     the one Flutter's own template ships by default.
   8. Swaps the old proguard-android.txt (which newer R8 refuses outright)
      for proguard-android-optimize.txt in the release buildType.
 
@@ -50,11 +50,11 @@ import sys
 
 APP_ID = "com.yashstudyhub.app"
 MIN_SDK = 23
-COMPAT_SDK = 34  # same number this project's own compileSdk resolves to
+COMPAT_SDK = 36  # file_picker's flutter_plugin_android_lifecycle dependency now requires >=36
 
 
-GMS_PLUGIN_VERSION = "4.4.2"  # 4.3.x can crash under AGP 8+ (Flutter 3.24 uses AGP 8); 4.4.x is the AGP-8-safe line
-KOTLIN_VERSION = "1.9.24"  # the Firebase SDK versions this app uses need a newer Kotlin than the Flutter 3.24 template ships
+GMS_PLUGIN_VERSION = "4.4.2"  # 4.3.x can crash under AGP 8+; 4.4.x is the AGP-8-safe line
+KOTLIN_VERSION = "2.2.20"  # confirmed minimum from Flutter's own "Kotlin version too old" build warning
 
 
 def read_android_firebase_options(root):
@@ -133,7 +133,7 @@ def setup_google_services(root, android_dir, app_gradle_path):
     # app/build.gradle(.kts): apply the plugin right after the Android application plugin
     m_app = re.search(r'\n([ \t]*)id[ \t]*(\()?[ \t]*["\']com\.android\.application["\'][ \t]*\)?', app_text)
     if not m_settings or not m_app:
-        return "skipped (the Gradle files look different from the expected Flutter 3.24 template)"
+        return "skipped (the Gradle files look different from the expected Flutter template)"
 
     def line_for(match, with_version):
         indent, paren = match.group(1), match.group(2)
@@ -340,9 +340,24 @@ def fix_proguard_config(gradle):
 def bump_kotlin_version(root):
     """Step 7 (see module docstring). Raises the Kotlin Gradle plugin version
     wherever this project's generated files declare one, so it is new enough
-    for the Firebase SDK versions in pubspec.yaml. Purely a version-number
-    swap - nothing else in these files is touched."""
+    for the Firebase SDK versions in pubspec.yaml. Only ever raises the
+    version - if the freshly generated project already ships something equal
+    to or newer than KOTLIN_VERSION, this leaves it alone."""
     touched = []
+
+    def raise_only(m):
+        current = m.group(1)
+        try:
+            current_t = tuple(int(p) for p in current.split("."))
+            target_t = tuple(int(p) for p in KOTLIN_VERSION.split("."))
+        except ValueError:
+            return m.group(0)
+        if current_t >= target_t:
+            return m.group(0)  # already new enough - leave untouched
+        whole = m.group(0)
+        rel_start = m.start(1) - m.start(0)
+        rel_end = m.end(1) - m.start(0)
+        return whole[:rel_start] + KOTLIN_VERSION + whole[rel_end:]
 
     # Modern style (Flutter 3.19+): android/settings.gradle(.kts)
     #   id "org.jetbrains.kotlin.android" version "1.9.10" apply false
@@ -353,14 +368,16 @@ def bump_kotlin_version(root):
         with open(path, encoding="utf-8") as f:
             text = f.read()
         new_text, n = re.subn(
-            r'(id\s*\(?\s*["\']org\.jetbrains\.kotlin\.android["\']\s*\)?\s+version\s+["\'])[^"\']+(["\'])',
-            lambda m: m.group(1) + KOTLIN_VERSION + m.group(2),
+            r'id\s*\(?\s*["\']org\.jetbrains\.kotlin\.android["\']\s*\)?\s+version\s+["\']([^"\']+)["\']',
+            raise_only,
             text,
         )
-        if n:
+        if new_text != text:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_text)
             touched.append(name)
+        elif n:
+            touched.append(name + " (already >= %s)" % KOTLIN_VERSION)
 
     # Older style (pre-3.19 templates, kept as a fallback): root
     # android/build.gradle(.kts) with a plain ext.kotlin_version assignment.
@@ -371,18 +388,20 @@ def bump_kotlin_version(root):
         with open(path, encoding="utf-8") as f:
             text = f.read()
         if name.endswith(".kts"):
-            pattern = r'(extra\[\s*["\']kotlin_version["\']\s*\]\s*=\s*["\'])[^"\']+(["\'])'
+            pattern = r'extra\[\s*["\']kotlin_version["\']\s*\]\s*=\s*["\']([^"\']+)["\']'
         else:
-            pattern = r'(ext(?:\.kotlin_version|\[\s*["\']kotlin_version["\']\s*\])\s*=\s*["\'])[^"\']+(["\'])'
-        new_text, n = re.subn(pattern, lambda m: m.group(1) + KOTLIN_VERSION + m.group(2), text)
-        if n:
+            pattern = r'ext(?:\.kotlin_version|\[\s*["\']kotlin_version["\']\s*\])\s*=\s*["\']([^"\']+)["\']'
+        new_text, n = re.subn(pattern, raise_only, text)
+        if new_text != text:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_text)
             touched.append(name)
+        elif n:
+            touched.append(name + " (already >= %s)" % KOTLIN_VERSION)
 
     if not touched:
-        return "skipped (no Kotlin version declaration found)"
-    return "set to %s in %s" % (KOTLIN_VERSION, " + ".join(touched))
+        return "skipped (no Kotlin version declaration found - native default is used as is)"
+    return "target %s -> %s" % (KOTLIN_VERSION, " + ".join(touched))
 
 
 def main():
