@@ -40,6 +40,9 @@ What it does (safe to run again and again):
      the one Flutter's own template ships by default.
   8. Swaps the old proguard-android.txt (which newer R8 refuses outright)
      for proguard-android-optimize.txt in the release buildType.
+  9. Raises android/app's OWN compileSdk (separate from step 0's shims) to
+     COMPAT_SDK, so it satisfies plugins whose AAR metadata now demands a
+     higher compileSdk than flutter.compileSdkVersion resolves to on its own.
 
 It never touches lib/, pubspec.yaml or assets/.
 """
@@ -337,6 +340,34 @@ def fix_proguard_config(gradle):
     return "switched to proguard-android-optimize.txt (%d place%s)" % (n, "" if n == 1 else "s")
 
 
+def bump_compile_sdk(gradle, is_kts):
+    """Step 9 (see module docstring). android/app has ITS OWN compileSdk line
+    (normally `compileSdk = flutter.compileSdkVersion`), completely separate
+    from the legacy-plugin compat shims in patch_legacy_plugin_compat() above
+    - that function explicitly leaves this file alone. This is the value AGP
+    actually checks a plugin's AAR metadata against, and flutter.compileSdkVersion
+    currently resolves lower than several plugins now require (seen: 34, with
+    flutter_plugin_android_lifecycle - pulled in by file_picker and others -
+    demanding >=36). Hardcode it to COMPAT_SDK so the app module itself compiles
+    high enough, regardless of what the bundled Flutter SDK defaults to."""
+    with open(gradle, encoding="utf-8") as f:
+        text = f.read()
+    if is_kts:
+        pattern = r"compileSdk(?:Version)?\s*=\s*(?:flutter\.compileSdkVersion|\d+)"
+        replacement = "compileSdk = %d" % COMPAT_SDK
+    else:
+        pattern = r"compileSdk(?:Version)?\s+(?:flutter\.compileSdkVersion|\d+)"
+        replacement = "compileSdkVersion %d" % COMPAT_SDK
+    new_text, n = re.subn(pattern, replacement, text, count=1)
+    if n == 0:
+        return "not found (nothing to change)"
+    if new_text == text:
+        return "already at %d" % COMPAT_SDK
+    with open(gradle, "w", encoding="utf-8") as f:
+        f.write(new_text)
+    return "raised app module compileSdk to %d" % COMPAT_SDK
+
+
 def bump_kotlin_version(root):
     """Step 7 (see module docstring). Raises the Kotlin Gradle plugin version
     wherever this project's generated files declare one, so it is new enough
@@ -538,12 +569,14 @@ def main():
 
     signing_status = setup_release_signing(gradle, is_kts)
     proguard_status = fix_proguard_config(gradle)
+    compile_sdk_status = bump_compile_sdk(gradle, is_kts)
 
     print("Patched: " + gradle)
     print("  old-plugin compileSdk fix -> %s" % legacy_compat_status)
     print("  Kotlin Gradle plugin      -> %s" % kotlin_status)
     print("  stable release signing    -> %s" % signing_status)
     print("  proguard config           -> %s" % proguard_status)
+    print("  app module compileSdk     -> %s" % compile_sdk_status)
     print("  applicationId  -> %s   [%s]" % (APP_ID, "done" if n_app else "NOT FOUND - set it by hand"))
     print("  minSdk         -> at least %d   [%s]" % (MIN_SDK, "done" if (n_min or already_ok) else "NOT FOUND - set it by hand"))
     print("  compileSdk     -> at least %d   [%s]" % (COMPAT_SDK, "done" if (n_compile or compile_already_ok) else "NOT FOUND - set it by hand"))
