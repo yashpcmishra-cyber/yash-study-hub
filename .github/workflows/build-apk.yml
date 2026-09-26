@@ -60,6 +60,13 @@ jobs:
       - name: Apply Yash Study Hub Android settings
         run: python3 tools/patch_android.py .
 
+      - name: DEBUG - show what compileSdk actually ended up as
+        run: |
+          echo "--- android/app/build.gradle.kts (or .gradle) compileSdk line(s) ---"
+          grep -n -i "compileSdk" android/app/build.gradle.kts 2>/dev/null || grep -n -i "compileSdk" android/app/build.gradle 2>/dev/null || echo "no app/build.gradle(.kts) found"
+          echo "--- android/local.properties compileSdk line(s) ---"
+          grep -n -i "compileSdk" android/local.properties 2>/dev/null || echo "no local.properties found"
+
       - name: Install dependencies
         run: flutter pub get
 
