@@ -9,9 +9,13 @@ Run it ONCE right after `flutter create` has generated the android/ folder
     python3 tools/patch_android.py <folder>   (or give the project folder)
 
 What it does (safe to run again and again):
-  0. Bumps the Kotlin Gradle plugin version in settings.gradle if it is older
-     than a known JDK-17-safe version. Fixes the common "[!] Your project
-     requires a newer version of the Kotlin Gradle plugin" build failure.
+  0. Bumps the Android Gradle Plugin, Kotlin plugin and Gradle wrapper
+     versions in settings.gradle / gradle-wrapper.properties if they are
+     older than a known-compatible, JDK-17-safe combination (AGP 8.3.2 /
+     Kotlin 2.1.20 / Gradle 8.6, per Google's official AGP-Gradle
+     compatibility table). Fixes build failures like "requires a newer
+     version of the Kotlin Gradle plugin" or "Android Gradle Plugin Version
+     Incompatible with Kotlin Gradle Plugin". Only ever raises versions.
   1. Sets the app id to  com.yashstudyhub.app  (must match Firebase).
   2. Makes sure the minimum Android version (minSdk) is at least 23, which
      the Firebase libraries need.
@@ -242,46 +246,85 @@ def setup_release_signing(android_dir, app_gradle_path, is_kts):
     return "done (release build now signed with android/upload-keystore.jks)"
 
 
-def bump_kotlin_version(android_dir):
-    """Step 0 - always runs. The Kotlin Gradle plugin version baked into a
-    freshly generated settings.gradle can lag behind what current Android
-    build tools/JDKs expect. When that happens Flutter's own tooling prints
+def _bump_version_in_file(path, name_pattern, target_version, label):
+    """Finds `name_pattern version "X.Y.Z"` (Groovy or Kotlin DSL, quotes
+    either style) in the file at path and raises it to target_version if it
+    is currently lower. Returns a one-line status string; never raises."""
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    pattern = name_pattern + r'["\']\)?\s*version\s*["\']([\d.]+)["\']'
+    m = re.search(pattern, text)
+    if not m:
+        return None
+    current = tuple(int(p) for p in m.group(1).split("."))
+    target = tuple(int(p) for p in target_version.split("."))
+    if current >= target:
+        return "%s already up to date (%s)" % (label, m.group(1))
+    new_text = text[: m.start(1)] + target_version + text[m.end(1):]
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(new_text)
+    return "%s %s -> %s" % (label, m.group(1), target_version)
+
+
+def bump_gradle_toolchain(android_dir):
+    """Step 0 - always runs. A freshly generated project's Android Gradle
+    Plugin (AGP) / Kotlin plugin / Gradle wrapper versions can lag behind
+    what current JDKs and Kotlin need, which shows up as build failures like
     "[!] Your project requires a newer version of the Kotlin Gradle plugin"
-    and the build fails before it even gets to compiling app code. Bumps it
-    to a modern, JDK 17-safe version so a first-time build does not hit
-    this. Safe to run again: if the version is already >= the target, or the
-    plugin line cannot be found, this does nothing."""
-    TARGET_KOTLIN_VERSION = "2.1.20"
-    pattern = r'(org\.jetbrains\.kotlin\.android["\']\)?\s*version\s*["\'])([\d.]+)(["\'])'
+    or "Android Gradle Plugin Version Incompatible with Kotlin Gradle
+    Plugin". This bumps all three together to a combination Google's own
+    compatibility table confirms works with JDK 17:
+      AGP 8.3.2 (JDK 17 is its own minimum) needs Gradle >= 8.4 -> use 8.6
+      Kotlin 2.1.20 needs AGP >= 7.3.1, comfortably met by 8.3.2
+    Only ever raises versions, never lowers them, and is safe to run again."""
+    AGP_VERSION = "8.3.2"
+    KOTLIN_VERSION = "2.1.20"
+    GRADLE_WRAPPER_VERSION = "8.6"
+    results = []
+
     for rel in ("settings.gradle", "settings.gradle.kts"):
         path = os.path.join(android_dir, rel)
-        if not os.path.isfile(path):
-            continue
-        with open(path, encoding="utf-8") as f:
-            text = f.read()
-        m = re.search(pattern, text)
-        if not m:
-            continue
-        current = tuple(int(p) for p in m.group(2).split("."))
-        target = tuple(int(p) for p in TARGET_KOTLIN_VERSION.split("."))
-        if current >= target:
-            return "already up to date (%s) in %s" % (m.group(2), rel)
-        new_text = text[: m.start()] + m.group(1) + TARGET_KOTLIN_VERSION + m.group(3) + text[m.end():]
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(new_text)
-        return "done (%s -> %s in %s)" % (m.group(2), TARGET_KOTLIN_VERSION, rel)
-    return "skipped (no org.jetbrains.kotlin.android plugin line found)"
+        r = _bump_version_in_file(path, r'com\.android\.application', AGP_VERSION, "AGP")
+        if r:
+            results.append(r + " in " + rel)
+        r = _bump_version_in_file(path, r'org\.jetbrains\.kotlin\.android', KOTLIN_VERSION, "kotlin plugin")
+        if r:
+            results.append(r + " in " + rel)
+
+    wrapper_path = os.path.join(android_dir, "gradle", "wrapper", "gradle-wrapper.properties")
+    if os.path.isfile(wrapper_path):
+        with open(wrapper_path, encoding="utf-8") as f:
+            wtext = f.read()
+        m = re.search(r'gradle-([\d.]+)-(all|bin)\.zip', wtext)
+        if m:
+            current = tuple(int(p) for p in m.group(1).split("."))
+            target = tuple(int(p) for p in GRADLE_WRAPPER_VERSION.split("."))
+            if current >= target:
+                results.append("gradle wrapper already up to date (%s)" % m.group(1))
+            else:
+                new_wtext = (
+                    wtext[: m.start(1)] + GRADLE_WRAPPER_VERSION + wtext[m.end(1):]
+                )
+                with open(wrapper_path, "w", encoding="utf-8") as f:
+                    f.write(new_wtext)
+                results.append("gradle wrapper %s -> %s" % (m.group(1), GRADLE_WRAPPER_VERSION))
+
+    if not results:
+        return "skipped (could not find AGP/kotlin plugin lines or gradle-wrapper.properties)"
+    return "; ".join(results)
 
 
 def main():
     root = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.getcwd()
     android_app = os.path.join(root, "android", "app")
 
-    # 0) Kotlin Gradle plugin version --------------------------------------
+    # 0) Android Gradle Plugin / Kotlin plugin / Gradle wrapper versions ----
     try:
-        kotlin_status = bump_kotlin_version(os.path.join(root, "android"))
+        toolchain_status = bump_gradle_toolchain(os.path.join(root, "android"))
     except Exception as exc:  # never break the whole build because of an optional step
-        kotlin_status = "skipped (%s)" % exc
+        toolchain_status = "skipped (%s)" % exc
 
     gradle = None
     for name in ("build.gradle", "build.gradle.kts"):
@@ -390,7 +433,7 @@ def main():
         signing_status = "skipped (%s)" % exc
 
     print("Patched: " + gradle)
-    print("  kotlin plugin     -> %s" % kotlin_status)
+    print("  gradle toolchain  -> %s" % toolchain_status)
     print("  applicationId  -> %s   [%s]" % (APP_ID, "done" if n_app else "NOT FOUND - set it by hand"))
     print("  minSdk         -> at least %d   [%s]" % (MIN_SDK, "done" if (n_min or already_ok) else "NOT FOUND - set it by hand"))
     print("  AndroidManifest.xml -> %s" % ("replaced with the correct one" if manifest_ok else "left as it was (tools/AndroidManifest.xml missing)"))
