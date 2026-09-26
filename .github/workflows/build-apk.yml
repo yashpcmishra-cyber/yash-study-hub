@@ -12,6 +12,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     defaults:
       run:
         working-directory: flutter-app
@@ -43,7 +45,7 @@ jobs:
       # one - no more uninstalling first. Skipped cleanly if the secret isn't
       # set yet: the APK still builds, just signed with the usual debug key.
       - name: Set up stable app signing (only if the secret is set)
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
           cat > android/key.properties <<PROPS
