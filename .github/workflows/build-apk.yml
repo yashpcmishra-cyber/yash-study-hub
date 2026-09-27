@@ -87,6 +87,40 @@ jobs:
             echo "No plugin build.gradle files referenced the old proguard-android.txt"
           fi
 
+      # Some plugins (file_picker among them) ship their OWN android/build.gradle
+      # with compileSdk hardcoded too low - this is a SEPARATE Gradle subproject
+      # from our own android/app, so patch_android.py raising our app's compileSdk
+      # has no effect on it. Bump any plugin's own compileSdk that is below 36.
+      - name: Bump compileSdk in downloaded plugins that need it
+        run: |
+          python3 - <<'PYEOF'
+          import glob, os, re
+
+          MIN_SDK = 36
+          pub_cache = os.path.expanduser("~/.pub-cache")
+          changed = []
+          for pattern in ("**/android/build.gradle", "**/android/build.gradle.kts"):
+              for path in glob.glob(os.path.join(pub_cache, pattern), recursive=True):
+                  with open(path, encoding="utf-8", errors="ignore") as f:
+                      text = f.read()
+
+                  def repl(m):
+                      prefix, num = m.group(1), int(m.group(2))
+                      return prefix + str(MIN_SDK) if num < MIN_SDK else m.group(0)
+
+                  new_text, n = re.subn(r"(compileSdk(?:Version)?\s*=?\s*)(\d+)", repl, text)
+                  if new_text != text:
+                      with open(path, "w", encoding="utf-8") as f:
+                          f.write(new_text)
+                      changed.append(path)
+          if changed:
+              print("Bumped compileSdk (>= %d) in:" % MIN_SDK)
+              for p in changed:
+                  print(" ", p)
+          else:
+              print("No plugin build.gradle files needed a compileSdk bump")
+          PYEOF
+
       - name: Build release APK
         # IMAGE_UPLOAD_TOKEN comes from a repository secret (Settings >
         # Secrets and variables > Actions > New repository secret) - never
@@ -120,6 +154,31 @@ jobs:
           if [ -n "$found" ]; then
             echo "$found" | xargs sed -i "s/proguard-android\.txt/proguard-android-optimize.txt/g"
           fi
+          python3 - <<'PYEOF'
+          import glob, os, re
+
+          MIN_SDK = 36
+          pub_cache = os.path.expanduser("~/.pub-cache")
+          changed = []
+          for pattern in ("**/android/build.gradle", "**/android/build.gradle.kts"):
+              for path in glob.glob(os.path.join(pub_cache, pattern), recursive=True):
+                  with open(path, encoding="utf-8", errors="ignore") as f:
+                      text = f.read()
+
+                  def repl(m):
+                      prefix, num = m.group(1), int(m.group(2))
+                      return prefix + str(MIN_SDK) if num < MIN_SDK else m.group(0)
+
+                  new_text, n = re.subn(r"(compileSdk(?:Version)?\s*=?\s*)(\d+)", repl, text)
+                  if new_text != text:
+                      with open(path, "w", encoding="utf-8") as f:
+                          f.write(new_text)
+                      changed.append(path)
+          if changed:
+              print("Bumped compileSdk (>= %d) in:" % MIN_SDK)
+              for p in changed:
+                  print(" ", p)
+          PYEOF
           flutter build apk --release --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
 
       - name: Upload APK
