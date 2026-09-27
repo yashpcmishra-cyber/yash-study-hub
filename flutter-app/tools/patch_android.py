@@ -236,11 +236,25 @@ def patch_legacy_plugin_compat(root):
 
 
 def setup_release_signing(gradle, is_kts):
-    """Step 6 (see module docstring). Purely additive: adds a `release`
-    signingConfig, and only actually assigns it to buildTypes.release when
-    android/key.properties exists at BUILD time. Never edits or removes
-    anything the file already has, so a missing key.properties (secrets not
-    added yet) leaves today's working debug-signed build untouched."""
+    """Step 6 (see module docstring). Defines a `release` signingConfig (from
+    android/key.properties when present), then points the release buildType
+    at it by patching that buildType's OWN default line IN PLACE, instead of
+    adding a second, separate `buildTypes { release { ... } } }` block.
+
+    This matters: Flutter's generated template already ships
+        release { signingConfig signingConfigs.debug }
+    further down in the same file. Gradle applies buildType configuration
+    blocks in file order, so a second, separate block placed earlier (e.g.
+    right after `android {`) runs FIRST - and its conditional assignment is
+    then silently overwritten by that later, unconditional line. The build
+    still succeeds, just silently signed with the CI runner's own fresh
+    debug key every time (a different one on every run, since GitHub
+    Actions never persists ~/.android between runs). Patching the original
+    line in place avoids that ordering trap entirely: there is only ever
+    one assignment, and it is the one Gradle keeps.
+
+    Purely additive otherwise: a missing key.properties (secrets not added
+    yet) leaves today's working debug-signed build untouched."""
     with open(gradle, encoding="utf-8") as f:
         text = f.read()
     if "YASH_STUDY_HUB_RELEASE_SIGNING" in text:
@@ -273,11 +287,20 @@ def setup_release_signing(gradle, is_kts):
             "            }\n"
             "        }\n"
             "    }\n"
-            "    buildTypes {\n"
+        )
+        # Flutter's own default line inside buildTypes { release { ... } }.
+        default_pattern = r'signingConfig\s*=\s*signingConfigs\.getByName\(\s*["\']debug["\']\s*\)'
+        replacement = (
+            "signingConfig = // YASH_STUDY_HUB_RELEASE_SIGNING: stable key once key.properties exists (from CI secrets); debug key otherwise, same as before\n"
+            "                if (rootProject.file(\"key.properties\").exists()) signingConfigs.getByName(\"release\") else signingConfigs.getByName(\"debug\")"
+        )
+        buildtypes_fallback = (
+            "\n    buildTypes {\n"
             "        getByName(\"release\") {\n"
-            "            // YASH_STUDY_HUB_RELEASE_SIGNING: only takes effect once the CI workflow\n"
-            "            // has written key.properties from the ANDROID_KEYSTORE_* secrets; until\n"
-            "            // then this does nothing and the usual debug-signed build is unchanged.\n"
+            "            // YASH_STUDY_HUB_RELEASE_SIGNING (fallback path - the expected default\n"
+            "            // signingConfig line was not found in this file). Verify manually that no\n"
+            "            // OTHER buildTypes { release {...} } block appears later in this same file,\n"
+            "            // as a later one would silently override this assignment back to debug.\n"
             "            if (rootProject.file(\"key.properties\").exists()) {\n"
             "                signingConfig = signingConfigs.getByName(\"release\")\n"
             "            }\n"
@@ -299,11 +322,20 @@ def setup_release_signing(gradle, is_kts):
             "            }\n"
             "        }\n"
             "    }\n"
-            "    buildTypes {\n"
+        )
+        # Flutter's own default line inside buildTypes { release { ... } }.
+        default_pattern = r'signingConfig\s+signingConfigs\.debug'
+        replacement = (
+            "// YASH_STUDY_HUB_RELEASE_SIGNING: stable key once key.properties exists (from CI secrets); debug key otherwise, same as before\n"
+            "            signingConfig (rootProject.file(\"key.properties\").exists() ? signingConfigs.release : signingConfigs.debug)"
+        )
+        buildtypes_fallback = (
+            "\n    buildTypes {\n"
             "        release {\n"
-            "            // YASH_STUDY_HUB_RELEASE_SIGNING: only takes effect once the CI workflow\n"
-            "            // has written key.properties from the ANDROID_KEYSTORE_* secrets; until\n"
-            "            // then this does nothing and the usual debug-signed build is unchanged.\n"
+            "            // YASH_STUDY_HUB_RELEASE_SIGNING (fallback path - the expected default\n"
+            "            // signingConfig line was not found in this file). Verify manually that no\n"
+            "            // OTHER buildTypes { release {...} } block appears later in this same file,\n"
+            "            // as a later one would silently override this assignment back to debug.\n"
             "            if (rootProject.file(\"key.properties\").exists()) {\n"
             "                signingConfig signingConfigs.release\n"
             "            }\n"
@@ -311,12 +343,27 @@ def setup_release_signing(gradle, is_kts):
             "    }\n"
         )
 
+    # 1) Define signingConfigs.release right after `android {` - no clash,
+    #    Flutter's default template never defines a "release" signingConfig.
     new_text, n = re.subn(r"(android\s*\{)", lambda m: m.group(1) + signing_configs_block, text, count=1)
     if not n:
         return "skipped (could not find the android {} block)"
+    text = new_text
+
+    # 2) Patch Flutter's own default line IN PLACE (see docstring for why).
+    patched_text, n2 = re.subn(default_pattern, replacement, text, count=1)
+    if n2:
+        with open(gradle, "w", encoding="utf-8") as f:
+            f.write(patched_text)
+        return "added (patched the existing release signingConfig line in place)"
+
+    # Fallback: template's default line wasn't where expected. Append a new
+    # buildTypes block - safe only because step 2 found no existing
+    # assignment to conflict with, but flagged for a manual look either way.
+    text = text.replace(signing_configs_block, signing_configs_block + buildtypes_fallback, 1)
     with open(gradle, "w", encoding="utf-8") as f:
-        f.write(new_text)
-    return "added (signs releases with key.properties when present)"
+        f.write(text)
+    return "added via FALLBACK (default line not found - please verify, see comment in file)"
 
 
 def fix_proguard_config(gradle):
