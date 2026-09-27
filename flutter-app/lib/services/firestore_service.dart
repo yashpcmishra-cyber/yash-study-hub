@@ -353,7 +353,7 @@ class FirestoreService {
       .doc('${email.trim().toLowerCase()}_$batchId')
       .set({'status': 'revoked'}, SetOptions(merge: true));
 
-  // For the "\u2705 Unlocked" badge on the Batches list only — NOT a security
+  // For the "✅ Unlocked" badge on the Batches list only — NOT a security
   // check (that stays in hasAccess/BatchDetailScreen exactly as before).
   // batchAccess only allows a public single-document `get` (see
   // firestore.rules) — a `where(...)` query is a `list`, which the rules
@@ -459,12 +459,19 @@ class FirestoreService {
   Future<void> sendNotification(String title, String body) =>
       _db.collection('notifications').add({'title': title, 'body': body, 'sent': false, 'sentAt': FieldValue.serverTimestamp()});
 
-  Stream<List<NotificationModel>> streamNotifications() => _db
-      .collection('notifications')
-      .orderBy('sentAt', descending: true)
-      .limit(50)
-      .snapshots()
-      .map((snap) => snap.docs.map((d) => NotificationModel.fromMap(d.id, d.data())).toList());
+  Stream<List<NotificationModel>> streamNotifications() {
+    // App only shows the last 1 day of notifications. This is just a display
+    // filter - it does not delete anything from Firebase. Change `days: 1`
+    // here to show more/less without touching anything else.
+    final cutoff = Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 1)));
+    return _db
+        .collection('notifications')
+        .where('sentAt', isGreaterThan: cutoff)
+        .orderBy('sentAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => NotificationModel.fromMap(d.id, d.data())).toList());
+  }
 
   // ---- Mock Tests ----
   Stream<List<MockTestFolderModel>> streamMockFolders() => _db.collection('mockTestFolders').snapshots().map((snap) {
