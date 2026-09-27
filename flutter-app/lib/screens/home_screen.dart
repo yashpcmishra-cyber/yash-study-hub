@@ -180,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // Welcome banner
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 14),
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(colors: [Color(0xFFFFFF66), Color(0xFFFFFF29), Color(0xFFE6E600)]),
                   borderRadius: BorderRadius.circular(18),
@@ -188,15 +188,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Welcome to\n${cfg.appName}', style: const TextStyle(color: Color(0xFF081136), fontWeight: FontWeight.bold, fontSize: 20)),
-                    const SizedBox(height: 6),
-                    const Text('Your journey to success begins here.', style: TextStyle(color: Color(0xFF101D57), fontSize: 12.5)),
-                    const SizedBox(height: 12),
+                    Text('Welcome to\n${cfg.appName}', style: const TextStyle(color: Color(0xFF081136), fontWeight: FontWeight.bold, fontSize: 18)),
+                    const SizedBox(height: 4),
+                    const Text('Your journey to success begins here.', style: TextStyle(color: Color(0xFF101D57), fontSize: 11.5)),
+                    const SizedBox(height: 8),
                     ElevatedButton(
                       onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => const NewsScreen(categories: ['hindi_ca'], title: 'Current Affairs'))),
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF050B24), foregroundColor: const Color(0xFFFFFF29)),
-                      child: const Text("Read Today's CA"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF050B24),
+                        foregroundColor: const Color(0xFFFFFF29),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text("Read Today's CA", style: TextStyle(fontSize: 13)),
                     ),
                   ],
                 ),
