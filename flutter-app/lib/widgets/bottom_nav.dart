@@ -11,27 +11,16 @@ class YshBottomNav extends StatelessWidget {
   });
 
   // Each tab fills an equal share of the bar and reacts to a tap anywhere
-  // inside it (not only exactly on the icon or text).
+  // inside it (not only exactly on the icon or text). The press animation
+  // lives inside _NavItem, so only the tapped tab redraws (not the bar or
+  // the Home screen).
   Widget _item(IconData icon, String label, int index) {
-    final active = currentIndex == index;
-    final color = active ? const Color(0xFFFFFF29) : Colors.grey;
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: _NavItem(
+        icon: icon,
+        label: label,
+        active: currentIndex == index,
         onTap: () => onTap(index),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -65,6 +54,71 @@ class YshBottomNav extends StatelessWidget {
             _item(Icons.account_balance, 'C.Affairs', 3),
             _item(Icons.person, 'Profile', 4),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One tab of the bottom bar. On tap it sinks a little (shrinks and dips
+/// down ~110 ms) and springs back on release, like a real button. The
+/// press state is local to this tiny widget. onTap still fires exactly once
+/// per tap, and the whole tab area stays tappable (HitTestBehavior.opaque).
+class _NavItem extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.active ? const Color(0xFFFFFF29) : Colors.grey;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _setPressed(true),
+      onTapUp: (_) => _setPressed(false),
+      onTapCancel: () => _setPressed(false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.86 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: AnimatedSlide(
+          offset: _pressed ? const Offset(0, 0.05) : Offset.zero,
+          duration: const Duration(milliseconds: 110),
+          curve: Curves.easeOut,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(widget.icon, color: color, size: 20),
+              const SizedBox(height: 2),
+              Text(
+                widget.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
         ),
       ),
     );
