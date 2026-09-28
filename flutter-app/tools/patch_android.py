@@ -574,10 +574,29 @@ def main():
     # 4) launcher icon (the phone's app-drawer icon) ------------------------
     icons_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
     icons_done = 0
+    icons_new_named = 0
     if os.path.isdir(icons_src):
         for density in sorted(os.listdir(icons_src)):
-            src_png = os.path.join(icons_src, density, "ic_launcher.png")
-            if density.startswith("mipmap-") and os.path.isfile(src_png):
+            if not density.startswith("mipmap-"):
+                continue
+            density_dir = os.path.join(icons_src, density)
+            if not os.path.isdir(density_dir):
+                continue
+            # A newly uploaded file named ic_launcher_<something>.png (for
+            # example ic_launcher_hdpi_72px.png) wins over the old
+            # ic_launcher.png sitting in the same folder. If there is no such
+            # file, the old behaviour is unchanged: ic_launcher.png is used.
+            candidates = sorted(
+                n for n in os.listdir(density_dir)
+                if n.startswith("ic_launcher_") and n.lower().endswith(".png")
+                and os.path.isfile(os.path.join(density_dir, n))
+            )
+            if candidates:
+                src_png = os.path.join(density_dir, candidates[-1])
+                icons_new_named += 1
+            else:
+                src_png = os.path.join(density_dir, "ic_launcher.png")
+            if os.path.isfile(src_png):
                 dst_dir = os.path.join(android_app, "src", "main", "res", density)
                 os.makedirs(dst_dir, exist_ok=True)
                 shutil.copyfile(src_png, os.path.join(dst_dir, "ic_launcher.png"))
@@ -628,7 +647,7 @@ def main():
     print("  minSdk         -> at least %d   [%s]" % (MIN_SDK, "done" if (n_min or already_ok) else "NOT FOUND - set it by hand"))
     print("  compileSdk     -> at least %d   [%s]" % (COMPAT_SDK, "done" if (n_compile or compile_already_ok) else "NOT FOUND - set it by hand"))
     print("  AndroidManifest.xml -> %s" % ("replaced with the correct one" if manifest_ok else "left as it was (tools/AndroidManifest.xml missing)"))
-    print("  launcher icon  -> %s" % ("logo set (%d sizes)" % icons_done if icons_done else "left as the default Flutter icon (tools/icons missing)"))
+    print("  launcher icon  -> %s" % ("logo set (%d sizes, %d from new ic_launcher_* files)" % (icons_done, icons_new_named) if icons_done else "left as the default Flutter icon (tools/icons missing)"))
     print("  notification icon -> %s" % ("set (%d sizes)" % notify_done if notify_done else "not set (tools/notify_icons missing)"))
     print("  google-services   -> %s" % gms_status)
     if not n_app or not (n_min or already_ok):
