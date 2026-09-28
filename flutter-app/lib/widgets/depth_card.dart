@@ -17,6 +17,14 @@ class DepthCard extends StatefulWidget {
   final BorderRadiusGeometry borderRadius;
   final EdgeInsetsGeometry margin;
 
+  /// How far the card shrinks while pressed (1.0 = no shrink). The default
+  /// keeps the original subtle 0.97 used everywhere else in the app.
+  final double pressScale;
+
+  /// Extra lightening (0.0 to 1.0) of the card colour while pressed, so the
+  /// "sink" is easier to see on the dark background. 0 = off (the default).
+  final double pressBrighten;
+
   const DepthCard({
     super.key,
     required this.child,
@@ -24,6 +32,8 @@ class DepthCard extends StatefulWidget {
     this.color,
     this.borderRadius = const BorderRadius.all(Radius.circular(14)),
     this.margin = const EdgeInsets.only(bottom: 10),
+    this.pressScale = 0.97,
+    this.pressBrighten = 0.0,
   });
 
   @override
@@ -40,7 +50,10 @@ class _DepthCardState extends State<DepthCard> {
 
   @override
   Widget build(BuildContext context) {
-    final cardColor = widget.color ?? const Color(0xFF081136);
+    final baseColor = widget.color ?? const Color(0xFF081136);
+    final cardColor = (_pressed && widget.pressBrighten > 0)
+        ? (Color.lerp(baseColor, Colors.white, widget.pressBrighten) ?? baseColor)
+        : baseColor;
     return Padding(
       padding: widget.margin,
       child: GestureDetector(
@@ -49,7 +62,7 @@ class _DepthCardState extends State<DepthCard> {
         onTapCancel: () => _setPressed(false),
         onTap: widget.onTap,
         child: AnimatedScale(
-          scale: _pressed ? 0.97 : 1.0,
+          scale: _pressed ? widget.pressScale : 1.0,
           duration: const Duration(milliseconds: 110),
           curve: Curves.easeOut,
           child: AnimatedContainer(
