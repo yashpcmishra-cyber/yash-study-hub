@@ -178,9 +178,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               // Welcome banner
+              // Title sits on ONE line and the small tagline below it. FittedBox
+              // (scaleDown) keeps both lines single-line on every screen size —
+              // the text only shrinks slightly if a phone is very narrow or the
+              // app name is long; it never wraps or overflows.
               Container(
+                width: double.infinity,
                 margin: const EdgeInsets.symmetric(horizontal: 14),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(colors: [Color(0xFFFFFF66), Color(0xFFFFFF29), Color(0xFFE6E600)]),
                   borderRadius: BorderRadius.circular(18),
@@ -188,21 +193,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Welcome to\n${cfg.appName}', style: const TextStyle(color: Color(0xFF081136), fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 4),
-                    const Text('Your journey to success begins here.', style: TextStyle(color: Color(0xFF101D57), fontSize: 11.5)),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => const NewsScreen(categories: ['hindi_ca'], title: 'Current Affairs'))),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF050B24),
-                        foregroundColor: const Color(0xFFFFFF29),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Welcome to ${cfg.appName}',
+                        maxLines: 1,
+                        softWrap: false,
+                        style: const TextStyle(color: Color(0xFF081136), fontWeight: FontWeight.bold, fontSize: 18),
                       ),
-                      child: const Text("Read Today's CA", style: TextStyle(fontSize: 13)),
+                    ),
+                    const SizedBox(height: 4),
+                    const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Your journey to success begins here.',
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(color: Color(0xFF101D57), fontSize: 11.5),
+                      ),
                     ),
                   ],
                 ),
