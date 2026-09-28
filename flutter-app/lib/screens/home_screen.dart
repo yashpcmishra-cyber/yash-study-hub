@@ -275,6 +275,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         return DepthCard(
                           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestListScreen(folder: f))),
                           margin: const EdgeInsets.only(right: 10),
+                          pressScale: 0.93,
+                          pressBrighten: 0.08,
                           child: SizedBox(
                             width: 130,
                             child: Padding(
@@ -320,6 +322,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         return DepthCard(
                           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => BatchDetailScreen(batch: b))),
                           margin: const EdgeInsets.only(right: 10),
+                          pressScale: 0.93,
+                          pressBrighten: 0.08,
                           child: SizedBox(
                             width: 150,
                             child: Padding(
@@ -390,6 +394,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return DepthCard(
           onTap: () => openExternalLink(context, v.youtubeLink),
           margin: const EdgeInsets.only(right: 10),
+          pressScale: 0.93,
+          pressBrighten: 0.08,
           child: SizedBox(
             width: 140,
             child: Column(
@@ -420,6 +426,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return DepthCard(
       onTap: onTap,
       margin: EdgeInsets.zero,
+      pressScale: 0.93,
+      pressBrighten: 0.08,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
