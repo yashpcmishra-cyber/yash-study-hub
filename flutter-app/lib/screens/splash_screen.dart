@@ -6,6 +6,7 @@ import '../services/firestore_service.dart';
 import 'auth/login_screen.dart';
 import 'profile/profile_screen.dart';
 import 'home_screen.dart';
+import '../services/update_checker.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,6 +25,12 @@ class _SplashScreenState extends State<SplashScreen> {
   // not filled yet (State/District/Gender/Qualification) -> Profile setup.
   // Logged in + profile complete -> straight to Home.
   Future<void> _route() async {
+    await _routeInner();
+    // Once the student is on Login/Home, quietly check for a newer APK.
+    UpdateChecker.check();
+  }
+
+  Future<void> _routeInner() async {
     if (!mounted) return;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
