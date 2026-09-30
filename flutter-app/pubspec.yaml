@@ -1,7 +1,7 @@
 name: yash_study_hub
 description: Yash Study Hub - Competitive Exam Prep App
 publish_to: 'none'
-version: 1.0.4+9
+version: 1.0.4+10
 
 environment:
   # Flutter 3.22 or newer is needed (the code uses WidgetStateProperty and
@@ -28,6 +28,7 @@ dependencies:
   video_player: ^2.9.2
   chewie: ^1.8.5
   http: ^1.2.2
+  package_info_plus: ^8.0.0
   # Shows PDFs inside the app (Drive preview). Kept below 4.11 on purpose: newer
   # releases pull Android libraries that need a newer compileSdk than the
   # Flutter 3.24 build template provides.
