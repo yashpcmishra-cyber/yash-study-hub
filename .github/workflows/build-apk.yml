@@ -133,7 +133,7 @@ jobs:
         continue-on-error: true
         env:
           IMAGE_UPLOAD_TOKEN: ${{ secrets.IMAGE_UPLOAD_TOKEN }}
-        run: flutter build apk --release --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
+        run: flutter build apk --release --obfuscate --split-debug-info=build/symbols --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
 
       # Safety net. Runs ONLY when the full build above failed. Switches off
       # the two newest add-ons (in-app PDF viewer + Firebase google-services)
@@ -179,7 +179,7 @@ jobs:
               for p in changed:
                   print(" ", p)
           PYEOF
-          flutter build apk --release --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
+          flutter build apk --release --obfuscate --split-debug-info=build/symbols --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
