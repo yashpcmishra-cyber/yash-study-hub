@@ -101,7 +101,11 @@ class FirestoreService {
   // is what the "Video Classes" screen uses, so a paid batch's videos never
   // show up in the free section. Newest first. Videos the admin "hid"
   // (auto-fetched ones) are left out.
-  Stream<List<VideoModel>> streamFreeVideos() => _db
+  //
+  // limitYoutubeAuto: when set (students' Video Classes screen), only the
+  // newest N auto-fetched YouTube-channel videos are kept. Videos the admin
+  // added by hand are never cut. The Admin panel leaves it null = sees all.
+  Stream<List<VideoModel>> streamFreeVideos({int? limitYoutubeAuto}) => _db
           .collection('videos')
           .where('batchId', isEqualTo: null)
           .snapshots()
@@ -111,7 +115,13 @@ class FirestoreService {
             .where((v) => !v.hidden)
             .toList();
         list.sort(compareVideosNewestFirst);
-        return list;
+        if (limitYoutubeAuto == null) return list;
+        var autoSeen = 0;
+        return list.where((v) {
+          if (v.source != 'youtube_auto') return true;
+          autoSeen++;
+          return autoSeen <= limitYoutubeAuto;
+        }).toList();
       });
 
   // Newest 10 auto-fetched YouTube videos for the Home strip. The GitHub
