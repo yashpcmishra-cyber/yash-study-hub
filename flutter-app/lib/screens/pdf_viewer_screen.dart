@@ -1,4 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import '../utils/open_link.dart';
 
@@ -22,6 +25,7 @@ Future<void> openPdfInApp(
   required String link,
   required String title,
   bool allowExternalOpen = true,
+  bool allowDownload = true,
 }) async {
   void snack(String message) {
     if (!context.mounted) return;
@@ -54,7 +58,13 @@ Future<void> openPdfInApp(
   if (!context.mounted) return;
   await Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => PdfViewerScreen(title: title, viewUrl: viewUrl, originalUrl: text, allowExternalOpen: allowExternalOpen),
+      builder: (_) => PdfViewerScreen(
+        title: title,
+        viewUrl: viewUrl,
+        originalUrl: text,
+        allowExternalOpen: allowExternalOpen,
+        allowDownload: allowDownload,
+      ),
     ),
   );
 }
@@ -83,17 +93,34 @@ bool _isDriveOpenPage(Uri uri) {
   return p.endsWith('/view') || p.endsWith('/edit') || p.startsWith('/open') || p.startsWith('/uc');
 }
 
+// Lets the student pinch-zoom (two fingers) and double-tap zoom inside the
+// viewer page, even if the page itself tries to block zooming.
+const String _zoomJs = '''
+(function () {
+  var c = 'width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=6.0, user-scalable=yes';
+  var m = document.querySelector('meta[name=viewport]');
+  if (!m) {
+    m = document.createElement('meta');
+    m.name = 'viewport';
+    if (document.head) document.head.appendChild(m);
+  }
+  m.setAttribute('content', c);
+})();
+''';
+
 class PdfViewerScreen extends StatefulWidget {
   final String title;
   final String viewUrl; // the page that is shown inside the app
   final String originalUrl; // what the "open outside the app" button opens
   final bool allowExternalOpen;
+  final bool allowDownload; // shows the Download button in the top bar
   const PdfViewerScreen({
     super.key,
     required this.title,
     required this.viewUrl,
     required this.originalUrl,
     this.allowExternalOpen = true,
+    this.allowDownload = true,
   });
 
   @override
@@ -104,6 +131,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   late final WebViewController _controller;
   int _progress = 0;
   bool _failed = false;
+  bool _downloading = false;
+  bool _landscape = false;
+  bool _controlsOpen = false;
 
   @override
   void initState() {
@@ -118,6 +148,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           onPageStarted: (_) {
             if (mounted) setState(() => _failed = false);
           },
+          onPageFinished: (_) {
+            _enablePinchZoom();
+            // The viewer draws its pages a moment later, so apply once more.
+            Future.delayed(const Duration(seconds: 2), _enablePinchZoom);
+          },
           onWebResourceError: (error) {
             // Only a failure of the main page matters (small inner files can fail silently).
             if (error.isForMainFrame == true && mounted) setState(() => _failed = true);
@@ -126,6 +161,39 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         ),
       )
       ..loadRequest(Uri.parse(widget.viewUrl));
+    // Android WebView: allow zoom gestures (safe no-op on other platforms).
+    try {
+      (_controller.platform as dynamic).enableZoom(true);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    // Give the phone's status/navigation bars back when leaving the PDF.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+    super.dispose();
+  }
+
+  void _enablePinchZoom() {
+    if (!mounted) return;
+    try {
+      _controller.runJavaScript(_zoomJs);
+    } catch (_) {}
+  }
+
+  // Landscape = full-screen PDF: hide the top bar and the phone's system bars.
+  void _applyOrientation(bool landscape) {
+    if (landscape == _landscape) return;
+    _landscape = landscape;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (landscape) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      } else {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+        if (_controlsOpen) setState(() => _controlsOpen = false);
+      }
+    });
   }
 
   // Keeps the viewer on Google's own viewer pages. Links to other sites, and
@@ -139,6 +207,66 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     return NavigationDecision.navigate;
   }
 
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // The address the real PDF file is fetched from.
+  String _downloadUrl() {
+    final text = widget.originalUrl.trim();
+    final uri = Uri.tryParse(text);
+    if (uri != null) {
+      final id = _driveFileId(uri);
+      if (id != null) return 'https://drive.usercontent.google.com/download?id=$id&export=download&confirm=t';
+    }
+    return text;
+  }
+
+  String _fileName() {
+    var name = widget.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    if (name.isEmpty) name = 'Yash Study Hub PDF';
+    if (!name.toLowerCase().endsWith('.pdf')) name = '$name.pdf';
+    return name;
+  }
+
+  /// Downloads the PDF and lets the student save it on the phone (the phone's
+  /// own "Save" screen opens - choose Downloads and tap Save).
+  Future<void> _download() async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+    _snack('Downloading... / Download ho rahi hai...');
+    try {
+      final res = await http.get(Uri.parse(_downloadUrl())).timeout(const Duration(minutes: 3));
+      final bytes = res.bodyBytes;
+      final isPdf = res.statusCode == 200 &&
+          bytes.length > 4 &&
+          bytes[0] == 0x25 &&
+          bytes[1] == 0x50 &&
+          bytes[2] == 0x44 &&
+          bytes[3] == 0x46; // "%PDF"
+      if (!isPdf) throw Exception('not a pdf');
+      final saved = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save PDF',
+        fileName: _fileName(),
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        bytes: bytes,
+      );
+      if (saved != null) _snack('PDF saved. / PDF save ho gayi.');
+    } catch (_) {
+      if (widget.allowExternalOpen && mounted) {
+        // Free PDFs: fall back to the phone's browser download.
+        _snack('Opening in browser to download... / Browser mein download khul raha hai...');
+        await openExternalLink(context, _downloadUrl());
+      } else {
+        _snack('Could not download this PDF. Try again. / PDF download nahi hui. Dobara try karo.');
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
   void _reload() {
     setState(() {
       _failed = false;
@@ -147,24 +275,87 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     _controller.loadRequest(Uri.parse(widget.viewUrl));
   }
 
+  Widget _downloadAction() {
+    if (_downloading) {
+      return const Padding(
+        padding: EdgeInsets.all(14),
+        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    return IconButton(tooltip: 'Download PDF', icon: const Icon(Icons.download), onPressed: _download);
+  }
+
+  // Small floating controls shown in landscape (the top bar is hidden there).
+  Widget _landscapeControls() {
+    if (!_controlsOpen) {
+      return Positioned(
+        top: 8,
+        left: 8,
+        child: Material(
+          color: Colors.black54,
+          shape: const CircleBorder(),
+          child: IconButton(
+            tooltip: 'Menu',
+            iconSize: 22,
+            color: Colors.white,
+            icon: const Icon(Icons.more_horiz),
+            onPressed: () => setState(() => _controlsOpen = true),
+          ),
+        ),
+      );
+    }
+    return Positioned(
+      top: 8,
+      left: 8,
+      child: Material(
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(28),
+        child: IconTheme(
+          data: const IconThemeData(color: Colors.white),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(tooltip: 'Back', icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).maybePop()),
+              if (widget.allowDownload) _downloadAction(),
+              IconButton(tooltip: 'Reload', icon: const Icon(Icons.refresh), onPressed: _reload),
+              if (widget.allowExternalOpen)
+                IconButton(
+                  tooltip: 'Open outside the app',
+                  icon: const Icon(Icons.open_in_new),
+                  onPressed: () => openExternalLink(context, widget.originalUrl),
+                ),
+              IconButton(tooltip: 'Hide menu', icon: const Icon(Icons.close), onPressed: () => setState(() => _controlsOpen = false)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final landscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    _applyOrientation(landscape);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(tooltip: 'Reload', icon: const Icon(Icons.refresh), onPressed: _reload),
-          if (widget.allowExternalOpen)
-            IconButton(
-              tooltip: 'Open outside the app',
-              icon: const Icon(Icons.open_in_new),
-              onPressed: () => openExternalLink(context, widget.originalUrl),
+      appBar: landscape
+          ? null
+          : AppBar(
+              title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              actions: [
+                if (widget.allowDownload) _downloadAction(),
+                IconButton(tooltip: 'Reload', icon: const Icon(Icons.refresh), onPressed: _reload),
+                if (widget.allowExternalOpen)
+                  IconButton(
+                    tooltip: 'Open outside the app',
+                    icon: const Icon(Icons.open_in_new),
+                    onPressed: () => openExternalLink(context, widget.originalUrl),
+                  ),
+              ],
             ),
-        ],
-      ),
       body: Stack(
         children: [
           Positioned.fill(child: WebViewWidget(controller: _controller)),
+          if (landscape) _landscapeControls(),
           if (_progress < 100 && !_failed)
             const Align(
               alignment: Alignment.topCenter,
