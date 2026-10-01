@@ -214,6 +214,13 @@ class FirestoreService {
     await _bumpBatchCount(batchId, 'videos', -removed);
   }
 
+  // Number of videos inside a folder (server-side count). Uses the same
+  // folderId query the folder screen uses, which the Firestore rules allow.
+  Future<int> countVideosInFolder(String folderId) async {
+    final agg = await _db.collection('videos').where('folderId', isEqualTo: folderId).count().get();
+    return agg.count ?? 0;
+  }
+
   Stream<List<VideoModel>> streamVideosInFolder(String folderId) => _db
           .collection('videos')
           .where('folderId', isEqualTo: folderId)
