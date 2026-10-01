@@ -10,7 +10,9 @@ import '../utils/open_link.dart';
 /// install with an empty `banners` collection never shows blank space.
 class BannerCarousel extends StatefulWidget {
   final List<BannerModel> banners;
-  const BannerCarousel({super.key, required this.banners});
+  // Called when a banner that is linked to a paid batch is tapped.
+  final void Function(String batchId)? onOpenBatch;
+  const BannerCarousel({super.key, required this.banners, this.onOpenBatch});
 
   @override
   State<BannerCarousel> createState() => _BannerCarouselState();
@@ -75,17 +77,40 @@ class _BannerCarouselState extends State<BannerCarousel> {
               onPageChanged: (i) => setState(() => _index = i),
               itemBuilder: (context, i) {
                 final b = widget.banners[i];
+                final batchId = b.batchId;
                 return GestureDetector(
-                  onTap: b.linkUrl != null ? () => openExternalLink(context, b.linkUrl) : null,
-                  child: CachedNetworkImage(
-                    imageUrl: b.imageUrl,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    placeholder: (_, __) => Container(color: const Color(0xFF101D57)),
-                    errorWidget: (_, __, ___) => Container(
-                      color: const Color(0xFF101D57),
-                      child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                    ),
+                  onTap: batchId != null
+                      ? () => widget.onOpenBatch?.call(batchId)
+                      : (b.linkUrl != null ? () => openExternalLink(context, b.linkUrl) : null),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: b.imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        placeholder: (_, __) => Container(color: const Color(0xFF101D57)),
+                        errorWidget: (_, __, ___) => Container(
+                          color: const Color(0xFF101D57),
+                          child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                        ),
+                      ),
+                      // Banner linked to a batch = "Pay & Get" button.
+                      if (batchId != null)
+                        Positioned(
+                          right: 10,
+                          bottom: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFFF29),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2))],
+                            ),
+                            child: const Text('Pay & Get', style: TextStyle(color: Color(0xFF081136), fontWeight: FontWeight.bold, fontSize: 12.5)),
+                          ),
+                        ),
+                    ],
                   ),
                 );
               },
