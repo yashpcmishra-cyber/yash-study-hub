@@ -256,6 +256,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   final _brandYoutubeCtrl = TextEditingController();
   final _bannerLinkCtrl = TextEditingController();
   String? _selectedGrantBatch;
+  String? _selectedBannerBatch; // Banners tab: banner opens this batch's Pay & Get page
   bool _brandFieldsLoaded = false; // only prefill the text fields once, so admin's in-progress edits aren't overwritten by every live snapshot
 
   @override
@@ -1127,11 +1128,19 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     setState(() => _busy = true);
     try {
       final url = await _imageUpload.uploadImage(_bannerImageFile!);
-      await _fs.addBanner(url, linkUrl: _bannerLinkCtrl.text.trim().isEmpty ? null : _bannerLinkCtrl.text.trim());
+      // A banner linked to a batch opens that batch's payment page, so the
+      // external link is not saved in that case.
+      final batchId = _selectedBannerBatch;
+      await _fs.addBanner(
+        url,
+        linkUrl: (batchId != null || _bannerLinkCtrl.text.trim().isEmpty) ? null : _bannerLinkCtrl.text.trim(),
+        batchId: batchId,
+      );
       if (mounted) {
         setState(() {
           _bannerStatus = 'Banner added \u2014 it shows on the Home screen right away.';
           _bannerImageFile = null;
+          _selectedBannerBatch = null;
           _bannerLinkCtrl.clear();
         });
       }
@@ -1180,20 +1189,48 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         const SizedBox(height: 10),
         OutlinedButton.icon(onPressed: _pickBannerImage, icon: const Icon(Icons.upload, size: 16), label: const Text('Choose 16:9 image from phone')),
         const SizedBox(height: 10),
-        TextField(
-          controller: _bannerLinkCtrl,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(labelText: 'Link (optional \u2014 opens when the banner is tapped)', labelStyle: TextStyle(color: Colors.grey)),
+        StreamBuilder<List<BatchModel>>(
+          stream: _batchesStream,
+          builder: (context, bSnap) {
+            final batches = bSnap.data ?? <BatchModel>[];
+            // If the chosen batch was deleted meanwhile, fall back to "none".
+            final value = batches.any((b) => b.id == _selectedBannerBatch) ? _selectedBannerBatch : null;
+            return DropdownButton<String?>(
+              value: value,
+              dropdownColor: const Color(0xFF081136),
+              isExpanded: true,
+              hint: const Text('Link to a paid batch (optional) \u2014 shows "Pay & Get"', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('No batch (use link below)', style: TextStyle(color: Colors.white))),
+                ...batches.map((b) => DropdownMenuItem<String?>(value: b.id, child: Text(b.title, style: const TextStyle(color: Colors.white)))),
+              ],
+              onChanged: (v) => setState(() => _selectedBannerBatch = v),
+            );
+          },
         ),
+        if (_selectedBannerBatch == null)
+          TextField(
+            controller: _bannerLinkCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(labelText: 'Link (optional \u2014 opens when the banner is tapped)', labelStyle: TextStyle(color: Colors.grey)),
+          )
+        else
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text('Tapping this banner opens the batch\u2019s payment page ("Pay & Get").', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          ),
         if (_bannerStatus != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_bannerStatus!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
         const SizedBox(height: 10),
         ElevatedButton(onPressed: (_bannerImageFile == null || _busy) ? null : _uploadBanner, child: const Text('Add banner')),
         const Divider(color: Colors.grey, height: 34),
         const Text('Current banners', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 8),
-        StreamBuilder<List<BannerModel>>(
+        StreamBuilder<List<BatchModel>>(
+          stream: _batchesStream,
+          builder: (context, bSnap) => StreamBuilder<List<BannerModel>>(
           stream: _bannersStream,
           builder: (context, snap) {
+            final batchTitles = {for (final b in bSnap.data ?? <BatchModel>[]) b.id: b.title};
             if (snap.hasError) return Text('Could not load banners: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12));
             if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator()));
             final banners = snap.data!;
@@ -1209,13 +1246,19 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           leading: NetImage(url: b.imageUrl, width: 64, height: 36, fallbackIcon: '🖼️', radius: 6),
-                          title: Text(b.linkUrl ?? '(no link)', style: const TextStyle(color: Colors.white, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          title: Text(
+                            b.batchId != null ? 'Pay & Get \u2192 ${batchTitles[b.batchId] ?? 'batch (deleted?)'}' : (b.linkUrl ?? '(no link)'),
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           trailing: IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteBannerConfirm(b)),
                         ),
                       ))
                   .toList(),
             );
           },
+          ),
         ),
       ],
     );
