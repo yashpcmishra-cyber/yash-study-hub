@@ -1,7 +1,7 @@
 /**
  * Free RSS auto-fetch script (no Blaze/billing needed).
  * Same logic as functions/index.js, but runs as a plain Node.js script via
- * GitHub Actions instead of a Firebase Cloud Function — so no billing
+ * GitHub Actions instead of a Firebase Cloud Function â€” so no billing
  * account is required at all.
  *
  * Needs one thing: a Firebase service account key (free, from Firebase
@@ -81,32 +81,52 @@ async function fetchCategory(feed) {
   }
   await batch.commit();
   console.log(`[${feed.category}] saved ${items.length} items`);
+  return items.length;
 }
 
-// News that is no longer in any feed is deleted after 14 days, so the
-// database does not grow forever (keeps it inside the free storage limit).
-async function pruneOld() {
-  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-  const snap = await db.collection("newsItems").where("fetchedAt", "<", cutoff).limit(400).get();
-  if (snap.empty) return;
-  const batch = db.batch();
-  snap.docs.forEach((d) => batch.delete(d.ref));
-  await batch.commit();
-  console.log(`Pruned ${snap.size} old news items.`);
+// Only the NEWEST news is kept. Every run re-saves the items each feed lists
+// right now (which refreshes their fetchedAt). Anything older that is no
+// longer listed by its feed is deleted here, so old news never piles up.
+// A category is cleaned ONLY if its feed was fetched successfully (and had
+// items) in this run, so a temporary feed error can never wipe a category.
+async function pruneOld(okCategories, runStart) {
+  // 30-minute safety margin: items saved in this run are never touched.
+  const cutoff = new Date(runStart.getTime() - 30 * 60 * 1000);
+  let total = 0;
+  for (let round = 0; round < 10; round++) {
+    const snap = await db.collection("newsItems").where("fetchedAt", "<", cutoff).limit(400).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    let n = 0;
+    snap.docs.forEach((d) => {
+      if (okCategories.has(d.data().category)) {
+        batch.delete(d.ref);
+        n++;
+      }
+    });
+    if (n === 0) break;
+    await batch.commit();
+    total += n;
+    if (snap.size < 400) break;
+  }
+  if (total > 0) console.log(`Removed ${total} old news items.`);
 }
 
 (async () => {
+  const runStart = new Date();
+  const okCategories = new Set();
   for (const feed of FEEDS) {
     try {
-      await fetchCategory(feed);
+      const saved = await fetchCategory(feed);
+      if (saved > 0) okCategories.add(feed.category);
     } catch (err) {
       console.error(`Failed ${feed.category}:`, err.message);
     }
   }
   try {
-    await pruneOld();
+    await pruneOld(okCategories, runStart);
   } catch (err) {
-    console.error("Prune failed (not important):", err.message);
+    console.error("Cleanup failed (not important):", err.message);
   }
   process.exit(0);
 })();
