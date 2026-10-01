@@ -18,8 +18,10 @@ class VideoClassesScreen extends StatefulWidget {
 
 class _VideoClassesScreenState extends State<VideoClassesScreen> {
   final _fs = FirestoreService();
-  late Stream<List<VideoModel>> _videosStream;
+  late Stream<List<VideoModel>> _videosStream; // YouTube channel videos (latest 10)
+  late Stream<List<VideoModel>> _looseStream; // videos added by hand without a folder (best effort)
   late Stream<List<VideoFolderModel>> _foldersStream;
+  final Map<String, Future<int>> _counts = {};
 
   @override
   void initState() {
@@ -28,8 +30,15 @@ class _VideoClassesScreenState extends State<VideoClassesScreen> {
   }
 
   void _initStreams() {
-    _videosStream = _fs.streamFreeVideos(limitYoutubeAuto: 10); // only the latest 10 YouTube videos
+    // Main list: the query "source == youtube_auto" is explicitly allowed by
+    // the Firestore rules for every logged-in student, so it never fails.
+    _videosStream = _fs.streamAutoFetchedVideos(limit: 10);
+    // Extra: free videos the admin added by hand without a folder. If the
+    // rules refuse this query for a student it is simply skipped (no error
+    // screen), see build().
+    _looseStream = _fs.streamFreeVideos(limitYoutubeAuto: 0);
     _foldersStream = _fs.streamFreeVideoFolders();
+    _counts.clear();
   }
 
   Future<void> _refresh() async {
@@ -48,13 +57,19 @@ class _VideoClassesScreenState extends State<VideoClassesScreen> {
             return RefreshIndicator(onRefresh: _refresh, child: PullableMessage(child: ErrorView(error: vSnap.error)));
           }
           if (!vSnap.hasData) return const LoadingView();
-          final all = vSnap.data!;
+          final auto = vSnap.data!;
+          return StreamBuilder<List<VideoModel>>(
+            stream: _looseStream,
+            builder: (context, lSnap) {
           return StreamBuilder<List<VideoFolderModel>>(
             stream: _foldersStream,
             builder: (context, fSnap) {
-              // If folders fail to load, still show the videos.
+              // If folders (or the hand-added loose videos) fail to load,
+              // still show the YouTube videos.
               final folders = fSnap.data ?? <VideoFolderModel>[];
-              final ungrouped = all.where((v) => v.folderId == null || v.folderId!.isEmpty).toList();
+              final loose = (lSnap.data ?? <VideoModel>[])
+                  .where((v) => v.source != 'youtube_auto' && (v.folderId == null || v.folderId!.isEmpty));
+              final ungrouped = <VideoModel>[...loose, ...auto]..sort(compareVideosNewestFirst);
               Widget content;
               if (folders.isEmpty && ungrouped.isEmpty) {
                 content = const PullableMessage(child: EmptyView('No video found'));
@@ -69,7 +84,13 @@ class _VideoClassesScreenState extends State<VideoClassesScreen> {
                         child: ListTile(
                           leading: const Text('📁', style: TextStyle(fontSize: 22)),
                           title: Text(f.name, style: const TextStyle(color: Colors.white)),
-                          subtitle: Text('${all.where((v) => v.folderId == f.id).length} videos', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                          subtitle: FutureBuilder<int>(
+                            future: _counts.putIfAbsent(f.id, () => _fs.countVideosInFolder(f.id)),
+                            builder: (context, cSnap) => Text(
+                              cSnap.hasData ? '${cSnap.data} videos' : '',
+                              style: const TextStyle(color: Colors.grey, fontSize: 11),
+                            ),
+                          ),
                           trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                         ),
                       ),
@@ -93,6 +114,8 @@ class _VideoClassesScreenState extends State<VideoClassesScreen> {
                 );
               }
               return RefreshIndicator(onRefresh: _refresh, child: content);
+            },
+          );
             },
           );
         },
