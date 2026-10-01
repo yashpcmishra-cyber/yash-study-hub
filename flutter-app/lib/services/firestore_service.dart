@@ -49,6 +49,14 @@ class FirestoreService {
         return list;
       });
 
+  // One batch by id (used when a Home banner is tapped). null = deleted.
+  Future<BatchModel?> getBatch(String id) async {
+    final doc = await _db.collection('batches').doc(id).get().timeout(const Duration(seconds: 12));
+    final data = doc.data();
+    if (!doc.exists || data == null) return null;
+    return BatchModel.fromMap(doc.id, data);
+  }
+
   Future<void> addBatch(BatchModel b) =>
       _db.collection('batches').add({...b.toMap(), 'createdAt': FieldValue.serverTimestamp()});
 
@@ -560,12 +568,13 @@ class FirestoreService {
 
   // Auto-assigns the next order (current max + 1) so new banners land at
   // the end of the slider instead of the admin having to pick a number.
-  Future<void> addBanner(String imageUrl, {String? linkUrl}) async {
+  Future<void> addBanner(String imageUrl, {String? linkUrl, String? batchId}) async {
     final last = await _db.collection('banners').orderBy('order', descending: true).limit(1).get();
     final nextOrder = last.docs.isEmpty ? 0 : ((last.docs.first.data()['order'] as num?)?.toInt() ?? 0) + 1;
     await _db.collection('banners').add({
       'imageUrl': imageUrl,
       if (linkUrl != null) 'linkUrl': linkUrl,
+      if (batchId != null) 'batchId': batchId,
       'order': nextOrder,
       'createdAt': FieldValue.serverTimestamp(),
     });
