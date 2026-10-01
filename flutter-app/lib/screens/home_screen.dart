@@ -9,14 +9,13 @@ import '../utils/open_link.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/banner_carousel.dart';
-import '../widgets/net_image.dart';
 import 'pdf_library_screen.dart';
 import 'video_classes_screen.dart';
 import 'news_screen.dart';
 import 'batches_screen.dart';
 import 'mock_tests_screen.dart';
-import 'mock_test_list_screen.dart';
-import 'batch_detail_screen.dart';
+import 'my_course_screen.dart';
+import 'queries_screen.dart';
 import 'notifications_screen.dart';
 import 'admin/admin_login_screen.dart';
 import 'profile/profile_screen.dart';
@@ -35,16 +34,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // is not re-subscribed again and again. Pull-to-refresh recreates them.
   late Stream<AppConfigModel> _cfgStream;
   late Stream<List<BannerModel>> _bannersStream;
-  late Stream<List<MockTestFolderModel>> _mockFoldersStream;
-  late Stream<List<BatchModel>> _batchesStream;
   late Stream<List<VideoModel>> _latestVideosStream;
   late Stream<List<VideoModel>> _fallbackVideosStream;
 
   void _initStreams() {
     _cfgStream = _fs.streamAppConfig();
     _bannersStream = _fs.streamBanners();
-    _mockFoldersStream = _fs.streamMockFolders();
-    _batchesStream = _fs.streamBatches();
     _latestVideosStream = _fs.streamLatestVideos();
     _fallbackVideosStream = _fs.streamAutoFetchedVideos();
   }
@@ -130,265 +125,135 @@ class _HomeScreenState extends State<HomeScreen> {
       stream: _cfgStream,
       builder: (context, cfgSnap) {
         final cfg = cfgSnap.data ?? const AppConfigModel();
-        return RefreshIndicator(
-          onRefresh: () async {
-            setState(_initStreams);
-            await Future<void>.delayed(const Duration(milliseconds: 600));
-          },
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 16),
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    // Long-press = hidden Admin Login (see _openAdminLogin).
-                    // Looks and behaves exactly like a normal logo otherwise.
-                    GestureDetector(
-                      onLongPress: () => _openAdminLogin(context),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(13),
-                        child: Container(
-                          width: 46,
-                          height: 46,
-                          color: Colors.white,
-                          child: cfg.logoUrl != null
-                              ? Image.network(cfg.logoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Image.asset('assets/logo.png', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Text('🎓', style: TextStyle(fontSize: 24)))))
-                              : Image.asset('assets/logo.png', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Text('🎓', style: TextStyle(fontSize: 24)))),
+        return StreamBuilder<List<BannerModel>>(
+          stream: _bannersStream,
+          builder: (context, bannerSnap) {
+            final banners = bannerSnap.data ?? <BannerModel>[];
+            return LayoutBuilder(
+              builder: (context, box) {
+                // Grid cells shrink/grow with the screen so that header +
+                // banner + 3x2 grid + social card all fit WITHOUT scrolling.
+                const sidePad = 14.0, gap = 10.0;
+                final cellW = (box.maxWidth - sidePad * 2 - gap * 2) / 3;
+                const headerH = 74.0; // logo row
+                const socialH = 64.0 + 10; // social card + its top gap
+                final bannerH = banners.isEmpty ? 0.0 : (box.maxWidth - sidePad * 2) * 9 / 16 + 14 + 14; // image + dots + gaps
+                final free = box.maxHeight - headerH - bannerH - socialH - 14 /* grid top gap */ - gap - 8 /* bottom */;
+                final cellH = (free / 2).clamp(78.0, 120.0).toDouble();
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    setState(_initStreams);
+                    await Future<void>.delayed(const Duration(milliseconds: 600));
+                  },
+                  child: ListView(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    children: [
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            // Long-press = hidden Admin Login (see _openAdminLogin).
+                            GestureDetector(
+                              onLongPress: () => _openAdminLogin(context),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(13),
+                                child: Container(
+                                  width: 46,
+                                  height: 46,
+                                  color: Colors.white,
+                                  child: cfg.logoUrl != null
+                                      ? Image.network(cfg.logoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Image.asset('assets/logo.png', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Text('🎓', style: TextStyle(fontSize: 24)))))
+                                      : Image.asset('assets/logo.png', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Text('🎓', style: TextStyle(fontSize: 24)))),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(cfg.appName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Text(cfg.tagline, style: const TextStyle(color: Color(0xFFFFFF29), fontSize: 11, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Text('🔔', style: TextStyle(fontSize: 22)),
+                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(cfg.appName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                          Text(cfg.tagline, style: const TextStyle(color: Color(0xFFFFFF29), fontSize: 11, fontWeight: FontWeight.w600)),
-                        ],
+
+                      // Banner carousel (16:9, auto-scroll) — admin-managed.
+                      if (banners.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+                          child: BannerCarousel(banners: banners),
+                        ),
+
+                      // 3 x 2 quick access grid
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(sidePad, 14, sidePad, 0),
+                        child: GridView.count(
+                          crossAxisCount: 3,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisSpacing: gap,
+                          mainAxisSpacing: gap,
+                          childAspectRatio: cellW / cellH,
+                          children: [
+                            _quickAccessCard('📝', 'Mock Tests', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MockTestsScreen()))),
+                            _quickAccessCard('📚', 'PDF Library', () => setState(() => _tab = 2)),
+                            _quickAccessCard('🎬', 'Video Classes', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VideoClassesScreen()))),
+                            _quickAccessCard('🎓', 'Paid Batches', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BatchesScreen()))),
+                            _quickAccessCard('📖', 'My Course', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyCourseScreen()))),
+                            _quickAccessCard('💬', 'Queries', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const QueriesScreen()))),
+                          ],
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Text('🔔', style: TextStyle(fontSize: 22)),
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
-                    ),
-                  ],
-                ),
-              ),
 
-              // Welcome banner
-              // Title sits on ONE line and the small tagline below it. FittedBox
-              // (scaleDown) keeps both lines single-line on every screen size —
-              // the text only shrinks slightly if a phone is very narrow or the
-              // app name is long; it never wraps or overflows.
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 14),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFFFFFF66), Color(0xFFFFFF29), Color(0xFFE6E600)]),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Welcome to ${cfg.appName}',
-                        maxLines: 1,
-                        softWrap: false,
-                        style: const TextStyle(color: Color(0xFF081136), fontWeight: FontWeight.bold, fontSize: 18),
+                      // Social banner — auto-rotates between Telegram/WhatsApp/YouTube every 3s
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                        child: _SocialRotator(cfg: cfg),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Your journey to success begins here.',
-                        maxLines: 1,
-                        softWrap: false,
-                        style: TextStyle(color: Color(0xFF101D57), fontSize: 11.5),
+
+                      // YouTube auto-fetch section — sits BELOW the social
+                      // card, so it only shows when the student scrolls.
+                      _sectionHeader(
+                        'YouTube Videos',
+                        actionLabel: 'Channel',
+                        onAction: () => openExternalLink(context, cfg.youtubeUrl),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Banner carousel (16:9, auto-scroll) — admin-managed, Admin Panel ->
-              // Banners. Shows nothing until at least one banner is uploaded.
-              StreamBuilder<List<BannerModel>>(
-                stream: _bannersStream,
-                builder: (context, snap) {
-                  final banners = snap.data ?? <BannerModel>[];
-                  if (banners.isEmpty) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-                    child: BannerCarousel(banners: banners),
-                  );
-                },
-              ),
-
-              const Padding(
-                padding: EdgeInsets.fromLTRB(14, 18, 14, 4),
-                child: Text('Quick Access', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.6,
-                  children: [
-                    _quickAccessCard('📝', 'Mock Tests', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MockTestsScreen()))),
-                    _quickAccessCard('📚', 'PDF Library', () => setState(() => _tab = 2)),
-                    _quickAccessCard('🎬', 'Video Classes', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VideoClassesScreen()))),
-                    _quickAccessCard('🎓', 'Paid Batches', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BatchesScreen()))),
-                  ],
-                ),
-              ),
-
-              // Social banner — auto-rotates between Telegram/WhatsApp/YouTube every 3s
-              // (it has its own timer, so only this small tile redraws).
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
-                child: _SocialRotator(cfg: cfg),
-              ),
-
-              // Mock Tests section
-              _sectionHeader(
-                'Mock Tests',
-                actionLabel: 'View All',
-                onAction: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MockTestsScreen())),
-              ),
-              SizedBox(
-                height: 90,
-                child: StreamBuilder<List<MockTestFolderModel>>(
-                  stream: _mockFoldersStream,
-                  builder: (context, snap) {
-                    if (snap.hasError) return _stripMessage('Could not load mock tests.');
-                    if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-                    final folders = snap.data!;
-                    if (folders.isEmpty) return _stripMessage('No mock tests yet.');
-                    return ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      itemCount: folders.length,
-                      itemBuilder: (context, i) {
-                        final f = folders[i];
-                        return DepthCard(
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestListScreen(folder: f))),
-                          margin: const EdgeInsets.only(right: 10),
-                          pressScale: 0.93,
-                          pressBrighten: 0.08,
-                          child: SizedBox(
-                            width: 130,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('📝', style: TextStyle(fontSize: 22)),
-                                  const SizedBox(height: 8),
-                                  Text(f.examName, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-
-              // Paid Batches preview
-              _sectionHeader(
-                'Paid Batches',
-                actionLabel: 'View All',
-                onAction: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BatchesScreen())),
-              ),
-              SizedBox(
-                height: 160,
-                child: StreamBuilder<List<BatchModel>>(
-                  stream: _batchesStream,
-                  builder: (context, snap) {
-                    if (snap.hasError) return _stripMessage('Could not load batches.');
-                    if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-                    final batches = snap.data!;
-                    if (batches.isEmpty) return _stripMessage('No batches yet.');
-                    return ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      itemCount: batches.length,
-                      itemBuilder: (context, i) {
-                        final b = batches[i];
-                        return DepthCard(
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => BatchDetailScreen(batch: b))),
-                          margin: const EdgeInsets.only(right: 10),
-                          pressScale: 0.93,
-                          pressBrighten: 0.08,
-                          child: SizedBox(
-                            width: 150,
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  NetImage(url: b.iconUrl, width: 34, height: 34, fallbackIcon: '🎓', radius: 8),
-                                  const SizedBox(height: 10),
-                                  Text(b.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5)),
-                                  const Spacer(),
-                                  if (b.hasValidity)
-                                    Text(b.validityLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white54, fontSize: 10.5)),
-                                  Text('\u20b9${b.price}', style: const TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-
-              // YouTube auto-fetch section (newest videos of the channel)
-              _sectionHeader(
-                'YouTube Videos',
-                actionLabel: 'Channel',
-                onAction: () => openExternalLink(context, cfg.youtubeUrl),
-              ),
-              SizedBox(
-                height: 130,
-                child: StreamBuilder<List<VideoModel>>(
-                  stream: _latestVideosStream,
-                  builder: (context, latestSnap) {
-                    final latest = latestSnap.data ?? <VideoModel>[];
-                    if (latest.isNotEmpty) return _videoStrip(context, latest);
-                    // The "latest videos" list is not there yet — use the
-                    // plain list of auto-fetched videos instead.
-                    return StreamBuilder<List<VideoModel>>(
-                      stream: _fallbackVideosStream,
-                      builder: (context, snap) {
-                        if (snap.hasError) return _stripMessage('Could not load videos.');
-                        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-                        final videos = snap.data!;
-                        if (videos.isEmpty) return _stripMessage('New videos will show up here.');
-                        return _videoStrip(context, videos);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+                      SizedBox(
+                        height: 130,
+                        child: StreamBuilder<List<VideoModel>>(
+                          stream: _latestVideosStream,
+                          builder: (context, latestSnap) {
+                            final latest = latestSnap.data ?? <VideoModel>[];
+                            if (latest.isNotEmpty) return _videoStrip(context, latest);
+                            return StreamBuilder<List<VideoModel>>(
+                              stream: _fallbackVideosStream,
+                              builder: (context, snap) {
+                                if (snap.hasError) return _stripMessage('Could not load videos.');
+                                if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                                final videos = snap.data!;
+                                if (videos.isEmpty) return _stripMessage('New videos will show up here.');
+                                return _videoStrip(context, videos);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -441,9 +306,15 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 30)),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          Text(emoji, style: const TextStyle(fontSize: 26)),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ),
         ],
       ),
     );
