@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../models/query_model.dart';
 import '../services/firestore_service.dart';
 import '../services/queries_service.dart';
+import '../services/query_seen_store.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/state_views.dart';
 
@@ -47,6 +48,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
   String _name = '';
   bool _sending = false;
   List<QueryModel> _latest = const [];
+  String _markedKey = ''; // replies already saved as "seen"
 
   @override
   void initState() {
@@ -128,6 +130,15 @@ class _QueriesScreenState extends State<QueriesScreen> {
         builder: (context, snap) {
           final list = snap.data ?? const <QueryModel>[];
           _latest = list;
+          // The student is looking at the list = these replies are seen
+          // (clears the red dot on the Home screen).
+          if (snap.hasData) {
+            final key = list.where((q) => q.answered).map((q) => q.seenKey).join(',');
+            if (key != _markedKey) {
+              _markedKey = key;
+              QuerySeenStore.markSeen(list);
+            }
+          }
           return ListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(14),
