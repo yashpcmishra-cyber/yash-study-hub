@@ -81,15 +81,15 @@ class _QueriesScreenState extends State<QueriesScreen> {
     if (u == null || _sending) return;
     final words = countWords(_ctrl.text);
     if (words == 0) {
-      _snack('Pehle apna doubt likho.');
+      _snack('Write your doubt first. / पहले अपना डाउट लिखें।');
       return;
     }
     if (words > kQueryMaxWords) {
-      _snack('Doubt $kQueryMaxWords words se zyada nahi ho sakta.');
+      _snack('Doubt can be at most $kQueryMaxWords words. / डाउट $kQueryMaxWords शब्दों से ज़्यादा नहीं हो सकता।');
       return;
     }
     if (_latest.where((q) => !q.answered).length >= kQueryMaxPending) {
-      _snack('Aapke $kQueryMaxPending doubts abhi pending hain. Jawab aane ke baad naya bhejein.');
+      _snack('You already have $kQueryMaxPending pending doubts. Send a new one after you get a reply. / आपके $kQueryMaxPending डाउट पेंडिंग हैं। जवाब आने के बाद नया भेजें।');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -99,17 +99,17 @@ class _QueriesScreenState extends State<QueriesScreen> {
       final name = _name.isNotEmpty ? _name : (email.contains('@') ? email.split('@').first : 'Student');
       await _svc.submit(uid: u.uid, name: name, email: email, text: _ctrl.text).timeout(const Duration(seconds: 15));
       _ctrl.clear();
-      _snack('Doubt bhej diya gaya ✅');
+      _snack('Doubt sent ✅ / डाउट भेज दिया गया ✅');
     } on TimeoutException {
       // Firestore keeps the write and sends it when the net is back.
       _ctrl.clear();
-      _snack('Net slow hai. Doubt net aate hi apne aap chala jayega — dobara mat bhejna.');
+      _snack('Slow internet. Your doubt will be sent automatically when the net is back, do not send it again. / नेट स्लो है। नेट आते ही डाउट अपने आप चला जाएगा, दोबारा न भेजें।');
     } on FirebaseException catch (e) {
       _snack(e.code == 'permission-denied'
-          ? 'Doubt nahi bheja ja saka (permission). Admin ko batao.'
-          : 'Doubt nahi bheja ja saka. Dobara try karo.');
+          ? 'Could not send doubt (permission). Please tell the admin. / डाउट नहीं भेजा जा सका (permission)। एडमिन को बताएं।'
+          : 'Could not send doubt. Please try again. / डाउट नहीं भेजा जा सका। दोबारा कोशिश करें।');
     } catch (_) {
-      _snack('Doubt nahi bheja ja saka. Internet check karke dobara try karo.');
+      _snack('Could not send doubt. Check your internet and try again. / डाउट नहीं भेजा जा सका। इंटरनेट जाँचकर दोबारा कोशिश करें।');
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -118,11 +118,11 @@ class _QueriesScreenState extends State<QueriesScreen> {
   @override
   Widget build(BuildContext context) {
     if (_user == null) {
-      return Scaffold(appBar: AppBar(title: const Text('Queries')), body: const EmptyView('Doubt puchne ke liye login karein.'));
+      return Scaffold(appBar: AppBar(title: const Text('Queries / सवाल')), body: const EmptyView('Please log in to ask a doubt.\nडाउट पूछने के लिए लॉगिन करें।'));
     }
     final words = countWords(_ctrl.text);
     return Scaffold(
-      appBar: AppBar(title: const Text('Queries')),
+      appBar: AppBar(title: const Text('Queries / सवाल')),
       body: StreamBuilder<List<QueryModel>>(
         stream: _stream,
         builder: (context, snap) {
@@ -140,7 +140,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Apna doubt likhein', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      const Text('Write your doubt / अपना डाउट लिखें', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _ctrl,
@@ -152,7 +152,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
                         onChanged: (_) => setState(() {}),
                         style: const TextStyle(color: Colors.white, fontSize: 13.5),
                         decoration: InputDecoration(
-                          hintText: 'Yahan apna sawal likho...',
+                          hintText: 'Type your question here... / यहाँ अपना सवाल लिखें...',
                           hintStyle: const TextStyle(color: Colors.white38),
                           filled: true,
                           fillColor: const Color(0xFF050B24),
@@ -162,14 +162,14 @@ class _QueriesScreenState extends State<QueriesScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Text('$words / $kQueryMaxWords words',
+                          Text('$words / $kQueryMaxWords words (शब्द)',
                               style: TextStyle(color: words >= kQueryMaxWords ? Colors.orangeAccent : Colors.white54, fontSize: 12)),
                           const Spacer(),
                           ElevatedButton(
                             onPressed: (_sending || words == 0) ? null : _send,
                             child: _sending
                                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                : const Text('Bhejein'),
+                                : const Text('Send / भेजें'),
                           ),
                         ],
                       ),
@@ -180,13 +180,13 @@ class _QueriesScreenState extends State<QueriesScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
                 child: Text(
-                  'Doubts $kQueryRetentionDays din baad apne aap delete ho jaate hain.',
+                  'Doubts are deleted automatically after $kQueryRetentionDays days.\nडाउट $kQueryRetentionDays दिन बाद अपने आप डिलीट हो जाते हैं।',
                   style: const TextStyle(color: Colors.white38, fontSize: 11),
                 ),
               ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(2, 6, 2, 8),
-                child: Text('Meri Queries', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                child: Text('My Queries / मेरे डाउट', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
               ),
 
               // ---- my doubts ----
@@ -195,7 +195,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
               else if (!snap.hasData)
                 const SizedBox(height: 120, child: LoadingView())
               else if (list.isEmpty)
-                const SizedBox(height: 120, child: EmptyView('Abhi koi doubt nahi bheja.'))
+                const SizedBox(height: 120, child: EmptyView('You have not sent any doubt yet.\nआपने अभी कोई डाउट नहीं भेजा है।'))
               else
                 ...list.map(_queryCard),
             ],
@@ -215,7 +215,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
           children: [
             Row(
               children: [
-                Text(q.answered ? '✅ Jawab aa gaya' : '⏳ Pending',
+                Text(q.answered ? '✅ Replied / जवाब आया' : '⏳ Pending / लंबित',
                     style: TextStyle(color: q.answered ? Colors.greenAccent : Colors.amber, fontSize: 11.5, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 Text(date, style: const TextStyle(color: Colors.white38, fontSize: 11)),
@@ -236,7 +236,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Reply', style: TextStyle(color: Color(0xFFFFFF29), fontSize: 11, fontWeight: FontWeight.bold)),
+                    const Text('Reply / जवाब', style: TextStyle(color: Color(0xFFFFFF29), fontSize: 11, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text(q.reply, style: const TextStyle(color: Colors.white, fontSize: 13)),
                   ],
@@ -244,7 +244,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
               ),
             ],
             const SizedBox(height: 8),
-            Text('${q.daysLeft} din baad delete', style: const TextStyle(color: Colors.white30, fontSize: 10.5)),
+            Text('Deletes in ${q.daysLeft} days / ${q.daysLeft} दिन बाद डिलीट', style: const TextStyle(color: Colors.white30, fontSize: 10.5)),
           ],
         ),
       ),

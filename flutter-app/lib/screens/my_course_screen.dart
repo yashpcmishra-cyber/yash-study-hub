@@ -51,9 +51,9 @@ class _MyCourseScreenState extends State<MyCourseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Course')),
+      appBar: AppBar(title: const Text('My Course / मेरा कोर्स')),
       body: _email.isEmpty
-          ? const EmptyView('Apne courses dekhne ke liye login karein.')
+          ? const EmptyView('Please log in to see your courses.\nअपने कोर्स देखने के लिए लॉगिन करें।')
           : StreamBuilder<List<BatchModel>>(
               stream: _stream,
               builder: (context, snap) {
@@ -72,7 +72,7 @@ class _MyCourseScreenState extends State<MyCourseScreen> {
                     final mine = all.where((b) => granted?.contains(b.id) ?? false).toList();
                     if (mine.isEmpty) {
                       content = const PullableMessage(
-                        child: EmptyView('Abhi koi active course nahi hai.\nPaid Batches se batch kharidein.'),
+                        child: EmptyView('No active course yet. Buy a batch from Paid Batches.\nअभी कोई एक्टिव कोर्स नहीं है। Paid Batches से बैच खरीदें।'),
                       );
                     } else {
                       content = ListView.builder(
