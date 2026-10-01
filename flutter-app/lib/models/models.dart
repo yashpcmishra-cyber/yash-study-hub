@@ -422,15 +422,19 @@ class BannerModel {
   final String id;
   final String imageUrl;
   final String? linkUrl;
+  // If set, tapping the banner opens THIS paid batch's payment page
+  // ("Pay & Get") instead of an external link.
+  final String? batchId;
   final int order;
   final DateTime? createdAt;
 
-  BannerModel({required this.id, required this.imageUrl, this.linkUrl, this.order = 0, this.createdAt});
+  BannerModel({required this.id, required this.imageUrl, this.linkUrl, this.batchId, this.order = 0, this.createdAt});
 
   factory BannerModel.fromMap(String id, Map<String, dynamic> m) => BannerModel(
         id: id,
         imageUrl: m['imageUrl'] ?? '',
         linkUrl: (m['linkUrl'] as String?)?.trim().isNotEmpty == true ? m['linkUrl'] : null,
+        batchId: (m['batchId'] as String?)?.trim().isNotEmpty == true ? (m['batchId'] as String).trim() : null,
         order: (m['order'] as num?)?.toInt() ?? 0,
         createdAt: _dt(m['createdAt']),
       );
