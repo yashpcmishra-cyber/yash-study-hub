@@ -41,19 +41,19 @@ class _AdminQueriesTabState extends State<AdminQueriesTab> with AutomaticKeepAli
             Wrap(
               spacing: 8,
               children: [
-                _chip('pending', 'Pending ($pendingCount)'),
-                _chip('answered', 'Answered'),
-                _chip('all', 'All'),
+                _chip('pending', 'Pending / लंबित ($pendingCount)'),
+                _chip('answered', 'Answered / जवाब दिया'),
+                _chip('all', 'All / सभी'),
               ],
             ),
             const SizedBox(height: 4),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
-              child: Text('Doubts $kQueryRetentionDays din baad Firebase se apne aap delete ho jaate hain.',
+              child: Text('Doubts are deleted from Firebase automatically after $kQueryRetentionDays days.\nडाउट $kQueryRetentionDays दिन बाद Firebase से अपने आप डिलीट हो जाते हैं।',
                   style: TextStyle(color: Colors.white38, fontSize: 11)),
             ),
             if (shown.isEmpty)
-              const SizedBox(height: 160, child: EmptyView('Koi doubt nahi.'))
+              const SizedBox(height: 160, child: EmptyView('No doubts.\nकोई डाउट नहीं।'))
             else
               ...shown.map((q) => _QueryCard(key: ValueKey(q.id), q: q, svc: _svc)),
           ],
@@ -99,16 +99,16 @@ class _QueryCardState extends State<_QueryCard> {
   Future<void> _sendReply() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty) {
-      _snack('Pehle reply likho.');
+      _snack('Write a reply first. / पहले जवाब लिखें।');
       return;
     }
     setState(() => _busy = true);
     try {
       await widget.svc.reply(widget.q.id, text);
       if (mounted) setState(() => _editing = false);
-      _snack('Reply bhej diya ✅');
+      _snack('Reply sent ✅ / जवाब भेज दिया ✅');
     } catch (e) {
-      _snack('Reply nahi gaya: $e');
+      _snack('Reply failed / जवाब नहीं गया: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -118,11 +118,11 @@ class _QueryCardState extends State<_QueryCard> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Doubt delete karein?'),
-        content: const Text('Ye doubt aur uska reply hamesha ke liye hat jayega.'),
+        title: const Text('Delete this doubt? / डाउट डिलीट करें?'),
+        content: const Text('This doubt and its reply will be removed permanently.\nयह डाउट और उसका जवाब हमेशा के लिए हट जाएगा।'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel / रद्द करें')),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete / डिलीट', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -130,7 +130,7 @@ class _QueryCardState extends State<_QueryCard> {
     try {
       await widget.svc.delete(widget.q.id);
     } catch (e) {
-      _snack('Delete nahi hua: $e');
+      _snack('Delete failed / डिलीट नहीं हुआ: $e');
     }
   }
 
@@ -172,7 +172,7 @@ class _QueryCardState extends State<_QueryCard> {
                 enabled: !_busy,
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Reply likho...',
+                  hintText: 'Type reply... / जवाब लिखें...',
                   hintStyle: const TextStyle(color: Colors.white38),
                   filled: true,
                   fillColor: const Color(0xFF050B24),
@@ -190,14 +190,14 @@ class _QueryCardState extends State<_QueryCard> {
                                 _editing = false;
                                 _ctrl.text = q.reply;
                               }),
-                      child: const Text('Cancel'),
+                      child: const Text('Cancel / रद्द करें'),
                     ),
                   const SizedBox(width: 6),
                   ElevatedButton(
                     onPressed: _busy ? null : _sendReply,
                     child: _busy
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text(q.answered ? 'Update reply' : 'Reply bhejo'),
+                        : Text(q.answered ? 'Update reply / जवाब अपडेट' : 'Send reply / जवाब भेजें'),
                   ),
                 ],
               ),
@@ -213,7 +213,7 @@ class _QueryCardState extends State<_QueryCard> {
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(onPressed: () => setState(() => _editing = true), child: const Text('Edit reply')),
+                child: TextButton(onPressed: () => setState(() => _editing = true), child: const Text('Edit reply / जवाब बदलें')),
               ),
             ],
           ],
