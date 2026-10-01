@@ -14,6 +14,7 @@ import 'admin_login_screen.dart';
 import 'admin_pdfs_tab.dart';
 import 'admin_videos_tab.dart';
 import 'admin_mocktests_tab.dart';
+import 'admin_queries_tab.dart';
 
 /// What the "Edit batch" dialog returns.
 class _BatchEditResult {
@@ -260,7 +261,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 10, vsync: this);
+    _tabs = TabController(length: 11, vsync: this);
     _installFuture = _fs.installCount();
     _activeFuture = _loadActiveCounts();
   }
@@ -351,6 +352,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             Tab(text: 'Branding'),
             Tab(text: 'Banners'),
             Tab(text: 'Notify'),
+            Tab(text: 'Queries'),
           ],
         ),
       ),
@@ -370,6 +372,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           _brandingTab(),
           _bannersTab(),
           _notifyTab(),
+          const AdminQueriesTab(),
         ],
       ),
     );
