@@ -1,0 +1,27 @@
+name: Cleanup Old Queries (free, no Blaze needed)
+
+on:
+  schedule:
+    - cron: '30 3 * * *'   # once a day (GitHub may run it a few minutes late)
+  workflow_dispatch: {}
+
+# Never let two runs overlap.
+concurrency:
+  group: cleanup-queries
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node cleanup-queries.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
