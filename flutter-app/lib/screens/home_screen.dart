@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../app_globals.dart';
 import '../services/firestore_service.dart';
+import '../services/queries_service.dart';
+import '../services/query_seen_store.dart';
 import '../models/models.dart';
+import '../models/query_model.dart';
 import '../utils/open_link.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/depth_card.dart';
@@ -36,18 +40,28 @@ class _HomeScreenState extends State<HomeScreen> {
   late Stream<List<BannerModel>> _bannersStream;
   late Stream<List<VideoModel>> _latestVideosStream;
   late Stream<List<VideoModel>> _fallbackVideosStream;
+  late Stream<List<QueryModel>> _myQueriesStream; // for the red dot on the Queries tile
+  Set<String> _seenReplies = <String>{};
 
   void _initStreams() {
     _cfgStream = _fs.streamAppConfig();
     _bannersStream = _fs.streamBanners();
     _latestVideosStream = _fs.streamLatestVideos();
     _fallbackVideosStream = _fs.streamAutoFetchedVideos();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    _myQueriesStream = uid == null ? const Stream<List<QueryModel>>.empty() : QueriesService().streamMine(uid);
+  }
+
+  Future<void> _loadSeen() async {
+    final seen = await QuerySeenStore.load();
+    if (mounted) setState(() => _seenReplies = seen);
   }
 
   @override
   void initState() {
     super.initState();
     _initStreams();
+    _loadSeen();
     // App was opened by tapping a push notification -> go straight to the
     // Notifications screen.
     if (openNotificationsOnStart) {
@@ -210,7 +224,18 @@ class _HomeScreenState extends State<HomeScreen> {
                             _quickAccessCard('🎬', 'Video Classes', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VideoClassesScreen()))),
                             _quickAccessCard('🎓', 'Paid Batches', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BatchesScreen()))),
                             _quickAccessCard('📖', 'My Course', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyCourseScreen()))),
-                            _quickAccessCard('💬', 'Queries', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const QueriesScreen()))),
+                            StreamBuilder<List<QueryModel>>(
+                              stream: _myQueriesStream,
+                              builder: (context, qSnap) => _quickAccessCard(
+                                '💬',
+                                'Queries',
+                                () async {
+                                  await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const QueriesScreen()));
+                                  _loadSeen(); // the student has now seen the replies
+                                },
+                                dot: QuerySeenStore.hasUnread(qSnap.data ?? const <QueryModel>[], _seenReplies),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -297,8 +322,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _quickAccessCard(String emoji, String label, VoidCallback onTap) {
-    return DepthCard(
+  Widget _quickAccessCard(String emoji, String label, VoidCallback onTap, {bool dot = false}) {
+    final card = DepthCard(
       onTap: onTap,
       margin: EdgeInsets.zero,
       pressScale: 0.93,
@@ -317,6 +342,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+    if (!dot) return card;
+    // Red dot (top-right corner) = there is a reply the student has not seen.
+    return Stack(
+      children: [
+        Positioned.fill(child: card),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            width: 13,
+            height: 13,
+            decoration: BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF081136), width: 2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
