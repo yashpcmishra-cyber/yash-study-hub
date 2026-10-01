@@ -43,6 +43,10 @@ class QueryModel {
 
   bool get answered => reply.trim().isNotEmpty;
 
+  /// Identifies THIS reply (changes when the admin edits it), used for the
+  /// "new reply" red dot on the Home screen.
+  String get seenKey => '$id@${repliedAt?.millisecondsSinceEpoch ?? 0}';
+
   /// A just-sent doubt has no server time yet (createdAt == null) - it is
   /// treated as "now", so it is never hidden by mistake.
   DateTime get when => createdAt ?? DateTime.now();
