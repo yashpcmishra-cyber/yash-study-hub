@@ -28,7 +28,7 @@ class _VideoClassesScreenState extends State<VideoClassesScreen> {
   }
 
   void _initStreams() {
-    _videosStream = _fs.streamFreeVideos();
+    _videosStream = _fs.streamFreeVideos(limitYoutubeAuto: 10); // only the latest 10 YouTube videos
     _foldersStream = _fs.streamFreeVideoFolders();
   }
 
