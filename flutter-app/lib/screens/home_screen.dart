@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../app_globals.dart';
 import '../services/firestore_service.dart';
 import '../services/queries_service.dart';
@@ -18,6 +19,7 @@ import 'video_classes_screen.dart';
 import 'news_screen.dart';
 import 'batches_screen.dart';
 import 'mock_tests_screen.dart';
+import 'batch_detail_screen.dart';
 import 'my_course_screen.dart';
 import 'queries_screen.dart';
 import 'notifications_screen.dart';
@@ -42,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late Stream<List<VideoModel>> _fallbackVideosStream;
   late Stream<List<QueryModel>> _myQueriesStream; // for the red dot on the Queries tile
   Set<String> _seenReplies = <String>{};
+  String _studentName = ''; // for the "Hello! Welcome ..." line
 
   void _initStreams() {
     _cfgStream = _fs.streamAppConfig();
@@ -50,6 +53,39 @@ class _HomeScreenState extends State<HomeScreen> {
     _fallbackVideosStream = _fs.streamAutoFetchedVideos();
     final uid = FirebaseAuth.instance.currentUser?.uid;
     _myQueriesStream = uid == null ? const Stream<List<QueryModel>>.empty() : QueriesService().streamMine(uid);
+  }
+
+  // Student's name for the greeting: saved on this phone at login (instant),
+  // else read once from the student's profile.
+  Future<void> _loadStudentName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var name = (prefs.getString('student_name') ?? '').trim();
+      if (name.isEmpty) {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) name = ((await _fs.getStudentProfile(uid))?.name ?? '').trim();
+      }
+      if (mounted && name != _studentName) setState(() => _studentName = name);
+    } catch (_) {
+      // no name -> the greeting line is simply not shown
+    }
+  }
+
+  // Home banner linked to a paid batch -> open that batch (its payment page
+  // for students without access, its content for students who have it).
+  Future<void> _openBatchFromBanner(String batchId) async {
+    try {
+      final batch = await _fs.getBatch(batchId);
+      if (!mounted) return;
+      if (batch == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This batch is not available right now. / यह बैच अभी उपलब्ध नहीं है।')));
+        return;
+      }
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => BatchDetailScreen(batch: batch)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open. Check your internet and try again. / खुल नहीं सका। इंटरनेट जाँचकर दोबारा कोशिश करें।')));
+    }
   }
 
   Future<void> _loadSeen() async {
@@ -62,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _initStreams();
     _loadSeen();
+    _loadStudentName();
     // App was opened by tapping a push notification -> go straight to the
     // Notifications screen.
     if (openNotificationsOnStart) {
@@ -149,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // banner + 3x2 grid + social card all fit WITHOUT scrolling.
                 const sidePad = 14.0, gap = 10.0;
                 final cellW = (box.maxWidth - sidePad * 2 - gap * 2) / 3;
-                const headerH = 74.0; // logo row
+                final headerH = 74.0 + (_studentName.isEmpty ? 0 : 30); // logo row (+ greeting line)
                 const socialH = 64.0 + 10; // social card + its top gap
                 final bannerH = banners.isEmpty ? 0.0 : (box.maxWidth - sidePad * 2) * 9 / 16 + 14 + 14; // image + dots + gaps
                 final free = box.maxHeight - headerH - bannerH - socialH - 14 /* grid top gap */ - gap - 8 /* bottom */;
@@ -201,11 +238,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
+                      // Greeting (between logo/title row and the banner)
+                      if (_studentName.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                const TextSpan(text: 'Hello! Welcome ', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
+                                TextSpan(text: _studentName, style: const TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14.5),
+                          ),
+                        ),
+
                       // Banner carousel (16:9, auto-scroll) — admin-managed.
                       if (banners.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-                          child: BannerCarousel(banners: banners),
+                          child: BannerCarousel(banners: banners, onOpenBatch: _openBatchFromBanner),
                         ),
 
                       // 3 x 2 quick access grid
