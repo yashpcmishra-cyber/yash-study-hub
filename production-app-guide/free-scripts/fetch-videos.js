@@ -18,6 +18,11 @@
  * Videos that the admin "hid" in the app (Admin > Videos) have hidden: true.
  * They are never brought back and never put in the latest-10 list.
  *
+ * STORAGE CLEANUP: only the newest LATEST_COUNT (10) channel videos are kept
+ * in Firestore. Every run deletes all older auto-fetched videos
+ * (source == "youtube_auto"), so the app, the Admin panel and Firebase never
+ * pile up old videos. Videos the admin added by hand are NEVER touched.
+ *
  * Needs THREE things, saved as GitHub encrypted secrets:
  *   - FIREBASE_SERVICE_ACCOUNT: same one fetch-news.js / send-notifications.js
  *     already use (Firebase Console > Project Settings > Service Accounts).
@@ -35,7 +40,9 @@ const db = admin.firestore();
 
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const CHANNEL_ID = process.env.YOUTUBE_CHANNEL_ID;
-const MAX_VIDEOS = 15;
+// Fetch a few extra so that hidden / deleted videos can be replaced by the
+// next-newest one and we still end up with LATEST_COUNT. (Still 1 quota unit.)
+const MAX_VIDEOS = 25;
 const LATEST_COUNT = 10;
 
 async function getJson(url) {
@@ -69,6 +76,26 @@ async function getHiddenIds() {
   }
 }
 
+// Deletes every auto-fetched video that is NOT in the keep list.
+// Exception: a video the admin hid is kept while it is still inside the
+// fetched window (otherwise the next run would bring it back); once it has
+// left the window it can never come back, so its marker is deleted too.
+async function deleteOlderAutoVideos(keepIds, windowIds) {
+  const snap = await db.collection("videos").where("source", "==", "youtube_auto").get();
+  const toDelete = snap.docs.filter((d) => {
+    if (keepIds.has(d.id)) return false;
+    if (d.get("hidden") === true && windowIds.has(d.id)) return false;
+    return true;
+  });
+  for (let i = 0; i < toDelete.length; i += 500) {
+    const chunk = toDelete.slice(i, i + 500);
+    const b = db.batch();
+    chunk.forEach((d) => b.delete(d.ref));
+    await b.commit();
+  }
+  return toDelete.length;
+}
+
 (async () => {
   if (!API_KEY || !CHANNEL_ID) {
     console.error("Missing YOUTUBE_API_KEY or YOUTUBE_CHANNEL_ID - see the comment at the top of this file.");
@@ -78,12 +105,13 @@ async function getHiddenIds() {
     const hidden = await getHiddenIds();
     const playlistId = await getUploadsPlaylistId();
     const items = await getLatestVideos(playlistId);
-    const batch = db.batch();
-    const latest = [];
-    let count = 0;
+
+    const windowIds = new Set(); // every video id in the fetched window
+    const candidates = [];
     for (const item of items) {
       const videoId = item.snippet && item.snippet.resourceId && item.snippet.resourceId.videoId;
       if (!videoId) continue;
+      windowIds.add(videoId);
       // Deleted/private videos still show a placeholder snippet with this
       // title - skip them instead of showing a broken card in the app.
       if (item.snippet.title === "Deleted video" || item.snippet.title === "Private video") continue;
@@ -92,32 +120,52 @@ async function getHiddenIds() {
       const thumb = item.snippet.thumbnails || {};
       const thumbUrl = (thumb.high || thumb.medium || thumb.default || {}).url || null;
       const publishedIso = item.snippet.publishedAt || new Date().toISOString();
-      const youtubeLink = `https://www.youtube.com/watch?v=${videoId}`;
-      // Doc id = video id itself (not auto-generated) so re-running this
-      // script never creates duplicates - it just re-writes the same doc.
-      const ref = db.collection("videos").doc(videoId);
-      batch.set(ref, {
+      candidates.push({
+        id: videoId,
         title: item.snippet.title || "",
         thumbUrl,
-        youtubeLink,
+        youtubeLink: `https://www.youtube.com/watch?v=${videoId}`,
+        publishedAt: publishedIso,
+      });
+    }
+
+    // Newest first, keep only LATEST_COUNT.
+    candidates.sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)));
+    const latest = candidates.slice(0, LATEST_COUNT);
+
+    const batch = db.batch();
+    for (const v of latest) {
+      // Doc id = video id itself (not auto-generated) so re-running this
+      // script never creates duplicates - it just re-writes the same doc.
+      batch.set(db.collection("videos").doc(v.id), {
+        title: v.title,
+        thumbUrl: v.thumbUrl,
+        youtubeLink: v.youtubeLink,
         batchId: null,
         folderId: null,
         source: "youtube_auto",
-        publishedAt: new Date(publishedIso),
+        publishedAt: new Date(v.publishedAt),
         fetchedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
-      latest.push({ id: videoId, title: item.snippet.title || "", thumbUrl, youtubeLink, publishedAt: publishedIso });
-      count++;
     }
     await batch.commit();
 
-    latest.sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)));
     await db.collection("appConfig").doc("latestVideos").set({
-      items: latest.slice(0, LATEST_COUNT),
+      items: latest,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+    console.log(`Saved ${latest.length} videos from channel uploads (latest list updated).`);
 
-    console.log(`Saved ${count} videos from channel uploads (latest list updated).`);
+    // Storage cleanup. Skipped when nothing usable was fetched (e.g. an API
+    // hiccup) so a bad run can never wipe the videos.
+    if (latest.length > 0) {
+      try {
+        const removed = await deleteOlderAutoVideos(new Set(latest.map((v) => v.id)), windowIds);
+        console.log(`Deleted ${removed} older auto-fetched video(s).`);
+      } catch (err) {
+        console.error("Cleanup of old videos failed (continuing):", err.message);
+      }
+    }
     process.exit(0);
   } catch (err) {
     console.error("Failed:", err.message);
