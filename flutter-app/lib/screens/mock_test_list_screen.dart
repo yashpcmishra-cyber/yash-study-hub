@@ -3,6 +3,7 @@ import '../services/firestore_service.dart';
 import '../models/models.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/state_views.dart';
+import '../services/mock_rank_service.dart';
 import 'mock_test_attempt_screen.dart';
 
 class MockTestListScreen extends StatefulWidget {
@@ -39,7 +40,11 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
                 child: ListTile(
                   leading: const Text('📝', style: TextStyle(fontSize: 22)),
                   title: Text(t.title, style: const TextStyle(color: Colors.white)),
-                  subtitle: Text('${t.questions.length} questions', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                  subtitle: Text(
+                    '${t.questions.length} questions \u2022 ${t.durationMinutes > 0 ? '${t.durationMinutes} min' : 'No timer'} \u2022 ${fmtMarks(t.questions.length * t.marksPerQuestion)} marks'
+                    '${t.negativeMarks > 0 ? ' \u2022 \u2212${fmtMarks(t.negativeMarks)} negative' : ''}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  ),
                   trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                 ),
               );
