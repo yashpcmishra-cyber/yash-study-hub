@@ -9,6 +9,7 @@ import '../models/models.dart';
 import '../utils/open_link.dart';
 import '../widgets/net_image.dart';
 import '../widgets/state_views.dart';
+import 'mock_test_attempt_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'video_player_screen.dart';
 
@@ -25,6 +26,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
   late final Stream<AppConfigModel> _cfgStream = _fs.streamAppConfig();
   late final Stream<List<VideoFolderModel>> _videoFoldersStream = _fs.streamVideoFolders(widget.batch.id);
   late final Stream<List<PdfFolderModel>> _pdfFoldersStream = _fs.streamFolders(type: 'batch', batchId: widget.batch.id);
+  late final Stream<List<MockTestFolderModel>> _mockFoldersStream = _fs.streamMockFoldersForBatch(widget.batch.id);
 
   bool _checked = false;
   bool _unlocked = false;
@@ -437,7 +439,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
 
   Widget _unlockedContent() {
     return DefaultTabController(
-      length: 2,
+      length: widget.batch.mockOnly ? 1 : 3,
       child: Column(
         children: [
           Padding(
@@ -453,15 +455,19 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
               ),
             ),
           ),
-          const TabBar(
+          TabBar(
             indicatorColor: Color(0xFFFFFF29),
             labelColor: Color(0xFFFFFF29),
             unselectedLabelColor: Colors.grey,
-            tabs: [Tab(text: 'Videos'), Tab(text: 'PDFs')],
+            tabs: [
+              if (!widget.batch.mockOnly) ...[const Tab(text: 'Videos'), const Tab(text: 'PDFs')],
+              const Tab(text: 'Mocks'),
+            ],
           ),
           Expanded(
             child: TabBarView(
               children: [
+                if (!widget.batch.mockOnly) ...[
                 StreamBuilder<List<VideoFolderModel>>(
                   stream: _videoFoldersStream,
                   builder: (context, folderSnap) {
@@ -544,11 +550,63 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                     );
                   },
                 ),
+                ],
+                _mocksTab(),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // Mock test folders added to this paid batch. Tapping a test opens the
+  // same exam screen as the free Mock Tests.
+  Widget _mocksTab() {
+    return StreamBuilder<List<MockTestFolderModel>>(
+      stream: _mockFoldersStream,
+      builder: (context, folderSnap) {
+        if (folderSnap.hasError) return ErrorView(error: folderSnap.error);
+        if (!folderSnap.hasData) return const LoadingView();
+        final folders = folderSnap.data!;
+        if (folders.isEmpty) return const EmptyView('No mock test folder in this batch yet');
+        return ListView(
+          children: folders
+              .map((f) => ExpansionTile(
+                    iconColor: const Color(0xFFFFFF29),
+                    collapsedIconColor: Colors.grey,
+                    leading: const Text('📝', style: TextStyle(fontSize: 20)),
+                    title: Text(f.examName, style: const TextStyle(color: Colors.white)),
+                    children: [
+                      StreamBuilder<List<MockTestModel>>(
+                        stream: _fs.streamMockTests(f.id),
+                        builder: (context, testSnap) {
+                          if (testSnap.hasError) return const Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load tests.", style: TextStyle(color: Colors.grey, fontSize: 12)));
+                          if (!testSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
+                          final tests = testSnap.data!;
+                          if (tests.isEmpty) return const Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: Colors.grey, fontSize: 12)));
+                          return Column(
+                            children: tests
+                                .map((t) => ListTile(
+                                      dense: true,
+                                      leading: const Text('📝', style: TextStyle(fontSize: 18)),
+                                      title: Text(t.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                      subtitle: Text(
+                                        '${t.questions.length} questions \u2022 ${t.durationMinutes > 0 ? '${t.durationMinutes} min' : 'No timer'}',
+                                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                                      ),
+                                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestAttemptScreen(test: t))),
+                                    ))
+                                .toList(),
+                          );
+                        },
+                      ),
+                    ],
+                  ))
+              .toList(),
+        );
+      },
     );
   }
 }
