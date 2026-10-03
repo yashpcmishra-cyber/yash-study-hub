@@ -17,6 +17,7 @@ class AdminMockTestsTab extends StatefulWidget {
 class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKeepAliveClientMixin {
   final _fs = FirestoreService();
   late final Stream<List<MockTestFolderModel>> _foldersStream = _fs.streamMockFolders();
+  late final Stream<List<BatchModel>> _batchesStream = _fs.streamBatches();
   final _newFolderName = TextEditingController();
   String? _selectedFolderId;
   final _testTitle = TextEditingController();
@@ -199,6 +200,75 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
     }
   }
 
+  // Paid batches for the chosen folder: tap a batch to add / remove it.
+  // No batch chosen = FREE folder. At most 2 batches (keeps the Firestore
+  // rule simple and fast).
+  Widget _batchPicker(MockTestFolderModel f) {
+    return StreamBuilder<List<BatchModel>>(
+      stream: _batchesStream,
+      builder: (context, snap) {
+        final batches = snap.data ?? <BatchModel>[];
+        final existing = batches.map((b) => b.id).toSet();
+        final chosen = f.batchIds;
+        return Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                chosen.isEmpty ? 'Shown in: FREE Mock Tests (all students)' : 'Shown ONLY inside the paid batch(es) selected below',
+                style: TextStyle(color: chosen.isEmpty ? Colors.greenAccent : Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const Text('Tap a batch to add / remove it (max 2). No batch = free.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              const SizedBox(height: 4),
+              if (batches.isEmpty)
+                const Text('No paid batch created yet', style: TextStyle(color: Colors.grey, fontSize: 12))
+              else
+                Wrap(
+                  spacing: 6,
+                  children: batches.map((b) {
+                    final on = chosen.contains(b.id);
+                    return FilterChip(
+                      label: Text(b.mockOnly ? '📝 ${b.title}' : b.title, style: TextStyle(color: on ? const Color(0xFF081136) : Colors.white, fontSize: 12)),
+                      selected: on,
+                      selectedColor: const Color(0xFFFFFF29),
+                      checkmarkColor: const Color(0xFF081136),
+                      backgroundColor: const Color(0xFF101D57),
+                      onSelected: (v) => _toggleBatch(f, b.id, v, existing),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleBatch(MockTestFolderModel f, String batchId, bool on, Set<String> existing) async {
+    // Batches that were deleted meanwhile are dropped from the list.
+    final next = f.batchIds.where(existing.contains).toList();
+    if (on) {
+      if (next.contains(batchId)) return;
+      if (next.length >= 2) {
+        _snack('A folder can be in at most 2 batches. Remove one first.');
+        return;
+      }
+      next.add(batchId);
+    } else {
+      next.remove(batchId);
+      if (next.isEmpty) {
+        final ok = await _confirm('Make folder free?', 'No batch will be left, so "${f.examName}" becomes FREE and every student can open its tests.');
+        if (!ok) return;
+      }
+    }
+    try {
+      await _fs.setMockFolderBatches(f.id, next);
+    } catch (e) {
+      _snack('Could not update: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // required by AutomaticKeepAliveClientMixin
@@ -212,7 +282,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
           builder: (context, snap) {
             final folders = snap.data ?? <MockTestFolderModel>[];
             final selected = folders.where((f) => f.id == _selectedFolderId).toList();
-            return Row(children: [
+            final folderRow = Row(children: [
               Expanded(
                 child: DropdownButton<String>(
                   hint: const Text('Choose folder', style: TextStyle(color: Colors.grey)),
@@ -226,6 +296,10 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
               if (_selectedFolderId != null && selected.isNotEmpty)
                 IconButton(tooltip: 'Delete this folder', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.examName)),
             ]);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [folderRow, if (selected.isNotEmpty) _batchPicker(selected.first)],
+            );
           },
         ),
         Row(children: [
