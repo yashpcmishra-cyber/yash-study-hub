@@ -244,6 +244,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   final _batchTitleCtrl = TextEditingController();
   final _batchPriceCtrl = TextEditingController();
   final _batchValidityCtrl = TextEditingController(); // Add-batch form: months, empty = lifetime
+  bool _batchMockOnly = false; // Add-batch form: Mock Test Series (no videos / PDFs)
   final _grantMonthsCtrl = TextEditingController(); // Manual grant: months override, empty = batch default
   final _notifyTitleCtrl = TextEditingController();
   final _notifyBodyCtrl = TextEditingController();
@@ -839,11 +840,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
       }
     }
     try {
-      await _fs.addBatch(BatchModel(id: '', title: _batchTitleCtrl.text.trim(), price: p, iconUrl: iconUrl, validityMonths: validityMonths));
+      await _fs.addBatch(BatchModel(id: '', title: _batchTitleCtrl.text.trim(), price: p, iconUrl: iconUrl, validityMonths: validityMonths, mockOnly: _batchMockOnly));
       _batchTitleCtrl.clear();
       _batchPriceCtrl.clear();
       _batchValidityCtrl.clear();
-      if (mounted) setState(() => _batchIconFile = null);
+      if (mounted) {
+        setState(() {
+          _batchIconFile = null;
+          _batchMockOnly = false;
+        });
+      }
       _snack('Batch added');
     } catch (e) {
       _snack('Could not add the batch: $e');
@@ -929,6 +935,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             labelStyle: TextStyle(color: Colors.grey),
           ),
         ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          activeColor: const Color(0xFFFFFF29),
+          title: const Text('Mock Test Series only', style: TextStyle(color: Colors.white, fontSize: 14)),
+          subtitle: const Text('No videos / PDFs - only mock tests. Add its folders from the Mock Tests tab.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          value: _batchMockOnly,
+          onChanged: (v) => setState(() => _batchMockOnly = v),
+        ),
         const SizedBox(height: 10),
         ElevatedButton(
           onPressed: _busy ? null : _addBatch,
@@ -951,7 +965,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                         child: ListTile(
                           leading: NetImage(url: b.iconUrl, width: 40, height: 40, fallbackIcon: '📁', radius: 8),
                           title: Text(b.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                          subtitle: Text('\u20b9${b.price} \u00b7 ${b.videos} videos \u00b7 ${b.pdfs} PDFs \u00b7 ${b.hasValidity ? monthsText(b.validityMonths) : 'Lifetime'}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                          subtitle: Text('\u20b9${b.price} \u00b7 ${b.mockOnly ? 'Mock Test Series' : '${b.videos} videos \u00b7 ${b.pdfs} PDFs'} \u00b7 ${b.hasValidity ? monthsText(b.validityMonths) : 'Lifetime'}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
