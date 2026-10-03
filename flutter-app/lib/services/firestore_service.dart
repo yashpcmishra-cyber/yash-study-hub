@@ -506,7 +506,26 @@ class FirestoreService {
       });
 
   Future<void> addMockFolder(String examName) =>
-      _db.collection('mockTestFolders').add({'examName': examName, 'createdAt': FieldValue.serverTimestamp()});
+      _db.collection('mockTestFolders').add({'examName': examName, 'batchIds': <String>[], 'createdAt': FieldValue.serverTimestamp()});
+
+  // Only the FREE folders (no batch) - for the public Mock Tests screen.
+  Stream<List<MockTestFolderModel>> streamFreeMockFolders() =>
+      streamMockFolders().map((list) => list.where((f) => f.batchIds.isEmpty).toList());
+
+  // Folders added to one paid batch (shown in that batch's "Mocks" tab).
+  Stream<List<MockTestFolderModel>> streamMockFoldersForBatch(String batchId) => _db
+          .collection('mockTestFolders')
+          .where('batchIds', arrayContains: batchId)
+          .snapshots()
+          .map((snap) {
+        final list = snap.docs.map((d) => MockTestFolderModel.fromMap(d.id, d.data())).toList();
+        list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.examName, b.examName));
+        return list;
+      });
+
+  // Admin: which paid batches a folder belongs to ([] = free).
+  Future<void> setMockFolderBatches(String folderId, List<String> batchIds) =>
+      _db.collection('mockTestFolders').doc(folderId).update({'batchIds': batchIds});
 
   // Deletes the exam folder together with all tests inside it.
   Future<void> deleteMockFolder(String id) async {
