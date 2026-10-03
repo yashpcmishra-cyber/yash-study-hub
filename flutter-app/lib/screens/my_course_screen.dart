@@ -90,7 +90,7 @@ class _MyCourseScreenState extends State<MyCourseScreen> {
                               leading: NetImage(url: b.iconUrl, width: 44, height: 44, fallbackIcon: '🎓', radius: 10),
                               title: Text(b.title, style: const TextStyle(color: Colors.white)),
                               subtitle: Text(
-                                '${b.videos} videos \u2022 ${b.pdfs} PDFs${b.hasValidity ? ' \u2022 ${b.validityLabel}' : ''}',
+                                '${b.mockOnly ? 'Mock Test Series' : '${b.videos} videos \u2022 ${b.pdfs} PDFs'}${b.hasValidity ? ' \u2022 ${b.validityLabel}' : ''}',
                                 style: const TextStyle(color: Colors.grey, fontSize: 11),
                               ),
                               trailing: const Text('✅', style: TextStyle(fontSize: 16)),
