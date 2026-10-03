@@ -403,16 +403,42 @@ class MockQuestion {
   final String text;
   final List<String> options; // exactly 4
   final int correctIndex;
+  // Optional Hindi version (bilingual tests) and answer-key explanation.
+  // Old tests do not have these - they simply stay empty.
+  final String textHi;
+  final List<String> optionsHi; // empty, or exactly 4
+  final String explanation;
+  final String explanationHi;
 
-  MockQuestion({required this.text, required this.options, required this.correctIndex});
+  MockQuestion({
+    required this.text,
+    required this.options,
+    required this.correctIndex,
+    this.textHi = '',
+    this.optionsHi = const [],
+    this.explanation = '',
+    this.explanationHi = '',
+  });
 
   factory MockQuestion.fromMap(Map<String, dynamic> m) => MockQuestion(
         text: m['text'] ?? '',
         options: List<String>.from(m['options'] ?? []),
         correctIndex: (m['correctIndex'] as num?)?.toInt() ?? 0,
+        textHi: m['textHi'] ?? '',
+        optionsHi: List<String>.from(m['optionsHi'] ?? []),
+        explanation: m['explanation'] ?? '',
+        explanationHi: m['explanationHi'] ?? '',
       );
 
-  Map<String, dynamic> toMap() => {'text': text, 'options': options, 'correctIndex': correctIndex};
+  Map<String, dynamic> toMap() => {
+        'text': text,
+        'options': options,
+        'correctIndex': correctIndex,
+        if (textHi.isNotEmpty) 'textHi': textHi,
+        if (optionsHi.isNotEmpty) 'optionsHi': optionsHi,
+        if (explanation.isNotEmpty) 'explanation': explanation,
+        if (explanationHi.isNotEmpty) 'explanationHi': explanationHi,
+      };
 }
 
 // Home-screen auto-scroll banner (16:9 image, optional tap-through link).
@@ -422,19 +448,15 @@ class BannerModel {
   final String id;
   final String imageUrl;
   final String? linkUrl;
-  // If set, tapping the banner opens THIS paid batch's payment page
-  // ("Pay & Get") instead of an external link.
-  final String? batchId;
   final int order;
   final DateTime? createdAt;
 
-  BannerModel({required this.id, required this.imageUrl, this.linkUrl, this.batchId, this.order = 0, this.createdAt});
+  BannerModel({required this.id, required this.imageUrl, this.linkUrl, this.order = 0, this.createdAt});
 
   factory BannerModel.fromMap(String id, Map<String, dynamic> m) => BannerModel(
         id: id,
         imageUrl: m['imageUrl'] ?? '',
         linkUrl: (m['linkUrl'] as String?)?.trim().isNotEmpty == true ? m['linkUrl'] : null,
-        batchId: (m['batchId'] as String?)?.trim().isNotEmpty == true ? (m['batchId'] as String).trim() : null,
         order: (m['order'] as num?)?.toInt() ?? 0,
         createdAt: _dt(m['createdAt']),
       );
@@ -542,8 +564,22 @@ class MockTestModel {
   final String title;
   final List<MockQuestion> questions;
   final DateTime? createdAt;
+  // Exam settings chosen by the admin for each test. Old tests have no such
+  // fields, so they default to: no timer, +1 per correct, no negative marking.
+  final int durationMinutes; // 0 = no timer (old tests)
+  final double marksPerQuestion;
+  final double negativeMarks; // cut for every wrong answer (0 = none)
 
-  MockTestModel({required this.id, required this.folderId, required this.title, required this.questions, this.createdAt});
+  MockTestModel({
+    required this.id,
+    required this.folderId,
+    required this.title,
+    required this.questions,
+    this.createdAt,
+    this.durationMinutes = 0,
+    this.marksPerQuestion = 1,
+    this.negativeMarks = 0,
+  });
 
   factory MockTestModel.fromMap(String id, Map<String, dynamic> m) => MockTestModel(
         id: id,
@@ -551,11 +587,17 @@ class MockTestModel {
         title: m['title'] ?? '',
         questions: ((m['questions'] ?? []) as List).map((q) => MockQuestion.fromMap(Map<String, dynamic>.from(q))).toList(),
         createdAt: _dt(m['createdAt']),
+        durationMinutes: (m['durationMinutes'] as num?)?.toInt() ?? 0,
+        marksPerQuestion: (m['marksPerQuestion'] as num?)?.toDouble() ?? 1,
+        negativeMarks: (m['negativeMarks'] as num?)?.toDouble() ?? 0,
       );
 
   Map<String, dynamic> toMap() => {
         'folderId': folderId,
         'title': title,
         'questions': questions.map((q) => q.toMap()).toList(),
+        'durationMinutes': durationMinutes,
+        'marksPerQuestion': marksPerQuestion,
+        'negativeMarks': negativeMarks,
       };
 }
