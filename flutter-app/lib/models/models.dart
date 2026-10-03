@@ -48,6 +48,9 @@ class BatchModel {
   // How long a student's access lasts after it is granted, in months.
   // 0 = lifetime (also what every older batch without this field means).
   final int validityMonths;
+  // true = "Mock Test Series": a paid product with ONLY mock tests (no
+  // videos / PDFs). Old batches have no such field, so they stay normal.
+  final bool mockOnly;
 
   BatchModel({
     required this.id,
@@ -58,6 +61,7 @@ class BatchModel {
     this.pdfs = 0,
     this.createdAt,
     this.validityMonths = 0,
+    this.mockOnly = false,
   });
 
   bool get hasValidity => validityMonths > 0;
@@ -72,6 +76,7 @@ class BatchModel {
         pdfs: _nonNeg(m['pdfs']),
         createdAt: _dt(m['createdAt']),
         validityMonths: _nonNeg(m['validityMonths']),
+        mockOnly: m['mockOnly'] == true,
       );
 
   Map<String, dynamic> toMap() => {
@@ -82,6 +87,7 @@ class BatchModel {
         'pdfs': pdfs,
         'isLocked': true,
         'validityMonths': validityMonths,
+        'mockOnly': mockOnly,
       };
 }
 
@@ -390,11 +396,20 @@ class MockTestFolderModel {
   final String id;
   final String examName; // e.g. "SSC CGL", "Banking PO"
   final DateTime? createdAt;
+  // Paid batches this folder is shown in (max 2). Empty / missing = FREE
+  // folder (old folders have no such field, so they stay free).
+  final List<String> batchIds;
 
-  MockTestFolderModel({required this.id, required this.examName, this.createdAt});
+  MockTestFolderModel({required this.id, required this.examName, this.createdAt, this.batchIds = const []});
 
-  factory MockTestFolderModel.fromMap(String id, Map<String, dynamic> m) =>
-      MockTestFolderModel(id: id, examName: m['examName'] ?? '', createdAt: _dt(m['createdAt']));
+  bool get isFree => batchIds.isEmpty;
+
+  factory MockTestFolderModel.fromMap(String id, Map<String, dynamic> m) => MockTestFolderModel(
+        id: id,
+        examName: m['examName'] ?? '',
+        createdAt: _dt(m['createdAt']),
+        batchIds: (m['batchIds'] is List) ? (m['batchIds'] as List).map((e) => e.toString()).toList() : <String>[],
+      );
 
   Map<String, dynamic> toMap() => {'examName': examName};
 }
