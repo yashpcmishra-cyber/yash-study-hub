@@ -3,6 +3,7 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:video_player/video_player.dart' as vp;
 import 'package:chewie/chewie.dart';
 import '../utils/open_link.dart';
+import '../widgets/landscape_frame.dart';
 
 /// In-built video player: playback speed, fullscreen with auto-rotate, and
 /// proper stop when the user presses back — handled by disposing the
@@ -40,6 +41,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // Video poori screen par chale: landscape ka 4:3 frame is screen par band.
+    Future.microtask(() => landscapeFrameBypass.value++);
     if (_isYoutube) {
       final videoId = YoutubePlayer.convertUrlToId(widget.youtubeUrl) ?? '';
       if (videoId.isEmpty) {
@@ -86,6 +89,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _chewieController?.pause();
     _chewieController?.dispose();
     _vpController?.dispose();
+    Future.microtask(() => landscapeFrameBypass.value--);
     super.dispose();
   }
 
