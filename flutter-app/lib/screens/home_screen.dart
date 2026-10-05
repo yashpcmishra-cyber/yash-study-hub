@@ -34,6 +34,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+  final GlobalKey _contentKey = GlobalKey(); // rotate par tab ka state bana rahe
   final _fs = FirestoreService();
 
   // The data streams are created ONCE (not on every rebuild), so Firestore
@@ -120,6 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context).size;
+    final landscape = mq.width > mq.height;
     final screens = [
       _buildHomeBody(),
       const NewsScreen(categories: ['banking', 'ssc', 'up_state', 'sports', 'technology', 'space', 'defence'], title: 'News'),
@@ -136,11 +139,24 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!didPop) setState(() => _tab = 0);
       },
       child: Scaffold(
-        body: SafeArea(child: screens[_tab]),
-        bottomNavigationBar: YshBottomNav(
-          currentIndex: _tab,
-          onTap: (i) => setState(() => _tab = i),
+        // Landscape: menu left side me (zyada height milti hai).
+        // Portrait: menu pehle jaisa neeche.
+        body: Row(
+          children: [
+            if (landscape)
+              YshSideNav(
+                currentIndex: _tab,
+                onTap: (i) => setState(() => _tab = i),
+              ),
+            Expanded(child: KeyedSubtree(key: _contentKey, child: SafeArea(child: screens[_tab]))),
+          ],
         ),
+        bottomNavigationBar: landscape
+            ? null
+            : YshBottomNav(
+                currentIndex: _tab,
+                onTap: (i) => setState(() => _tab = i),
+              ),
       ),
     );
   }
