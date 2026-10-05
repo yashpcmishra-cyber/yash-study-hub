@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/firestore_service.dart';
+import 'widgets/landscape_frame.dart';
 
 void _openNotificationsScreen() {
   appNavigatorKey.currentState?.push(
@@ -155,6 +156,7 @@ class YashStudyHubApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: appNavigatorKey,
       scaffoldMessengerKey: appMessengerKey,
+      builder: (context, child) => LandscapeFrame(child: child ?? const SizedBox.shrink()),
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: bg,
