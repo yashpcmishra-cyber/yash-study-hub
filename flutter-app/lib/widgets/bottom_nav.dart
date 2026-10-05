@@ -60,6 +60,53 @@ class YshBottomNav extends StatelessWidget {
   }
 }
 
+/// Landscape me neeche ka menu ki jagah left side ki patti. Isse list /
+/// content ko ~60dp zyada height milti hai. Tabs wahi hain, bas khade.
+class YshSideNav extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const YshSideNav({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  Widget _item(IconData icon, String label, int index) {
+    return Expanded(
+      child: _NavItem(
+        icon: icon,
+        label: label,
+        active: currentIndex == index,
+        onTap: () => onTap(index),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      right: false,
+      child: Container(
+        width: 68,
+        decoration: const BoxDecoration(
+          color: Color(0xFF0A1440),
+          border: Border(right: BorderSide(color: Color(0xFF16276A))),
+        ),
+        child: Column(
+          children: [
+            _item(Icons.home, 'Home', 0),
+            _item(Icons.newspaper, 'News', 1),
+            _item(Icons.picture_as_pdf, 'PDFs', 2),
+            _item(Icons.account_balance, 'C.Affairs', 3),
+            _item(Icons.person, 'Profile', 4),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// One tab of the bottom bar. On tap it sinks a little (shrinks and dips
 /// down ~110 ms) and springs back on release, like a real button. The
 /// press state is local to this tiny widget. onTap still fires exactly once
