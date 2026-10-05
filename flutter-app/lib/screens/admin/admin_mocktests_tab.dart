@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../services/firestore_service.dart';
 import '../../models/models.dart';
 import '../../services/mcq_bulk_parser.dart';
+import 'admin_mocktest_edit_screen.dart';
 
 class AdminMockTestsTab extends StatefulWidget {
   const AdminMockTestsTab({super.key});
@@ -415,7 +416,14 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                               t.durationMinutes > 0 ? '${t.questions.length} questions • ${t.durationMinutes} min • +${t.marksPerQuestion} / -${t.negativeMarks}' : '${t.questions.length} questions',
                               style: const TextStyle(color: Colors.grey, fontSize: 11),
                             ),
-                          trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteTestConfirm(t)),
+                          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                            IconButton(
+                              tooltip: 'Edit / move',
+                              icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 18),
+                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminMockTestEditScreen(test: t))),
+                            ),
+                            IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteTestConfirm(t)),
+                          ]),
                         ))
                     .toList(),
               );
