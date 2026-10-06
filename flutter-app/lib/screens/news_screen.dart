@@ -9,7 +9,8 @@ import '../widgets/state_views.dart';
 class NewsScreen extends StatefulWidget {
   final List<String> categories;
   final String title;
-  const NewsScreen({super.key, required this.categories, required this.title});
+  final bool showAppBar;
+  const NewsScreen({super.key, required this.categories, required this.title, this.showAppBar = true});
 
   @override
   State<NewsScreen> createState() => _NewsScreenState();
@@ -34,7 +35,7 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: widget.showAppBar ? AppBar(title: Text(widget.title)) : null,
       body: StreamBuilder<List<NewsItemModel>>(
         stream: _stream,
         builder: (context, snap) {

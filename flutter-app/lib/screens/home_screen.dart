@@ -17,6 +17,7 @@ import '../widgets/banner_carousel.dart';
 import 'pdf_library_screen.dart';
 import 'video_classes_screen.dart';
 import 'news_screen.dart';
+import 'current_affairs_screen.dart';
 import 'batches_screen.dart';
 import 'mock_tests_screen.dart';
 import 'batch_detail_screen.dart';
@@ -127,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _buildHomeBody(),
       const NewsScreen(categories: ['banking', 'ssc', 'up_state', 'sports', 'technology', 'space', 'defence'], title: 'News'),
       const PdfLibraryScreen(),
-      const NewsScreen(categories: ['national', 'hindi_news', 'hindi_ca'], title: 'Current Affairs'),
+      const CurrentAffairsScreen(),
       const ProfileScreen(),
     ];
 
