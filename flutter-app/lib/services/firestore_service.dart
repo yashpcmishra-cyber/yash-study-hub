@@ -253,6 +253,38 @@ class FirestoreService {
         .map((snap) => snap.docs.map((d) => NewsItemModel.fromMap(d.id, d.data())).toList());
   }
 
+  // ---- Daily current-affairs one-liners (auto-filled from PIB) ----
+  // Ek din = ek document (dailyCA/{yyyy-MM-dd}) jisme 'items' list hai, taaki
+  // free plan ki reads kam rahein (ek din dekhna = 1 read).
+  Stream<List<DailyCAModel>> streamDailyCA(String dateKey) {
+    return _db.collection('dailyCA').doc(dateKey).snapshots().map((snap) {
+      final data = snap.data();
+      final List<dynamic> raw = data == null ? <dynamic>[] : ((data['items'] as List<dynamic>?) ?? <dynamic>[]);
+      final list = <DailyCAModel>[];
+      for (final e in raw) {
+        if (e is Map) {
+          final item = DailyCAModel.fromMap(dateKey, Map<String, dynamic>.from(e));
+          if (item.id.isNotEmpty && (item.en.isNotEmpty || item.hi.isNotEmpty)) list.add(item);
+        }
+      }
+      list.sort((a, b) => b.sortKey.compareTo(a.sortKey));
+      return list;
+    });
+  }
+
+  // Admin-only (Firestore rules enforce it): ek galat line hatao.
+  Future<void> deleteDailyCA(String dateKey, String id) async {
+    final ref = _db.collection('dailyCA').doc(dateKey);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final data = snap.data();
+      if (data == null) return;
+      final List<dynamic> raw = (data['items'] as List<dynamic>?) ?? <dynamic>[];
+      final kept = raw.where((e) => !(e is Map && e['id'] == id)).toList();
+      tx.update(ref, {'items': kept});
+    });
+  }
+
   // ---- Student profile (students/{uid}) ----
   // uid = Firebase Auth uid, so security rules can do a simple
   // request.auth.uid == uid check — no email lookup needed.
