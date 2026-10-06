@@ -26,7 +26,21 @@ const db = admin.firestore();
 const parser = new Parser();
 
 const FEED_URL = "https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3";
-const UA = "Mozilla/5.0 (compatible; YashStudyHub/1.0; +https://github.com)";
+// Browser-like identity: PIB's firewall blocks obvious bot User-Agents with HTTP 403.
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
+const BROWSER_HEADERS = {
+  "User-Agent": UA,
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-IN,en;q=0.9,hi;q=0.8",
+  Referer: "https://pib.gov.in/",
+  "Upgrade-Insecure-Requests": "1",
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "same-origin",
+};
+// Optional: URL of your own free Cloudflare Worker that fetches PIB for you (see notes).
+// Used ONLY if direct requests keep getting 403.
+const PIB_PROXY_URL = process.env.PIB_PROXY_URL || "";
 const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
 const TOPICS = ["national", "international", "economy", "defence", "science_tech", "sports", "awards", "environment", "polity", "schemes", "appointments", "misc"];
 const BATCH_SIZE = 10;
@@ -55,9 +69,26 @@ function htmlToText(html) {
 }
 
 async function getText(url) {
-  const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "text/html,application/xml,*/*" } });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  return res.text();
+  let lastStatus = 0;
+  // 1) direct, with browser-like headers, retried a few times
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "follow" });
+      if (res.ok) return res.text();
+      lastStatus = res.status;
+      if (res.status !== 403 && res.status !== 429 && res.status < 500) break; // e.g. 404: retry is useless
+    } catch (err) {
+      console.warn(`Network error for ${url}: ${err.message}`);
+    }
+    await sleep(3000 * attempt);
+  }
+  // 2) optional fallback through your own proxy
+  if (PIB_PROXY_URL) {
+    const res = await fetch(`${PIB_PROXY_URL}${PIB_PROXY_URL.includes("?") ? "&" : "?"}url=${encodeURIComponent(url)}`);
+    if (res.ok) return res.text();
+    lastStatus = res.status;
+  }
+  throw new Error(`HTTP ${lastStatus} for ${url}`);
 }
 
 async function readFeed() {
