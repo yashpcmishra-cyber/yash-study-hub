@@ -9,6 +9,7 @@ import 'screens/notifications_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/firestore_service.dart';
 import 'widgets/landscape_frame.dart';
+import 'widgets/space_background.dart';
 
 void _openNotificationsScreen() {
   appNavigatorKey.currentState?.push(
@@ -156,17 +157,41 @@ class YashStudyHubApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: appNavigatorKey,
       scaffoldMessengerKey: appMessengerKey,
-      builder: (context, child) => LandscapeFrame(child: child ?? const SizedBox.shrink()),
+      // Space background poori app ke peeche (taare, chaand, asteroids).
+      // Screens ka background transparent hai, isliye ye sab par dikhta hai.
+      builder: (context, child) => LandscapeFrame(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const SpaceBackground(),
+            child ?? const SizedBox.shrink(),
+          ],
+        ),
+      ),
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: bg,
+        scaffoldBackgroundColor: Colors.transparent,
         colorScheme: ColorScheme.fromSeed(
           seedColor: gold,
           brightness: Brightness.dark,
           primary: gold,
           surface: const Color(0xFF081136),
         ),
-        appBarTheme: const AppBarTheme(backgroundColor: bg, elevation: 0),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+        ),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: <TargetPlatform, PageTransitionsBuilder>{
+            TargetPlatform.android: SpaceFadeTransitionsBuilder(),
+            TargetPlatform.iOS: SpaceFadeTransitionsBuilder(),
+            TargetPlatform.fuchsia: SpaceFadeTransitionsBuilder(),
+            TargetPlatform.linux: SpaceFadeTransitionsBuilder(),
+            TargetPlatform.macOS: SpaceFadeTransitionsBuilder(),
+            TargetPlatform.windows: SpaceFadeTransitionsBuilder(),
+          },
+        ),
         fontFamily: 'Roboto',
         // Gives every ElevatedButton in the app a raised "3D" look at rest
         // that visibly sinks when pressed, then springs back on release.
