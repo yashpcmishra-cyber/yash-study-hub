@@ -245,6 +245,59 @@ class NewsItemModel {
       );
 }
 
+/// Daily CA topics: key -> [English label, Hindi label]. Script (fetch-daily-ca.js)
+/// sirf yahi keys use karti hai.
+const Map<String, List<String>> kDailyCaTopics = {
+  'national': ['National', '\u0930\u093E\u0937\u094D\u091F\u094D\u0930\u0940\u092F'],
+  'international': ['International', '\u0905\u0902\u0924\u0930\u094D\u0930\u093E\u0937\u094D\u091F\u094D\u0930\u0940\u092F'],
+  'economy': ['Economy', '\u0905\u0930\u094D\u0925\u0935\u094D\u092F\u0935\u0938\u094D\u0925\u093E'],
+  'defence': ['Defence', '\u0930\u0915\u094D\u0937\u093E'],
+  'science_tech': ['Science & Tech', '\u0935\u093F\u091C\u094D\u091E\u093E\u0928 \u0935 \u0924\u0915\u0928\u0940\u0915'],
+  'sports': ['Sports', '\u0916\u0947\u0932'],
+  'awards': ['Awards', '\u092A\u0941\u0930\u0938\u094D\u0915\u093E\u0930'],
+  'environment': ['Environment', '\u092A\u0930\u094D\u092F\u093E\u0935\u0930\u0923'],
+  'polity': ['Polity & Governance', '\u0930\u093E\u091C\u0935\u094D\u092F\u0935\u0938\u094D\u0925\u093E'],
+  'schemes': ['Schemes', '\u092F\u094B\u091C\u0928\u093E\u090F\u0902'],
+  'appointments': ['Appointments', '\u0928\u093F\u092F\u0941\u0915\u094D\u0924\u093F\u092F\u093E\u0902'],
+  'misc': ['Others', '\u0905\u0928\u094D\u092F'],
+};
+
+/// One bilingual current-affairs line (auto-filled from PIB). Ek din ki saari
+/// lines Firestore ke ek hi document (dailyCA/{yyyy-MM-dd}) mein 'items' list
+/// mein rehti hain, isliye ek din dekhne par sirf 1 read lagta hai.
+class DailyCAModel {
+  final String id;
+  final String date; // yyyy-MM-dd (IST)
+  final String topic;
+  final String en;
+  final String hi;
+  final String source;
+  final String link;
+  final int sortKey;
+
+  DailyCAModel({
+    required this.id,
+    required this.date,
+    required this.topic,
+    required this.en,
+    required this.hi,
+    required this.source,
+    required this.link,
+    required this.sortKey,
+  });
+
+  factory DailyCAModel.fromMap(String date, Map<String, dynamic> m) => DailyCAModel(
+        id: (m['id'] ?? '').toString(),
+        date: date,
+        topic: (m['topic'] ?? 'misc').toString(),
+        en: (m['en'] ?? '').toString(),
+        hi: (m['hi'] ?? '').toString(),
+        source: (m['source'] ?? 'PIB').toString(),
+        link: (m['link'] ?? '').toString(),
+        sortKey: m['sortKey'] is num ? (m['sortKey'] as num).toInt() : 0,
+      );
+}
+
 class AccessRequestModel {
   final String id; // format: {studentEmail}_{batchId}, same pattern as batchAccess
   final String studentName;
