@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -263,6 +264,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
+    _setAdminAlerts(true);
     _tabs = TabController(length: 11, vsync: this);
     _installFuture = _fs.installCount();
     _activeFuture = _loadActiveCounts();
@@ -326,7 +328,23 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     return ok == true;
   }
 
+  // Admin ke phone par "nayi query aayi" push ke liye. Sirf admin panel khulne
+  // par subscribe hota hai, logout par hat jaata hai; students ko ye nahi milta.
+  Future<void> _setAdminAlerts(bool on) async {
+    try {
+      final messaging = FirebaseMessaging.instance;
+      if (on) {
+        await messaging.subscribeToTopic('admin_alerts');
+      } else {
+        await messaging.unsubscribeFromTopic('admin_alerts');
+      }
+    } catch (_) {
+      // Offline etc. - agli baar panel kholne par dobara try hoga.
+    }
+  }
+
   Future<void> _logout() async {
+    await _setAdminAlerts(false);
     await _auth.logout();
     if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AdminLoginScreen()));
   }
