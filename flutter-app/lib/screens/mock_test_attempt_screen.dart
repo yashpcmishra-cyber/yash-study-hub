@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../services/firestore_service.dart';
 import '../services/mock_rank_service.dart';
 import 'mock_test_scorecard_screen.dart';
+import '../widgets/space_background.dart';
 
 const _navy = Color(0xFF081136);
 const _cardBg = Color(0xFF101D57);
@@ -39,6 +40,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
   @override
   void initState() {
     super.initState();
+    Future.microtask(() => spaceBackgroundPause.value++);
     _answers = List<int?>.filled(widget.test.questions.length, null);
     _timed = widget.test.durationMinutes > 0;
     _hasHindi = mockHasHindi(widget.test);
@@ -51,6 +53,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
   void dispose() {
     _ticker?.cancel();
     _identityController.dispose();
+    Future.microtask(() => spaceBackgroundPause.value--);
     super.dispose();
   }
 
@@ -264,6 +267,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
         if (!didPop) _confirmLeave();
       },
       child: Scaffold(
+        backgroundColor: const Color(0xFF050B24),
         appBar: AppBar(
           title: Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [

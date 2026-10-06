@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart' as vp;
 import 'package:chewie/chewie.dart';
 import '../utils/open_link.dart';
 import '../widgets/landscape_frame.dart';
+import '../widgets/space_background.dart';
 
 /// In-built video player: playback speed, fullscreen with auto-rotate, and
 /// proper stop when the user presses back — handled by disposing the
@@ -43,6 +44,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.initState();
     // Video poori screen par chale: landscape ka 4:3 frame is screen par band.
     Future.microtask(() => landscapeFrameBypass.value++);
+    Future.microtask(() => spaceBackgroundPause.value++);
     if (_isYoutube) {
       final videoId = YoutubePlayer.convertUrlToId(widget.youtubeUrl) ?? '';
       if (videoId.isEmpty) {
@@ -90,11 +92,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _chewieController?.dispose();
     _vpController?.dispose();
     Future.microtask(() => landscapeFrameBypass.value--);
+    Future.microtask(() => spaceBackgroundPause.value--);
     super.dispose();
   }
 
   Widget _errorScaffold(String message) {
     return Scaffold(
+      backgroundColor: const Color(0xFF050B24),
       appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
       body: Center(
         child: Padding(
@@ -138,6 +142,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ],
         ),
         builder: (context, player) => Scaffold(
+          backgroundColor: const Color(0xFF050B24),
           appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
           body: Column(
             children: [
@@ -162,6 +167,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final chewie = _chewieController;
     final vpc = _vpController;
     return Scaffold(
+      backgroundColor: const Color(0xFF050B24),
       appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
       body: Center(
         child: chewie != null && vpc != null

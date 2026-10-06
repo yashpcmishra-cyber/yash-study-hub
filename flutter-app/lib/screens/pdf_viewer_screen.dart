@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import '../utils/open_link.dart';
+import '../widgets/space_background.dart';
 
 /// Opens a PDF INSIDE the app (instead of sending the student to Drive / the
 /// browser).
@@ -138,6 +139,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   @override
   void initState() {
     super.initState();
+    Future.microtask(() => spaceBackgroundPause.value++);
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -171,6 +173,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   void dispose() {
     // Give the phone's status/navigation bars back when leaving the PDF.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+    Future.microtask(() => spaceBackgroundPause.value--);
     super.dispose();
   }
 
@@ -337,6 +340,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     final landscape = MediaQuery.of(context).orientation == Orientation.landscape;
     _applyOrientation(landscape);
     return Scaffold(
+      backgroundColor: const Color(0xFF050B24),
       appBar: landscape
           ? null
           : AppBar(
