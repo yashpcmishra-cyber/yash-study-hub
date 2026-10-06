@@ -8,8 +8,8 @@ import 'package:flutter/scheduler.dart';
 /// space animation ruk jaati hai (battery bachti hai, kuch dikhta bhi nahi).
 final ValueNotifier<int> spaceBackgroundPause = ValueNotifier<int>(0);
 
-/// Poori app ke peeche chalne wala space background: taare, chaand, asteroids
-/// aur kabhi-kabhi toota hua taara. Ye MaterialApp.builder mein ek hi baar
+/// Poori app ke peeche chalne wala space background: taare, asteroids aur
+/// kabhi-kabhi toota hua taara. Ye MaterialApp.builder mein ek hi baar
 /// lagta hai, isliye har screen ko alag se kuch nahi karna padta.
 /// - Animation ~30 fps par chalti hai (purane phones/battery ke liye halka).
 /// - Phone mein "Remove animations" on ho to sirf ek sthir tasveer dikhti hai.
@@ -233,14 +233,6 @@ class _SkyPainter extends CustomPainter {
 
   static final List<_Star> _stars = _buildStars();
   static final List<_Rock> _rocks = _buildRocks();
-  static const List<List<double>> _craters = [
-    [-0.30, -0.15, 0.22],
-    [0.25, 0.30, 0.17],
-    [0.35, -0.35, 0.12],
-    [-0.40, 0.40, 0.13],
-    [0.0, 0.05, 0.08],
-  ];
-
   final Paint _paint = Paint();
   final Paint _line = Paint()
     ..style = PaintingStyle.stroke
@@ -250,11 +242,6 @@ class _SkyPainter extends CustomPainter {
     ..strokeWidth = 1.8
     ..strokeCap = StrokeCap.round;
 
-  double _moonR = -1;
-  Shader? _glow;
-  Shader? _body;
-  Shader? _shade;
-
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -262,7 +249,6 @@ class _SkyPainter extends CustomPainter {
     if (w <= 0 || h <= 0) return;
     final t = time.value;
     _drawStars(canvas, w, h, t);
-    _drawMoon(canvas, w, h, t);
     _drawRocks(canvas, w, h, t);
     _drawShootingStar(canvas, w, h, t);
   }
@@ -280,45 +266,6 @@ class _SkyPainter extends CustomPainter {
         canvas.drawLine(Offset(px, py - 5), Offset(px, py + 5), _line);
       }
     }
-  }
-
-  void _drawMoon(Canvas canvas, double w, double h, double t) {
-    final r = w * 0.2;
-    if (r != _moonR) {
-      _moonR = r;
-      _glow = const RadialGradient(
-        colors: [Color(0x38BED2FF), Color(0x00BED2FF)],
-        stops: [0.4, 1.0],
-      ).createShader(Rect.fromCircle(center: Offset.zero, radius: r * 2.3));
-      _body = const RadialGradient(
-        center: Alignment(-0.35, -0.35),
-        radius: 0.75,
-        colors: [Color(0xFFF6F2E4), Color(0xFFC4C7D6), Color(0xFF80869C)],
-        stops: [0.0, 0.6, 1.0],
-      ).createShader(Rect.fromCircle(center: Offset.zero, radius: r));
-      _shade = const RadialGradient(
-        center: Alignment(-0.5, -0.5),
-        radius: 0.8,
-        colors: [Color(0x0004050D), Color(0x9904050D)],
-      ).createShader(Rect.fromCircle(center: Offset.zero, radius: r));
-    }
-    final cx = w * 0.8 + math.sin(t * 0.1) * 6;
-    final cy = h * 0.17 + math.cos(t * 0.08) * 5;
-    canvas.save();
-    canvas.translate(cx, cy);
-    _paint.shader = _glow;
-    canvas.drawCircle(Offset.zero, r * 2.3, _paint);
-    _paint.shader = _body;
-    canvas.drawCircle(Offset.zero, r, _paint);
-    _paint.shader = null;
-    _paint.color = const Color(0x525F6482);
-    for (final c in _craters) {
-      canvas.drawCircle(Offset(c[0] * r, c[1] * r), c[2] * r, _paint);
-    }
-    _paint.shader = _shade;
-    canvas.drawCircle(Offset.zero, r, _paint);
-    _paint.shader = null;
-    canvas.restore();
   }
 
   void _drawRocks(Canvas canvas, double w, double h, double t) {
