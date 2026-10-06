@@ -50,7 +50,7 @@ class _DepthCardState extends State<DepthCard> {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = widget.color ?? const Color(0xFF081136);
+    final baseColor = widget.color ?? const Color(0xCC081136);
     final cardColor = (_pressed && widget.pressBrighten > 0)
         ? (Color.lerp(baseColor, Colors.white, widget.pressBrighten) ?? baseColor)
         : baseColor;

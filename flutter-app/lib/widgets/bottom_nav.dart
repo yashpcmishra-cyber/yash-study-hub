@@ -43,7 +43,7 @@ class YshBottomNav extends StatelessWidget {
       child: Container(
         height: 60,
         decoration: const BoxDecoration(
-          color: Color(0xFF0A1440),
+          color: Color(0xE60A1440),
           border: Border(top: BorderSide(color: Color(0xFF16276A))),
         ),
         child: Row(
@@ -90,7 +90,7 @@ class YshSideNav extends StatelessWidget {
       child: Container(
         width: 68,
         decoration: const BoxDecoration(
-          color: Color(0xFF0A1440),
+          color: Color(0xE60A1440),
           border: Border(right: BorderSide(color: Color(0xFF16276A))),
         ),
         child: Column(
