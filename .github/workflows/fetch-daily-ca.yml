@@ -1,0 +1,27 @@
+name: Fetch Daily Current Affairs (free, PIB + Gemini)
+
+on:
+  schedule:
+    - cron: '30 2-18/4 * * *'   # every 4 hours: 8 AM, 12 PM, 4 PM, 8 PM, 12 AM IST
+  workflow_dispatch: {}
+
+concurrency:
+  group: fetch-daily-ca
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node fetch-daily-ca.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
