@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import '../../services/admin_session.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/image_upload_service.dart';
@@ -265,6 +266,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _setAdminAlerts(true);
+    Future.microtask(() => adminSignedIn.value = true);
     _tabs = TabController(length: 11, vsync: this);
     _installFuture = _fs.installCount();
     _activeFuture = _loadActiveCounts();
@@ -346,6 +348,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   Future<void> _logout() async {
     await _setAdminAlerts(false);
     await _auth.logout();
+    adminSignedIn.value = false;
     if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AdminLoginScreen()));
   }
 
