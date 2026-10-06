@@ -2,7 +2,7 @@ name: Fetch News (free, no Blaze needed)
 
 on:
   schedule:
-    - cron: '0 */2 * * *'   # every 2 hours
+    - cron: '30 0,8,16 * * *'   # every 8 hours: 6 AM, 2 PM, 10 PM IST
   workflow_dispatch: {}
 
 concurrency:
