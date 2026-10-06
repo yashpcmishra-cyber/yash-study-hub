@@ -147,7 +147,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return PopScope(
       canPop: !widget.isSetup,
       child: Scaffold(
-        backgroundColor: const Color(0xFF050B24),
         appBar: AppBar(
           automaticallyImplyLeading: !widget.isSetup,
           title: Text(widget.isSetup ? 'Complete Your Profile' : 'My Profile'),
