@@ -88,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     const gold = Color(0xFFFFFF29);
     return Scaffold(
-      backgroundColor: const Color(0xFF050B24),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

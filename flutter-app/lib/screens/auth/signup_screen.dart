@@ -82,7 +82,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B24),
       appBar: AppBar(title: const Text('Create Profile')),
       body: SafeArea(
         child: SingleChildScrollView(
