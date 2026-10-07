@@ -603,12 +603,16 @@ class FirestoreService {
       });
 
   // Admin "Attempts" tab (latest first).
-  Stream<List<MockTestAttemptModel>> streamMockAttempts({int limit = 100}) => _db
-      .collection('mockTestAttempts')
-      .orderBy('submittedAt', descending: true)
-      .limit(limit)
-      .snapshots()
-      .map((snap) => snap.docs.map((d) => MockTestAttemptModel.fromMap(d.id, d.data())).toList());
+  // One-time read (get), NOT a live listener, so Firestore reads are only
+  // used when the admin opens / refreshes the tab. Only the latest 25 are read.
+  Future<List<MockTestAttemptModel>> fetchMockAttempts({int limit = 25}) async {
+    final snap = await _db
+        .collection('mockTestAttempts')
+        .orderBy('submittedAt', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs.map((d) => MockTestAttemptModel.fromMap(d.id, d.data())).toList();
+  }
 
   // ---- Home banners (16:9 auto-scroll carousel, Admin Panel -> Banners) ----
   Stream<List<BannerModel>> streamBanners() => _db
