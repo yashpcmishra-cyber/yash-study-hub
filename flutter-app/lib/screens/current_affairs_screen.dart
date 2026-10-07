@@ -92,6 +92,8 @@ class _DailyCaViewState extends State<DailyCaView> {
   String _topic = 'all';
   String _lang = 'both'; // both | hi | en
   late Stream<List<DailyCAModel>> _stream;
+  bool _fallbackTried = false;
+  String? _note;
 
   static const List<String> _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -119,12 +121,30 @@ class _DailyCaViewState extends State<DailyCaView> {
     return _lang == 'hi' ? pair[1] : pair[0];
   }
 
-  void _selectDay(int i) {
+  void _selectDay(int i, {bool auto = false}) {
     setState(() {
       _dayIndex = i;
       _topic = 'all';
+      _note = auto ? 'Aaj ki lines abhi nahi aayi \u2014 ${_dayLabel(i)} ki dikha rahe hain' : null;
       _stream = _fs.streamDailyCA(_keyOf(_days[i]));
     });
+  }
+
+  // Aaj (Today) khaali ho to sabse taaza din (pichhle 3 din mein se) apne aap
+  // dikha do, taaki subah-subah screen khaali na rahe. Sirf ek baar chalta hai.
+  Future<void> _tryFallback() async {
+    for (var i = 1; i < 4 && i < _days.length; i++) {
+      try {
+        final list = await _fs.streamDailyCA(_keyOf(_days[i])).first;
+        if (!mounted) return;
+        if (list.isNotEmpty) {
+          _selectDay(i, auto: true);
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+    }
   }
 
   Future<void> _refresh() async {
@@ -255,6 +275,11 @@ class _DailyCaViewState extends State<DailyCaView> {
             ],
           ),
         ),
+        if (_note != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+            child: Text(_note!, style: const TextStyle(color: _muted, fontSize: 11.5)),
+          ),
         Expanded(
           child: StreamBuilder<List<DailyCAModel>>(
             stream: _stream,
@@ -265,6 +290,12 @@ class _DailyCaViewState extends State<DailyCaView> {
               } else if (!snap.hasData) {
                 content = const PullableMessage(child: LoadingView());
               } else if (snap.data!.isEmpty) {
+                if (_dayIndex == 0 && !_fallbackTried) {
+                  _fallbackTried = true;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _tryFallback();
+                  });
+                }
                 content = const PullableMessage(
                   child: EmptyView('Is din ke one-liners abhi nahi aaye \u2014 thodi der baad dekhein'),
                 );
