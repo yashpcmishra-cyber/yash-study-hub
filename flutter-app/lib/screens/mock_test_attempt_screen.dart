@@ -261,6 +261,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
   Widget build(BuildContext context) {
     final test = widget.test;
     final total = test.questions.length;
+    final land = MediaQuery.orientationOf(context) == Orientation.landscape;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -269,15 +270,28 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFF050B24),
         appBar: AppBar(
-          title: Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          // Landscape: slim bar that also carries the timer + language toggle,
+          // so the separate header row is not needed and more screen is left.
+          toolbarHeight: land ? 44 : null,
+          titleSpacing: land ? 0 : null,
+          title: land && total > 0
+              ? Row(
+                  children: [
+                    Flexible(child: Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16))),
+                    const SizedBox(width: 14),
+                    _timerRow(),
+                  ],
+                )
+              : Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
+            if (land && total > 0 && _hasHindi) ...[_langToggle(), const SizedBox(width: 4)],
             if (total > 0) IconButton(tooltip: 'Questions', icon: const Icon(Icons.grid_view_rounded), onPressed: _openPalette),
             TextButton(onPressed: _submitting ? null : () => _submit(), child: const Text('Submit')),
           ],
         ),
         body: total == 0
             ? const Center(child: Text('This test has no questions yet', style: TextStyle(color: Colors.grey)))
-            : _body(total),
+            : (land ? _landscapeBody(total) : _body(total)),
       ),
     );
   }
@@ -306,11 +320,94 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     );
   }
 
-  Widget _header(int total) {
+  String _marksLine(int total) {
     final t = widget.test;
-    final lowTime = _timed && _secondsShown <= 60;
-    final marksLine = 'Q ${_index + 1}/$total  \u2022  +${fmtMarks(t.marksPerQuestion)}'
+    return 'Q ${_index + 1}/$total  \u2022  +${fmtMarks(t.marksPerQuestion)}'
         '${t.negativeMarks > 0 ? '  /  \u2212${fmtMarks(t.negativeMarks)}' : ''}';
+  }
+
+  Widget _timerRow() {
+    final lowTime = _timed && _secondsShown <= 60;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.timer_outlined, size: 18, color: lowTime ? Colors.redAccent : _gold),
+        const SizedBox(width: 4),
+        Text(
+          fmtDuration(_secondsShown),
+          style: TextStyle(color: lowTime ? Colors.redAccent : Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        if (!_timed) const Text('  (no limit)', style: TextStyle(color: Colors.grey, fontSize: 11)),
+      ],
+    );
+  }
+
+  Widget _langToggle() {
+    return Container(
+      decoration: BoxDecoration(border: Border.all(color: Colors.white24), borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _langBtn('EN', !_hindi, () => setState(() => _hindi = false)),
+          _langBtn('\u0939\u093f\u0902', _hindi, () => setState(() => _hindi = true)),
+        ],
+      ),
+    );
+  }
+
+  /// Landscape layout: question on the left, options on the right (each side
+  /// scrolls on its own), slim bottom bar. Whole question + options fit on
+  /// one screen without wasting the top half.
+  Widget _landscapeBody(int total) {
+    final q = widget.test.questions[_index];
+    final opts = mockOptions(q, _hindi);
+    return Column(
+      children: [
+        Expanded(
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 11,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_marksLine(total), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        const SizedBox(height: 6),
+                        Text(mockText(q, _hindi), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
+                      ],
+                    ),
+                  ),
+                ),
+                const VerticalDivider(width: 1, thickness: 1, color: Colors.white12),
+                Expanded(
+                  flex: 10,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 14, 8),
+                    child: Column(
+                      children: [
+                        for (var oi = 0; oi < opts.length; oi++) _optionTile(oi, opts[oi], compact: true),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _bottomBar(total, compact: true),
+      ],
+    );
+  }
+
+  Widget _header(int total) {
+    final lowTime = _timed && _secondsShown <= 60;
+    final marksLine = _marksLine(total);
     return Container(
       color: _cardBg,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -334,17 +431,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
               ],
             ),
           ),
-          if (_hasHindi)
-            Container(
-              decoration: BoxDecoration(border: Border.all(color: Colors.white24), borderRadius: BorderRadius.circular(8)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _langBtn('EN', !_hindi, () => setState(() => _hindi = false)),
-                  _langBtn('\u0939\u093f\u0902', _hindi, () => setState(() => _hindi = true)),
-                ],
-              ),
-            ),
+          if (_hasHindi) _langToggle(),
         ],
       ),
     );
@@ -361,15 +448,15 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     );
   }
 
-  Widget _optionTile(int oi, String text) {
+  Widget _optionTile(int oi, String text, {bool compact = false}) {
     final selected = _answers[_index] == oi;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.only(bottom: compact ? 6 : 10),
       child: GestureDetector(
         onTap: () => setState(() => _answers[_index] = oi),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(compact ? 8 : 12),
           decoration: BoxDecoration(
             color: selected ? const Color(0x33FFFF29) : _cardBg,
             borderRadius: BorderRadius.circular(12),
@@ -401,14 +488,14 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     );
   }
 
-  Widget _bottomBar(int total) {
+  Widget _bottomBar(int total, {bool compact = false}) {
     final last = _index >= total - 1;
-    const pad = EdgeInsets.symmetric(horizontal: 4, vertical: 12);
+    final pad = EdgeInsets.symmetric(horizontal: 4, vertical: compact ? 6 : 12);
     return SafeArea(
       top: false,
       child: Container(
         color: _cardBg,
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        padding: EdgeInsets.fromLTRB(12, compact ? 4 : 8, 12, compact ? 4 : 8),
         child: Row(
           children: [
             Expanded(
