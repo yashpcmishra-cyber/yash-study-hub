@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../services/share_service.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -250,7 +251,11 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
       body = _lockedContent();
     }
     return Scaffold(
-      appBar: AppBar(title: Text(widget.batch.title)),
+      appBar: AppBar(
+        title: Text(widget.batch.title),
+        // Promo only: batch name + app link. No content link is ever shared.
+        actions: [ShareButton(onPressed: () => ShareService.paidBatch(context, widget.batch.title))],
+      ),
       body: body,
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/share_service.dart';
 import '../services/firestore_service.dart';
 import '../models/models.dart';
 import '../widgets/depth_card.dart';
@@ -54,7 +55,13 @@ class _MockTestsScreenState extends State<MockTestsScreen> {
                   child: ListTile(
                     leading: const Text('📝', style: TextStyle(fontSize: 22)),
                     title: Text(f.examName, style: const TextStyle(color: Colors.white)),
-                    trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ShareButton(onPressed: () => ShareService.freeMock(context, f.examName, folder: true)),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                      ],
+                    ),
                   ),
                 );
               },

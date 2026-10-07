@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/share_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/firestore_service.dart';
 import '../models/models.dart';
@@ -77,7 +78,13 @@ class _FreeFoldersTabState extends State<_FreeFoldersTab> {
                 child: ListTile(
                   leading: const Text('📁', style: TextStyle(fontSize: 22)),
                   title: Text(f.name, style: const TextStyle(color: Colors.white)),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ShareButton(onPressed: () => ShareService.freePdf(context, f.name, folder: true)),
+                      const Icon(Icons.chevron_right, color: Colors.grey),
+                    ],
+                  ),
                 ),
               );
             },

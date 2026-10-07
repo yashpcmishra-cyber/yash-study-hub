@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/share_service.dart';
 import '../services/firestore_service.dart';
 import '../models/models.dart';
 import 'pdf_viewer_screen.dart';
@@ -60,7 +61,16 @@ class _PdfFolderScreenState extends State<PdfFolderScreen> {
                   child: ListTile(
                     leading: NetImage(url: p.iconUrl, width: 40, height: 40, fallbackIcon: '📄', radius: 8),
                     title: Text(p.title, style: const TextStyle(color: Colors.white)),
-                    trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                    // Share button only for FREE folders (paid-batch PDFs are never shareable).
+                    trailing: widget.folder.type == 'batch'
+                        ? const Icon(Icons.chevron_right, color: Colors.grey, size: 20)
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ShareButton(onPressed: () => ShareService.freePdf(context, p.title)),
+                              const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                            ],
+                          ),
                   ),
                 );
               },

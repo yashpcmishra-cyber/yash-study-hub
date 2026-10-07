@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/share_service.dart';
 import '../services/firestore_service.dart';
 import '../models/models.dart';
 import '../widgets/depth_card.dart';
@@ -45,7 +46,16 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
                     '${t.negativeMarks > 0 ? ' \u2022 \u2212${fmtMarks(t.negativeMarks)} negative' : ''}',
                     style: const TextStyle(color: Colors.grey, fontSize: 11),
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                  // Share button only when this folder is FREE (paid-batch tests are never shareable).
+                  trailing: widget.folder.isFree
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ShareButton(onPressed: () => ShareService.freeMock(context, t.title)),
+                            const Icon(Icons.chevron_right, color: Colors.grey),
+                          ],
+                        )
+                      : const Icon(Icons.chevron_right, color: Colors.grey),
                 ),
               );
             },
