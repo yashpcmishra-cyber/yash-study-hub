@@ -226,7 +226,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   late final Stream<List<BatchModel>> _batchesStream = _fs.streamBatches();
   late final Stream<List<AccessRequestModel>> _requestsStream = _fs.streamPendingRequests();
   late final Stream<List<AccessGrantModel>> _grantsStream = _fs.streamGrants();
-  late final Stream<List<MockTestAttemptModel>> _attemptsStream = _fs.streamMockAttempts();
+  // Attempts are loaded only when the admin opens the Attempts tab (and again
+  // on refresh), to save Firestore reads. Null = not loaded yet.
+  Future<List<MockTestAttemptModel>>? _attemptsFuture;
   late final Stream<AppConfigModel> _configStream = _fs.streamAppConfig();
   late final Stream<List<BannerModel>> _bannersStream = _fs.streamBanners();
   late Future<int> _installFuture;
@@ -391,7 +393,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           const AdminPdfsTab(),
           const AdminVideosTab(),
           const AdminMockTestsTab(),
-          _attemptsTab(),
+          Builder(builder: (_) => _attemptsTab()), // Builder = built lazily, only when tab is opened
           _brandingTab(),
           _bannersTab(),
           _notifyTab(),
@@ -1008,43 +1010,80 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   // Attempts
   // ------------------------------------------------------------------
   Widget _attemptsTab() {
-    return StreamBuilder<List<MockTestAttemptModel>>(
-      stream: _attemptsStream,
+    _attemptsFuture ??= _fs.fetchMockAttempts();
+    return FutureBuilder<List<MockTestAttemptModel>>(
+      future: _attemptsFuture,
       builder: (context, snap) {
         if (snap.hasError) {
           return Padding(
             padding: const EdgeInsets.all(20),
-            child: Text('Could not load attempts: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Could not load attempts: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+                TextButton(onPressed: _refreshAttempts, child: const Text('Retry')),
+              ],
+            ),
           );
         }
-        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-        final attempts = snap.data!;
+        if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+        final attempts = snap.data ?? const <MockTestAttemptModel>[];
         if (attempts.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(20),
-            child: Text('No mock test attempts yet.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('No mock test attempts yet.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                TextButton.icon(onPressed: _refreshAttempts, icon: const Icon(Icons.refresh, size: 16), label: const Text('Refresh')),
+              ],
+            ),
           );
         }
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text('Latest ${attempts.length} attempts', style: const TextStyle(color: Colors.grey, fontSize: 11)),
-            const SizedBox(height: 8),
-            ...attempts.map((a) => DepthCard(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    title: Text(a.mockTestTitle.isEmpty ? '(test id: ${a.mockTestId})' : a.mockTestTitle, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                    subtitle: Text(
-                      a.submittedAt != null ? '${a.studentEmail} \u2022 ${DateFormat('d MMM, h:mm a').format(a.submittedAt!)}' : a.studentEmail,
-                      style: const TextStyle(color: Colors.grey, fontSize: 11),
-                    ),
-                    trailing: Text('${a.score}/${a.total}', style: TextStyle(color: a.total > 0 && a.score >= a.total / 2 ? Colors.greenAccent : Colors.orangeAccent, fontWeight: FontWeight.bold)),
+        return RefreshIndicator(
+          onRefresh: () async => _refreshAttempts(),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Latest ${attempts.length} attempts \u2022 auto-deleted after 30 days', style: const TextStyle(color: Colors.grey, fontSize: 11)),
                   ),
-                )),
-          ],
+                  IconButton(
+                    tooltip: 'Refresh',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.refresh, color: Colors.grey, size: 18),
+                    onPressed: _refreshAttempts,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ...attempts.map((a) => DepthCard(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      title: Text(a.mockTestTitle.isEmpty ? '(test id: ${a.mockTestId})' : a.mockTestTitle, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                      subtitle: Text(
+                        a.submittedAt != null ? '${a.studentEmail} \u2022 ${DateFormat('d MMM, h:mm a').format(a.submittedAt!)}' : a.studentEmail,
+                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                      trailing: Text('${a.score}/${a.total}', style: TextStyle(color: a.total > 0 && a.score >= a.total / 2 ? Colors.greenAccent : Colors.orangeAccent, fontWeight: FontWeight.bold)),
+                    ),
+                  )),
+            ],
+          ),
         );
       },
     );
+  }
+
+  // Manual refresh = one new read of the latest 25 attempts.
+  void _refreshAttempts() {
+    if (!mounted) return;
+    setState(() => _attemptsFuture = _fs.fetchMockAttempts());
   }
 
   // ------------------------------------------------------------------
