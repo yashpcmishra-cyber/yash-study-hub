@@ -42,7 +42,7 @@ const BROWSER_HEADERS = {
 // Used ONLY if direct requests keep getting 403.
 const PIB_PROXY_URL = process.env.PIB_PROXY_URL || "";
 const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
-const TOPICS = ["national", "international", "economy", "defence", "science_tech", "sports", "awards", "environment", "polity", "schemes", "appointments", "misc"];
+const TOPICS = ["national", "international", "states", "economy", "banking", "trade", "polity", "schemes", "appointments", "awards", "sports", "days", "summits", "mou", "reports", "books", "obituary", "defence", "security", "science_tech", "space", "environment", "energy", "agriculture", "health", "education", "infrastructure", "culture", "misc"];
 const BATCH_SIZE = 10;
 const KEEP_DAYS = 10; // today + the previous 9 days are kept
 const MAX_PER_DAY = 40; // keeps each day's document small
@@ -124,10 +124,20 @@ function buildPrompt(batch) {
   return `You write daily current-affairs one-liners for Indian competitive-exam students (SSC, Banking, UPSC, State PCS).
 Below are official PIB press releases. For each one decide whether it holds a fact worth remembering for exams (new scheme/policy, agreement/MoU, appointment, award, ranking, launch, major statistic, defence acquisition/exercise, science/space milestone, important event with a date).
 SKIP routine items: ceremonies, meeting reviews, visits without outcomes, cleanliness drives, speeches, greetings, "press release" placeholders.
+KEEP (do not skip) a release that states an observed Day with its date/theme, a notable person's death, or a book release, because exams ask these.
 
 For every release you keep, return one object with:
 - "id": the exact ID given
-- "topic": one of ${TOPICS.join(", ")}
+- "topic": the MOST SPECIFIC one of ${TOPICS.join(", ")}. Guide:
+    states = news about one particular state/UT; banking = RBI, SEBI, NPCI, insurance, banks, UPI, financial regulation;
+    trade = exports/imports, FTA, commerce ministry; days = an observed Day/Week with its date or theme;
+    summits = summits, conferences, multilateral meetings (G20, BRICS, SCO, UN, COP); mou = agreements/MoUs/treaties signed;
+    reports = reports, rankings, indices, surveys, census/statistics; books = books released, authors;
+    obituary = death of a notable person; security = police/CAPF/NIA/terror/border/cyber security;
+    space = ISRO, satellites, missions; energy = power, renewable, oil & gas, nuclear energy; agriculture = farming, MSP, fisheries, dairy;
+    health = health ministry, diseases, vaccines, AYUSH; education = schools, universities, exams, NEP, skilling;
+    infrastructure = railways, roads, ports, airports, metro, housing; culture = heritage, tourism, art, UNESCO, festivals;
+    use "misc" only if nothing else fits.
 - "en": ONE factual sentence in English, max 30 words
 - "hi": the same sentence in clear Hindi (Devanagari), max 40 words
 
