@@ -2,7 +2,7 @@ name: Fetch Daily Current Affairs (free, PIB + Gemini)
 
 on:
   schedule:
-    - cron: '30 0,4,8,12,16 * * *'   # every 4 hours: 6 AM, 10 AM, 2 PM, 6 PM, 10 PM IST
+    - cron: '17 * * * *'   # every hour (PIB feed only keeps the latest ~20 releases, so 4-hour gaps lost most of them)
   workflow_dispatch: {}
 
 concurrency:
