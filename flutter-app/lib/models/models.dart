@@ -658,6 +658,9 @@ class MockTestModel {
   final int durationMinutes; // 0 = no timer (old tests)
   final double marksPerQuestion;
   final double negativeMarks; // cut for every wrong answer (0 = none)
+  // Optional subject folder INSIDE the exam folder (e.g. "Maths", "Reasoning").
+  // Old tests have no subject (empty) - they simply show directly in the exam folder.
+  final String subject;
 
   MockTestModel({
     required this.id,
@@ -668,6 +671,7 @@ class MockTestModel {
     this.durationMinutes = 0,
     this.marksPerQuestion = 1,
     this.negativeMarks = 0,
+    this.subject = '',
   });
 
   factory MockTestModel.fromMap(String id, Map<String, dynamic> m) => MockTestModel(
@@ -679,6 +683,7 @@ class MockTestModel {
         durationMinutes: (m['durationMinutes'] as num?)?.toInt() ?? 0,
         marksPerQuestion: (m['marksPerQuestion'] as num?)?.toDouble() ?? 1,
         negativeMarks: (m['negativeMarks'] as num?)?.toDouble() ?? 0,
+        subject: (m['subject'] ?? '').toString().trim(),
       );
 
   Map<String, dynamic> toMap() => {
@@ -688,5 +693,37 @@ class MockTestModel {
         'durationMinutes': durationMinutes,
         'marksPerQuestion': marksPerQuestion,
         'negativeMarks': negativeMarks,
+        'subject': subject.trim(),
       };
+}
+
+/// "Maths" and " maths " are the same subject.
+String mockSubjectKey(String s) => s.trim().toLowerCase();
+
+class MockSubjectGroup {
+  final String name; // as the admin typed it (first spelling seen)
+  final List<MockTestModel> tests;
+  MockSubjectGroup(this.name, this.tests);
+}
+
+/// Result of [groupMockTestsBySubject].
+class MockSubjectSplit {
+  final List<MockSubjectGroup> groups; // subject folders (order of first test)
+  final List<MockTestModel> ungrouped; // tests with no subject
+  MockSubjectSplit(this.groups, this.ungrouped);
+}
+
+/// Splits one exam folder's tests into subject folders + tests without a subject.
+MockSubjectSplit groupMockTestsBySubject(List<MockTestModel> tests) {
+  final byKey = <String, MockSubjectGroup>{};
+  final ungrouped = <MockTestModel>[];
+  for (final t in tests) {
+    final key = mockSubjectKey(t.subject);
+    if (key.isEmpty) {
+      ungrouped.add(t);
+    } else {
+      byKey.putIfAbsent(key, () => MockSubjectGroup(t.subject.trim(), <MockTestModel>[])).tests.add(t);
+    }
+  }
+  return MockSubjectSplit(byKey.values.toList(), ungrouped);
 }
