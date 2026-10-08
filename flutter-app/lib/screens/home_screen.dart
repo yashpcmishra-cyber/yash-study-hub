@@ -284,6 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(sidePad, 14, sidePad, 0),
                         child: GridView.count(
                           crossAxisCount: 3,
+                          clipBehavior: Clip.none, // taaki bahar ka glow kate nahi
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           crossAxisSpacing: gap,
@@ -399,6 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: EdgeInsets.zero,
       pressScale: 0.93,
       pressBrighten: 0.08,
+      glowColor: const Color(0xFFFFFF29), // yellow glow = 3D raised block
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
