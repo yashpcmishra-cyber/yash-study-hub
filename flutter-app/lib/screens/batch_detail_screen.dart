@@ -565,6 +565,20 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
     );
   }
 
+  Widget _mockTestTile(MockTestModel t) {
+    return ListTile(
+      dense: true,
+      leading: const Text('📝', style: TextStyle(fontSize: 18)),
+      title: Text(t.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+      subtitle: Text(
+        '${t.questions.length} questions \u2022 ${t.durationMinutes > 0 ? '${t.durationMinutes} min' : 'No timer'}',
+        style: const TextStyle(color: Colors.grey, fontSize: 11),
+      ),
+      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestAttemptScreen(test: t))),
+    );
+  }
+
   // Mock test folders added to this paid batch. Tapping a test opens the
   // same exam screen as the free Mock Tests.
   Widget _mocksTab() {
@@ -590,20 +604,21 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                           if (!testSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
                           final tests = testSnap.data!;
                           if (tests.isEmpty) return const Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: Colors.grey, fontSize: 12)));
+                          // Subject folders (if any) first, then tests without a subject.
+                          final split = groupMockTestsBySubject(tests);
                           return Column(
-                            children: tests
-                                .map((t) => ListTile(
-                                      dense: true,
-                                      leading: const Text('📝', style: TextStyle(fontSize: 18)),
-                                      title: Text(t.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                                      subtitle: Text(
-                                        '${t.questions.length} questions \u2022 ${t.durationMinutes > 0 ? '${t.durationMinutes} min' : 'No timer'}',
-                                        style: const TextStyle(color: Colors.grey, fontSize: 11),
-                                      ),
-                                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestAttemptScreen(test: t))),
-                                    ))
-                                .toList(),
+                            children: [
+                              ...split.groups.map((g) => ExpansionTile(
+                                    iconColor: const Color(0xFFFFFF29),
+                                    collapsedIconColor: Colors.grey,
+                                    tilePadding: const EdgeInsets.only(left: 28, right: 16),
+                                    leading: const Text('📚', style: TextStyle(fontSize: 18)),
+                                    title: Text(g.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                    subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                    children: g.tests.map(_mockTestTile).toList(),
+                                  )),
+                              ...split.ungrouped.map(_mockTestTile),
+                            ],
                           );
                         },
                       ),

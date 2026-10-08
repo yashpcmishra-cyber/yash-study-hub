@@ -7,9 +7,15 @@ import '../widgets/state_views.dart';
 import '../services/mock_rank_service.dart';
 import 'mock_test_attempt_screen.dart';
 
+/// Inside an exam folder:
+/// - [subject] == null  -> subject folders (if any test has a subject) and the
+///   tests that have no subject. If NO test has a subject, just the tests
+///   (exactly like before).
+/// - [subject] != null  -> only the tests of that subject folder.
 class MockTestListScreen extends StatefulWidget {
   final MockTestFolderModel folder;
-  const MockTestListScreen({super.key, required this.folder});
+  final String? subject;
+  const MockTestListScreen({super.key, required this.folder, this.subject});
 
   @override
   State<MockTestListScreen> createState() => _MockTestListScreenState();
@@ -19,47 +25,81 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
   final _fs = FirestoreService();
   late final Stream<List<MockTestModel>> _stream = _fs.streamMockTests(widget.folder.id);
 
+  Widget _testCard(MockTestModel t) {
+    return DepthCard(
+      margin: const EdgeInsets.only(bottom: 8),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestAttemptScreen(test: t))),
+      child: ListTile(
+        leading: const Text('📝', style: TextStyle(fontSize: 22)),
+        title: Text(t.title, style: const TextStyle(color: Colors.white)),
+        subtitle: Text(
+          '${t.questions.length} questions \u2022 ${t.durationMinutes > 0 ? '${t.durationMinutes} min' : 'No timer'} \u2022 ${fmtMarks(t.questions.length * t.marksPerQuestion)} marks'
+          '${t.negativeMarks > 0 ? ' \u2022 \u2212${fmtMarks(t.negativeMarks)} negative' : ''}',
+          style: const TextStyle(color: Colors.grey, fontSize: 11),
+        ),
+        // Share button only when this folder is FREE (paid-batch tests are never shareable).
+        trailing: widget.folder.isFree
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ShareButton(onPressed: () => ShareService.freeMock(context, t.title)),
+                  const Icon(Icons.chevron_right, color: Colors.grey),
+                ],
+              )
+            : const Icon(Icons.chevron_right, color: Colors.grey),
+      ),
+    );
+  }
+
+  Widget _subjectCard(MockSubjectGroup g) {
+    return DepthCard(
+      margin: const EdgeInsets.only(bottom: 8),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestListScreen(folder: widget.folder, subject: g.name))),
+      child: ListTile(
+        leading: const Text('📚', style: TextStyle(fontSize: 22)),
+        title: Text(g.name, style: const TextStyle(color: Colors.white)),
+        subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final subject = widget.subject;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.folder.examName)),
+      appBar: AppBar(title: Text(subject ?? widget.folder.examName)),
       body: StreamBuilder<List<MockTestModel>>(
         stream: _stream,
         builder: (context, snap) {
           if (snap.hasError) return ErrorView(error: snap.error);
           if (!snap.hasData) return const LoadingView();
-          final tests = snap.data!;
-          if (tests.isEmpty) return const EmptyView('No mock test in this folder yet');
-          return ListView.builder(
-            padding: const EdgeInsets.all(14),
-            itemCount: tests.length,
-            itemBuilder: (context, i) {
-              final t = tests[i];
-              return DepthCard(
-                margin: const EdgeInsets.only(bottom: 8),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestAttemptScreen(test: t))),
-                child: ListTile(
-                  leading: const Text('📝', style: TextStyle(fontSize: 22)),
-                  title: Text(t.title, style: const TextStyle(color: Colors.white)),
-                  subtitle: Text(
-                    '${t.questions.length} questions \u2022 ${t.durationMinutes > 0 ? '${t.durationMinutes} min' : 'No timer'} \u2022 ${fmtMarks(t.questions.length * t.marksPerQuestion)} marks'
-                    '${t.negativeMarks > 0 ? ' \u2022 \u2212${fmtMarks(t.negativeMarks)} negative' : ''}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
-                  ),
-                  // Share button only when this folder is FREE (paid-batch tests are never shareable).
-                  trailing: widget.folder.isFree
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ShareButton(onPressed: () => ShareService.freeMock(context, t.title)),
-                            const Icon(Icons.chevron_right, color: Colors.grey),
-                          ],
-                        )
-                      : const Icon(Icons.chevron_right, color: Colors.grey),
-                ),
-              );
-            },
-          );
+          final all = snap.data!;
+
+          // Inside one subject folder: only that subject's tests.
+          if (subject != null) {
+            final key = mockSubjectKey(subject);
+            final tests = all.where((t) => mockSubjectKey(t.subject) == key).toList();
+            if (tests.isEmpty) return const EmptyView('No mock test in this subject yet');
+            return ListView.builder(
+              padding: const EdgeInsets.all(14),
+              itemCount: tests.length,
+              itemBuilder: (context, i) => _testCard(tests[i]),
+            );
+          }
+
+          if (all.isEmpty) return const EmptyView('No mock test in this folder yet');
+          final split = groupMockTestsBySubject(all);
+          final items = <Widget>[
+            ...split.groups.map(_subjectCard),
+            if (split.groups.isNotEmpty && split.ungrouped.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 6, bottom: 8, left: 4),
+                child: Text('Other tests', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
+            ...split.ungrouped.map(_testCard),
+          ];
+          return ListView(padding: const EdgeInsets.all(14), children: items);
         },
       ),
     );
