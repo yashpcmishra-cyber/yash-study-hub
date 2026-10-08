@@ -7,6 +7,7 @@ import '../../services/storage_service.dart';
 import '../../services/image_upload_service.dart';
 import '../../models/models.dart';
 import '../../widgets/net_image.dart';
+import 'admin_rename_folder_dialog.dart';
 
 class AdminPdfsTab extends StatefulWidget {
   const AdminPdfsTab({super.key});
@@ -168,6 +169,17 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
     }
   }
 
+  Future<void> _renameFolder(String folderId, String currentName) async {
+    final newName = await showRenameFolderDialog(context, currentName: currentName);
+    if (newName == null) return;
+    try {
+      await _fs.renamePdfFolder(folderId, newName);
+      if (mounted) setState(() => _statusMsg = 'Folder renamed.');
+    } catch (e) {
+      if (mounted) setState(() => _statusMsg = 'Rename failed: $e');
+    }
+  }
+
   Future<void> _deleteFolderConfirm(String folderId, String folderName) async {
     final ok = await _confirm('Delete folder?', 'Delete the folder "$folderName"? All PDFs inside it will be deleted too. This cannot be undone.');
     if (!ok) return;
@@ -243,8 +255,10 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
                     onChanged: (v) => setState(() => _selectedFolderId = v),
                   ),
                 ),
-                if (_selectedFolderId != null && selected.isNotEmpty)
+                if (_selectedFolderId != null && selected.isNotEmpty) ...[
+                  IconButton(tooltip: 'Rename this folder', icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.name)),
                   IconButton(tooltip: 'Delete this folder', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.name)),
+                ],
               ]);
             },
           ),

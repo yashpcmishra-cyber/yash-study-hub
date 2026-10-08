@@ -6,6 +6,7 @@ import '../../models/models.dart';
 import '../../services/mcq_bulk_parser.dart';
 import 'admin_mock_subject_widgets.dart';
 import 'admin_mocktest_edit_screen.dart';
+import 'admin_rename_folder_dialog.dart';
 
 class AdminMockTestsTab extends StatefulWidget {
   const AdminMockTestsTab({super.key});
@@ -183,6 +184,17 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
     if (mounted) setState(() => _publishing = false);
   }
 
+  Future<void> _renameFolder(String folderId, String currentName) async {
+    final newName = await showRenameFolderDialog(context, currentName: currentName, title: 'Rename exam folder');
+    if (newName == null) return;
+    try {
+      await _fs.renameMockFolder(folderId, newName);
+      _snack('Folder renamed.');
+    } catch (e) {
+      _snack('Rename failed: $e');
+    }
+  }
+
   Future<void> _deleteFolderConfirm(String folderId, String folderName) async {
     final ok = await _confirm('Delete folder?', 'Delete the folder "$folderName"? All mock tests inside it will be deleted too. This cannot be undone.');
     if (!ok) return;
@@ -298,8 +310,10 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                   onChanged: (v) => setState(() => _selectedFolderId = v),
                 ),
               ),
-              if (_selectedFolderId != null && selected.isNotEmpty)
+              if (_selectedFolderId != null && selected.isNotEmpty) ...[
+                IconButton(tooltip: 'Rename this folder', icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.examName)),
                 IconButton(tooltip: 'Delete this folder', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.examName)),
+              ],
             ]);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
