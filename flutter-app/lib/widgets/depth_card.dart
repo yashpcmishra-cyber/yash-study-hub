@@ -76,14 +76,14 @@ class _DepthCardState extends State<DepthCard> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color.lerp(cardColor, Colors.white, 0.16) ?? cardColor,
-                  Color.lerp(cardColor, Colors.white, 0.04) ?? cardColor,
-                  Color.lerp(cardColor, Colors.black, 0.12) ?? cardColor,
+                  Color.lerp(cardColor, const Color(0xFF2A3F9E), 0.18) ?? cardColor, // top: bahut halka blue touch
+                  cardColor,
+                  Color.lerp(cardColor, Colors.black, 0.35) ?? cardColor, // bottom: deep dark blue
                 ],
-                stops: const [0.0, 0.55, 1.0],
+                stops: const [0.0, 0.5, 1.0],
               ),
         // Thin lit edge in the glow colour.
-        border: glow == null ? null : Border.all(color: glow.withOpacity(_pressed ? 0.6 : 0.4), width: 1.1),
+        border: glow == null ? null : Border.all(color: glow.withOpacity(_pressed ? 1.0 : 0.92), width: 1.8),
         // Glow mode paints its shadow + glow OUTSIDE the card only (see
         // _RaisedGlowPainter), so nothing tints the inside of the card.
         boxShadow: glow != null
@@ -119,7 +119,7 @@ class _DepthCardState extends State<DepthCard> {
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Colors.white.withOpacity(0.12), Colors.white.withOpacity(0.0)],
+                            colors: [Colors.white.withOpacity(0.07), Colors.white.withOpacity(0.0)],
                           ),
                         ),
                       ),
@@ -185,11 +185,22 @@ class _RaisedGlowPainter extends CustomPainter {
         ..color = Colors.black.withOpacity(pressed ? 0.18 : 0.38)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, pressed ? 2 : 6),
     );
+    // Neon glow: wide soft halo + tight bright halo, both in the border colour.
     canvas.drawRRect(
-      rrect.shift(const Offset(0, 2)),
+      rrect.inflate(1),
       Paint()
-        ..color = color.withOpacity(pressed ? 0.12 : 0.26)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, pressed ? 4 : 8),
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5
+        ..color = color.withOpacity(pressed ? 0.30 : 0.38)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, pressed ? 7 : 12),
+    );
+    canvas.drawRRect(
+      rrect.inflate(0.5),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..color = color.withOpacity(pressed ? 0.55 : 0.70)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, pressed ? 2.5 : 4),
     );
     canvas.restore();
   }
