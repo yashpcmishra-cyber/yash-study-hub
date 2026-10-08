@@ -1,7 +1,7 @@
 name: yash_study_hub
 description: Yash Study Hub - Competitive Exam Prep App
 publish_to: 'none'
-version: 1.0.18+36
+version: 1.0.19+37
 
 environment:
   # Flutter 3.22 or newer is needed (the code uses WidgetStateProperty and
