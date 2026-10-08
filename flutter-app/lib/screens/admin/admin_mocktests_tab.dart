@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../services/firestore_service.dart';
 import '../../models/models.dart';
 import '../../services/mcq_bulk_parser.dart';
+import 'admin_mock_subject_widgets.dart';
 import 'admin_mocktest_edit_screen.dart';
 
 class AdminMockTestsTab extends StatefulWidget {
@@ -22,6 +23,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
   final _newFolderName = TextEditingController();
   String? _selectedFolderId;
   final _testTitle = TextEditingController();
+  final _subject = TextEditingController(); // optional subject folder inside the exam folder
   bool _publishing = false;
 
   // Questions being built for the test currently being created.
@@ -46,6 +48,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
   void dispose() {
     _newFolderName.dispose();
     _testTitle.dispose();
+    _subject.dispose();
     _qText.dispose();
     _durationCtrl.dispose();
     _marksCtrl.dispose();
@@ -156,6 +159,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
       durationMinutes: minutes,
       marksPerQuestion: marks,
       negativeMarks: neg,
+      subject: _subject.text.trim(),
     );
     // Firestore documents are limited to about 1 MB.
     if (utf8.encode(jsonEncode(test.toMap())).length > 900000) {
@@ -308,8 +312,11 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
           IconButton(icon: const Icon(Icons.add_circle, color: Color(0xFFFFFF29)), onPressed: _createFolder),
         ]),
         const Divider(color: Colors.grey),
-        const Text('2. Test title', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        const Text('2. Test title and subject', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         TextField(controller: _testTitle, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'e.g. SSC CGL Full Mock 1', hintStyle: TextStyle(color: Colors.grey))),
+        const SizedBox(height: 10),
+        MockSubjectField(controller: _subject, folderId: _selectedFolderId),
+        const Text('The subject stays filled for your next test (clear it if the next test has no subject).', style: TextStyle(color: Colors.grey, fontSize: 11)),
         const Divider(color: Colors.grey),
         const Text('3. Exam settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
@@ -413,10 +420,19 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                           leading: const Icon(Icons.quiz, color: Color(0xFFFFFF29), size: 20),
                           title: Text(t.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
                           subtitle: Text(
-                              t.durationMinutes > 0 ? '${t.questions.length} questions • ${t.durationMinutes} min • +${t.marksPerQuestion} / -${t.negativeMarks}' : '${t.questions.length} questions',
+                              '${t.subject.isNotEmpty ? '📚 ${t.subject} • ' : ''}'
+                              '${t.durationMinutes > 0 ? '${t.questions.length} questions • ${t.durationMinutes} min • +${t.marksPerQuestion} / -${t.negativeMarks}' : '${t.questions.length} questions'}',
                               style: const TextStyle(color: Colors.grey, fontSize: 11),
                             ),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                            IconButton(
+                              tooltip: 'Move to another exam folder / subject',
+                              icon: const Icon(Icons.drive_file_move, color: Colors.lightBlueAccent, size: 18),
+                              onPressed: () async {
+                                final moved = await showMoveMockTestDialog(context, t);
+                                if (moved) _snack('Test moved.');
+                              },
+                            ),
                             IconButton(
                               tooltip: 'Edit / move',
                               icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 18),

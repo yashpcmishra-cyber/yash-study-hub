@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/firestore_service.dart';
 import '../../services/mcq_bulk_parser.dart';
+import 'admin_mock_subject_widgets.dart';
 
 const _navy = Color(0xFF081136);
 const _cardBg = Color(0xFF101D57);
@@ -27,6 +28,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
   late final TextEditingController _minutes;
   late final TextEditingController _marks;
   late final TextEditingController _neg;
+  late final TextEditingController _subject;
   final _bulkCtrl = TextEditingController();
   late List<MockQuestion> _qs;
   late String _folderId;
@@ -42,6 +44,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
     _minutes = TextEditingController(text: '${t.durationMinutes > 0 ? t.durationMinutes : 60}');
     _marks = TextEditingController(text: _num(t.marksPerQuestion));
     _neg = TextEditingController(text: _num(t.negativeMarks));
+    _subject = TextEditingController(text: t.subject);
     _qs = List<MockQuestion>.from(t.questions);
     _folderId = t.folderId;
   }
@@ -52,6 +55,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
     _minutes.dispose();
     _marks.dispose();
     _neg.dispose();
+    _subject.dispose();
     _bulkCtrl.dispose();
     super.dispose();
   }
@@ -145,6 +149,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
       durationMinutes: minutes,
       marksPerQuestion: marks,
       negativeMarks: neg,
+      subject: _subject.text.trim(),
     );
     if (utf8.encode(jsonEncode(updated.toMap())).length > 900000) {
       _snack('This test is too big to save. Remove some questions or shorten explanations.');
@@ -262,6 +267,8 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
             ]),
             const SizedBox(height: 12),
             _folderPicker(),
+            const SizedBox(height: 10),
+            MockSubjectField(controller: _subject, folderId: _folderId.isEmpty ? null : _folderId, onChanged: (_) => _dirty = true),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
