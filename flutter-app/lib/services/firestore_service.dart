@@ -97,6 +97,10 @@ class FirestoreService {
     await _bumpBatchCount(batchId, 'pdfs', -1);
   }
 
+  // Rename a PDF folder (only the name field changes; PDFs stay linked by id).
+  Future<void> renamePdfFolder(String id, String newName) =>
+      _db.collection('pdfFolders').doc(id).update({'name': newName.trim()});
+
   // Deletes the folder together with all PDFs inside it.
   Future<void> deletePdfFolder(String id, {String? batchId}) async {
     final removed = await _deleteAll(_db.collection('pdfs').where('folderId', isEqualTo: id));
@@ -205,6 +209,10 @@ class FirestoreService {
 
   Future<void> addVideoFolder(VideoFolderModel f) =>
       _db.collection('videoFolders').add({...f.toMap(), 'createdAt': FieldValue.serverTimestamp()});
+
+  // Rename a video folder (only the name field changes; videos stay linked by id).
+  Future<void> renameVideoFolder(String id, String newName) =>
+      _db.collection('videoFolders').doc(id).update({'name': newName.trim()});
 
   // Deletes the folder together with all videos inside it.
   Future<void> deleteVideoFolder(String id) async {
@@ -558,6 +566,10 @@ class FirestoreService {
   // Admin: which paid batches a folder belongs to ([] = free).
   Future<void> setMockFolderBatches(String folderId, List<String> batchIds) =>
       _db.collection('mockTestFolders').doc(folderId).update({'batchIds': batchIds});
+
+  // Rename an exam folder (only examName changes; tests stay linked by id).
+  Future<void> renameMockFolder(String id, String newName) =>
+      _db.collection('mockTestFolders').doc(id).update({'examName': newName.trim()});
 
   // Deletes the exam folder together with all tests inside it.
   Future<void> deleteMockFolder(String id) async {
