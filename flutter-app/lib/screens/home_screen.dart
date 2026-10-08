@@ -314,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       // Social banner — auto-rotates between Telegram/WhatsApp/YouTube every 3s
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                        padding: const EdgeInsets.fromLTRB(14, 22, 14, 0), // grid ke glow se gap
                         child: _SocialRotator(cfg: cfg),
                       ),
 
