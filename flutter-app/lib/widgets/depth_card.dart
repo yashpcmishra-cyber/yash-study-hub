@@ -83,7 +83,7 @@ class _DepthCardState extends State<DepthCard> {
                 stops: const [0.0, 0.5, 1.0],
               ),
         // Thin lit edge in the glow colour.
-        border: glow == null ? null : Border.all(color: glow.withOpacity(_pressed ? 1.0 : 0.92), width: 1.8),
+        border: glow == null ? null : Border.all(color: glow.withOpacity(_pressed ? 0.85 : 0.6), width: 1.4),
         // Glow mode paints its shadow + glow OUTSIDE the card only (see
         // _RaisedGlowPainter), so nothing tints the inside of the card.
         boxShadow: glow != null
@@ -191,7 +191,7 @@ class _RaisedGlowPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 5
-        ..color = color.withOpacity(pressed ? 0.30 : 0.38)
+        ..color = color.withOpacity(pressed ? 0.14 : 0.18)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, pressed ? 7 : 12),
     );
     canvas.drawRRect(
@@ -199,7 +199,7 @@ class _RaisedGlowPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5
-        ..color = color.withOpacity(pressed ? 0.55 : 0.70)
+        ..color = color.withOpacity(pressed ? 0.26 : 0.32)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, pressed ? 2.5 : 4),
     );
     canvas.restore();
