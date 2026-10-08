@@ -400,8 +400,8 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: EdgeInsets.zero,
       pressScale: 0.93,
       pressBrighten: 0.08,
-      color: const Color(0xCC101D57), // thoda halka tile (theme ke saath badalta hai)
-      glowColor: const Color(0xFFFFFF29), // yellow glow = 3D raised block
+      color: const Color(0xFF080E2A), // black + blue mix tile (opaque, grey nahi dikhega)
+      glowColor: const Color(0xFFFFE81F), // neon yellow border + glow
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
