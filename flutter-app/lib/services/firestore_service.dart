@@ -582,6 +582,10 @@ class FirestoreService {
     return _db.collection('mockTests').doc(t.id).set(t.toMap(), SetOptions(merge: true));
   }
 
+  // Move a test to another exam folder and/or subject (only these 2 fields change).
+  Future<void> moveMockTest(String id, String folderId, String subject) =>
+      _db.collection('mockTests').doc(id).update({'folderId': folderId, 'subject': subject.trim()});
+
   Future<void> deleteMockTest(String id) => _db.collection('mockTests').doc(id).delete();
 
   Future<void> saveMockAttempt({
