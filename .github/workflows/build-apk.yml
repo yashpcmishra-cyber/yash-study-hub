@@ -121,6 +121,43 @@ jobs:
               print("No plugin build.gradle files needed a compileSdk bump")
           PYEOF
 
+      # BLACKISH + YELLOW THEME, applied automatically at build time.
+      # The dark-blue colours in lib/*.dart are swapped for black/dark-grey
+      # shades right here, so no source file has to be edited by hand. The
+      # starry-sky stars/asteroids/shooting-star code is NOT touched (only the
+      # background behind them). To go back to dark blue, delete this step.
+      - name: Apply Blackish + Yellow theme
+        run: |
+          python3 - <<'PYEOF'
+          import os, re
+
+          COLORS = {
+              "050B24": "0A0A0A", "081136": "141414", "0A1440": "0F0F0F",
+              "101D57": "1E1E1E", "16276A": "2A2A2A", "192B72": "262626",
+              "1D3184": "333333", "0B1233": "0D0D0D", "04050D": "000000",
+              "9AA3C7": "A0A0A0", "D7DCF2": "DDDDDD", "DDE3FF": "E8E8E8",
+              "0x336440D2": "0x14FFFF29", "0x006440D2": "0x00FFFF29",
+              "0x241E82D2": "0x10FFFFFF", "0x001E82D2": "0x00FFFFFF",
+              "0x73829FFF": "0x59FFFF29",
+          }
+          changed = 0
+          for folder, _, names in os.walk("lib"):
+              for name in names:
+                  if not name.endswith(".dart"):
+                      continue
+                  path = os.path.join(folder, name)
+                  with open(path, encoding="utf-8") as f:
+                      text = f.read()
+                  new = text
+                  for old, repl in COLORS.items():
+                      new = re.sub(re.escape(old), repl, new, flags=re.I)
+                  if new != text:
+                      with open(path, "w", encoding="utf-8") as f:
+                          f.write(new)
+                      changed += 1
+          print("Blackish theme applied to %d dart file(s)" % changed)
+          PYEOF
+
       - name: Build release APK
         # IMAGE_UPLOAD_TOKEN comes from a repository secret (Settings >
         # Secrets and variables > Actions > New repository secret) - never
