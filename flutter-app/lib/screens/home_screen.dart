@@ -207,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const socialH = 64.0 + 10; // social card + its top gap
                 final bannerH = banners.isEmpty ? 0.0 : (box.maxWidth - sidePad * 2) * 9 / 16 + 14 + 14; // image + dots + gaps
                 final free = box.maxHeight - headerH - bannerH - socialH - 14 /* grid top gap */ - gap - 8 /* bottom */;
-                final cellH = (free / 2).clamp(78.0, 120.0).toDouble();
+                final cellH = (free / 2).clamp(72.0, 96.0).toDouble(); // chhote blocks
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -400,6 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: EdgeInsets.zero,
       pressScale: 0.93,
       pressBrighten: 0.08,
+      color: const Color(0xCC101D57), // thoda halka tile (theme ke saath badalta hai)
       glowColor: const Color(0xFFFFFF29), // yellow glow = 3D raised block
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
