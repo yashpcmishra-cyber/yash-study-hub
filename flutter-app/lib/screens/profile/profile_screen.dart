@@ -204,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !widget.isSetup,
-          title: Text(widget.isSetup ? 'Complete Your Profile' : 'My Profile'),
+          title: Text(widget.isSetup ? 'Complete Your Profile' : 'My Profile v2'),
           actions: [IconButton(icon: const Icon(Icons.logout), tooltip: 'Logout', onPressed: _logout)],
         ),
         body: _loading
