@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../app_globals.dart';
 import '../../models/models.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/open_link.dart';
 import '../auth/login_screen.dart';
 import '../home_screen.dart';
 
@@ -142,6 +144,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
         prefixIcon: Icon(icon, color: Colors.grey),
       );
 
+  Widget _contactSection() {
+    final links = <_SocialLink>[
+      _SocialLink(FontAwesomeIcons.telegram, 'Telegram', const Color(0xFF229ED9), 'https://t.me/YashStudyHub'),
+      _SocialLink(FontAwesomeIcons.whatsapp, 'WhatsApp', const Color(0xFF25D366), 'https://whatsapp.com/channel/0029VbCnzSvKmCPLxoMBuk33'),
+      _SocialLink(FontAwesomeIcons.youtube, 'YouTube', const Color(0xFFFF0000), 'https://www.youtube.com/c/YashStudyHub'),
+      _SocialLink(FontAwesomeIcons.instagram, 'Instagram', const Color(0xFFD6249F), 'https://www.instagram.com/yash_pcm?mdxt=NjljN3c1NXY3cjdo'),
+    ];
+    return Column(
+      children: [
+        Row(
+          children: const [
+            Expanded(child: Divider(color: Color(0xFF2A2D3A), height: 1)),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                'Contact and Join Us',
+                style: TextStyle(color: Color(0xFFFFFF2E), fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Expanded(child: Divider(color: Color(0xFF2A2D3A), height: 1)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: links.map((l) {
+            return Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => openExternalLink(context, l.url),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 25,
+                        backgroundColor: l.color,
+                        child: FaIcon(l.icon, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(l.label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -216,6 +271,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                             : Text(widget.isSetup ? 'Save & Continue' : 'Save Changes'),
                       ),
+                      if (!widget.isSetup) ...[
+                        const SizedBox(height: 26),
+                        _contactSection(),
+                        const SizedBox(height: 8),
+                      ],
                     ],
                   ),
                 ),
@@ -223,4 +283,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+}
+
+class _SocialLink {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final String url;
+  const _SocialLink(this.icon, this.label, this.color, this.url);
 }
