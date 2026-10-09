@@ -1,7 +1,7 @@
 name: yash_study_hub
 description: Yash Study Hub - Competitive Exam Prep App
 publish_to: 'none'
-version: 1.0.21+40
+version: 1.0.21+41
 
 environment:
   # Flutter 3.22 or newer is needed (the code uses WidgetStateProperty and
@@ -17,7 +17,7 @@ dependencies:
   firebase_auth: ^6.4.0
   cloud_firestore: ^6.3.0
   url_launcher: ^6.3.0
-  font_awesome_flutter: ^10.12.0
+  font_awesome_flutter: ^11.0.0
   share_plus: ^10.1.4
   youtube_player_flutter: ^9.0.3
   image_picker: ^1.1.2
