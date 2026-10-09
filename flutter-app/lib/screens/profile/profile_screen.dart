@@ -150,6 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _SocialLink(FontAwesomeIcons.whatsapp, 'WhatsApp', const Color(0xFF25D366), 'https://whatsapp.com/channel/0029VbCnzSvKmCPLxoMBuk33'),
       _SocialLink(FontAwesomeIcons.youtube, 'YouTube', const Color(0xFFFF0000), 'https://www.youtube.com/c/YashStudyHub'),
       _SocialLink(FontAwesomeIcons.instagram, 'Instagram', const Color(0xFFD6249F), 'https://www.instagram.com/yash_pcm?mdxt=NjljN3c1NXY3cjdo'),
+      _SocialLink(FontAwesomeIcons.envelope, 'Mail', const Color(0xFFFF9800), 'mailto:officialteamysh@gmail.com'),
     ];
     return Column(
       children: [
@@ -180,12 +181,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircleAvatar(
-                        radius: 25,
+                        radius: 23,
                         backgroundColor: l.color,
-                        child: FaIcon(l.icon, color: Colors.white, size: 24),
+                        child: FaIcon(l.icon, color: Colors.white, size: 22),
                       ),
                       const SizedBox(height: 6),
-                      Text(l.label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(l.label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      ),
                     ],
                   ),
                 ),
