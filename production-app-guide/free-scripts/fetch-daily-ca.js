@@ -155,7 +155,7 @@ ${list}`;
 async function callGemini(prompt) {
   const models = [];
   if (process.env.GEMINI_MODEL) models.push(process.env.GEMINI_MODEL);
-  models.push("gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite");
+  models.push("gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-flash-lite-latest");
   let lastErr = new Error("No Gemini model worked");
   for (const model of models) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
