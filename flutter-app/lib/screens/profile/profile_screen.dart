@@ -204,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !widget.isSetup,
-          title: Text(widget.isSetup ? 'Complete Your Profile' : 'My Profile v2'),
+          title: Text(widget.isSetup ? 'Complete Your Profile' : 'My Profile'),
           actions: [IconButton(icon: const Icon(Icons.logout), tooltip: 'Logout', onPressed: _logout)],
         ),
         body: _loading
@@ -286,7 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _SocialLink {
-  final IconData icon;
+  final FaIconData icon;
   final String label;
   final Color color;
   final String url;
