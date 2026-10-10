@@ -403,7 +403,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                 TextField(
                   controller: _codeController,
                   style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(labelText: 'Access code (admin will share it) / एक्सेस कोड', labelStyle: TextStyle(color: Colors.grey)),
+                  decoration: const InputDecoration(labelText: 'Access code (optional) / एक्सेस कोड (ज़रूरी नहीं)', labelStyle: TextStyle(color: Colors.grey)),
                 ),
                 const SizedBox(height: 14),
                 ElevatedButton(
