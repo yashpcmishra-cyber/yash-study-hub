@@ -7,6 +7,7 @@ import '../../services/mcq_bulk_parser.dart';
 import 'admin_mock_subject_widgets.dart';
 import 'admin_mocktest_edit_screen.dart';
 import 'admin_rename_folder_dialog.dart';
+import 'admin_reorder_list.dart';
 
 class AdminMockTestsTab extends StatefulWidget {
   const AdminMockTestsTab({super.key});
@@ -317,7 +318,17 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
             ]);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [folderRow, if (selected.isNotEmpty) _batchPicker(selected.first)],
+              children: [
+                folderRow,
+                if (selected.isNotEmpty) _batchPicker(selected.first),
+                if (folders.length >= 2)
+                  AdminFolderOrderSection<MockTestFolderModel>(
+                    items: folders,
+                    idOf: (f) => f.id,
+                    labelOf: (f) => f.examName,
+                    onSave: (list) => _fs.saveOrder('mockTestFolders', list.map((f) => f.id).toList()),
+                  ),
+              ],
             );
           },
         ),
@@ -427,10 +438,13 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
               if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Center(child: CircularProgressIndicator()));
               final tests = snap.data!;
               if (tests.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('No test is published in this folder yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
-              return Column(
-                children: tests
-                    .map((t) => ListTile(
+              return AdminReorderList<MockTestModel>(
+                items: tests,
+                idOf: (t) => t.id,
+                onSave: (list) => _fs.saveOrder('mockTests', list.map((t) => t.id).toList()),
+                contentBuilder: (context, t) => ListTile(
                           dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                           leading: const Icon(Icons.quiz, color: Color(0xFFFFFF29), size: 20),
                           title: Text(t.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
                           subtitle: Text(
@@ -441,6 +455,8 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                             IconButton(
                               tooltip: 'Move to another exam folder / subject',
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
                               icon: const Icon(Icons.drive_file_move, color: Colors.lightBlueAccent, size: 18),
                               onPressed: () async {
                                 final moved = await showMoveMockTestDialog(context, t);
@@ -449,13 +465,14 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                             ),
                             IconButton(
                               tooltip: 'Edit / move',
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
                               icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 18),
                               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminMockTestEditScreen(test: t))),
                             ),
-                            IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteTestConfirm(t)),
+                            IconButton(padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteTestConfirm(t)),
                           ]),
-                        ))
-                    .toList(),
+                ),
               );
             },
           ),

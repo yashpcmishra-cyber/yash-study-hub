@@ -8,6 +8,7 @@ import '../../services/image_upload_service.dart';
 import '../../models/models.dart';
 import '../../widgets/net_image.dart';
 import 'admin_rename_folder_dialog.dart';
+import 'admin_reorder_list.dart';
 
 class AdminPdfsTab extends StatefulWidget {
   const AdminPdfsTab({super.key});
@@ -244,7 +245,7 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
             builder: (context, snap) {
               final folders = snap.data ?? <PdfFolderModel>[];
               final selected = folders.where((f) => f.id == _selectedFolderId).toList();
-              return Row(children: [
+              final folderRow = Row(children: [
                 Expanded(
                   child: DropdownButton<String>(
                     hint: const Text('Choose folder', style: TextStyle(color: Colors.grey)),
@@ -260,6 +261,19 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
                   IconButton(tooltip: 'Delete this folder', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.name)),
                 ],
               ]);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  folderRow,
+                  if (folders.length >= 2)
+                    AdminFolderOrderSection<PdfFolderModel>(
+                      items: folders,
+                      idOf: (f) => f.id,
+                      labelOf: (f) => f.name,
+                      onSave: (list) => _fs.saveOrder('pdfFolders', list.map((f) => f.id).toList()),
+                    ),
+                ],
+              );
             },
           ),
         Row(children: [
@@ -307,15 +321,17 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
               if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Center(child: CircularProgressIndicator()));
               final pdfs = snap.data!;
               if (pdfs.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('There is no PDF in this folder yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
-              return Column(
-                children: pdfs
-                    .map((p) => ListTile(
-                          dense: true,
-                          leading: NetImage(url: p.iconUrl, width: 34, height: 34, fallbackIcon: '📄', radius: 6),
-                          title: Text(p.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                          trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deletePdfConfirm(p)),
-                        ))
-                    .toList(),
+              return AdminReorderList<PdfModel>(
+                items: pdfs,
+                idOf: (p) => p.id,
+                onSave: (list) => _fs.saveOrder('pdfs', list.map((p) => p.id).toList()),
+                contentBuilder: (context, p) => ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  leading: NetImage(url: p.iconUrl, width: 34, height: 34, fallbackIcon: '📄', radius: 6),
+                  title: Text(p.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                  trailing: IconButton(padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deletePdfConfirm(p)),
+                ),
               );
             },
           ),

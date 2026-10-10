@@ -8,6 +8,7 @@ import '../../services/image_upload_service.dart';
 import '../../models/models.dart';
 import '../../widgets/net_image.dart';
 import 'admin_rename_folder_dialog.dart';
+import 'admin_reorder_list.dart';
 
 class AdminVideosTab extends StatefulWidget {
   const AdminVideosTab({super.key});
@@ -208,6 +209,9 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
   Widget build(BuildContext context) {
     super.build(context); // required by AutomaticKeepAliveClientMixin
     final isFree = _isFree;
+    // Free section with no folder chosen = loose videos (incl. the auto-fetched
+    // YouTube ones). Those stay newest-first and are NOT arranged by hand.
+    final loose = isFree && _selectedFolderId == null;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -244,7 +248,7 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
           builder: (context, snap) {
             final folders = snap.data ?? <VideoFolderModel>[];
             final selected = folders.where((f) => f.id == _selectedFolderId).toList();
-            return Row(children: [
+            final folderRow = Row(children: [
               Expanded(
                 child: DropdownButton<String?>(
                   hint: Text(isFree ? 'No folder (loose videos)' : 'Choose folder', style: const TextStyle(color: Colors.grey)),
@@ -263,6 +267,19 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
                 IconButton(tooltip: 'Delete this folder', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.name)),
               ],
             ]);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                folderRow,
+                if (folders.length >= 2)
+                  AdminFolderOrderSection<VideoFolderModel>(
+                    items: folders,
+                    idOf: (f) => f.id,
+                    labelOf: (f) => f.name,
+                    onSave: (list) => _fs.saveOrder('videoFolders', list.map((f) => f.id).toList()),
+                  ),
+              ],
+            );
           },
         ),
         const SizedBox(height: 8),
@@ -310,34 +327,54 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
           ),
           const SizedBox(height: 8),
           StreamBuilder<List<VideoModel>>(
-            stream: isFree ? _fs.streamFreeVideos() : _fs.streamVideosInFolder(_selectedFolderId!),
+            // A folder's videos come from the same stream the students' folder
+            // screen uses, so the order shown here is the order students see.
+            stream: loose ? _fs.streamFreeVideos() : _fs.streamVideosInFolder(_selectedFolderId!),
             builder: (context, snap) {
               if (snap.hasError) return Text('Could not load: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12));
               if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Center(child: CircularProgressIndicator()));
               final all = snap.data!;
-              final videos = isFree
-                  ? all.where((v) => _selectedFolderId == null ? (v.folderId == null || v.folderId!.isEmpty) : v.folderId == _selectedFolderId).toList()
-                  : all;
+              final videos = loose ? all.where((v) => v.folderId == null || v.folderId!.isEmpty).toList() : all;
               if (videos.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('There is no video here yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
-              return Column(
-                children: videos
-                    .map((v) => ListTile(
-                          dense: true,
-                          leading: NetImage(url: v.thumbUrl, width: 56, height: 34, fallbackIcon: '🎬', radius: 6),
-                          title: Text(v.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                          subtitle: v.source == 'youtube_auto' ? const Text('Auto-fetched from YouTube', style: TextStyle(color: Colors.grey, fontSize: 10.5)) : null,
-                          trailing: IconButton(
-                            tooltip: v.source == 'youtube_auto' ? 'Hide' : 'Delete',
-                            icon: Icon(v.source == 'youtube_auto' ? Icons.visibility_off : Icons.delete, color: Colors.redAccent, size: 18),
-                            onPressed: () => _deleteVideoConfirm(v),
-                          ),
-                        ))
-                    .toList(),
+              if (loose) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 6),
+                      child: Text('These stay newest-first. To arrange videos by hand, put them in a folder.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                    ),
+                    ...videos.map(_videoTile),
+                  ],
+                );
+              }
+              return AdminReorderList<VideoModel>(
+                items: videos,
+                idOf: (v) => v.id,
+                onSave: (list) => _fs.saveOrder('videos', list.map((v) => v.id).toList()),
+                contentBuilder: (context, v) => _videoTile(v),
               );
             },
           ),
         ],
       ],
+    );
+  }
+
+  Widget _videoTile(VideoModel v) {
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      leading: NetImage(url: v.thumbUrl, width: 56, height: 34, fallbackIcon: '🎬', radius: 6),
+      title: Text(v.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+      subtitle: v.source == 'youtube_auto' ? const Text('Auto-fetched from YouTube', style: TextStyle(color: Colors.grey, fontSize: 10.5)) : null,
+      trailing: IconButton(
+        padding: const EdgeInsets.all(6),
+        constraints: const BoxConstraints(),
+        tooltip: v.source == 'youtube_auto' ? 'Hide' : 'Delete',
+        icon: Icon(v.source == 'youtube_auto' ? Icons.visibility_off : Icons.delete, color: Colors.redAccent, size: 18),
+        onPressed: () => _deleteVideoConfirm(v),
+      ),
     );
   }
 }

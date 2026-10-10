@@ -17,6 +17,7 @@ import 'admin_pdfs_tab.dart';
 import 'admin_videos_tab.dart';
 import 'admin_mocktests_tab.dart';
 import 'admin_queries_tab.dart';
+import 'admin_reorder_list.dart';
 
 /// What the "Edit batch" dialog returns.
 class _BatchEditResult {
@@ -981,24 +982,24 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator()));
             final batches = snap.data!;
             if (batches.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('No batch yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
-            return Column(
-              children: batches
-                  .map((b) => DepthCard(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
+            return AdminReorderList<BatchModel>(
+              items: batches,
+              inCard: true,
+              idOf: (b) => b.id,
+              onSave: (list) => _fs.saveOrder('batches', list.map((b) => b.id).toList()),
+              contentBuilder: (context, b) => ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                           leading: NetImage(url: b.iconUrl, width: 40, height: 40, fallbackIcon: '📁', radius: 8),
                           title: Text(b.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
                           subtitle: Text('\u20b9${b.price} \u00b7 ${b.mockOnly ? 'Mock Test Series' : '${b.videos} videos \u00b7 ${b.pdfs} PDFs'} \u00b7 ${b.hasValidity ? monthsText(b.validityMonths) : 'Lifetime'}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(tooltip: 'Edit', icon: const Icon(Icons.edit, color: Colors.grey, size: 18), onPressed: () => _editBatch(b)),
-                              IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteBatchConfirm(b)),
+                              IconButton(tooltip: 'Edit', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.edit, color: Colors.grey, size: 18), onPressed: () => _editBatch(b)),
+                              IconButton(tooltip: 'Delete', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteBatchConfirm(b)),
                             ],
                           ),
                         ),
-                      ))
-                  .toList(),
             );
           },
         ),
@@ -1314,11 +1315,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 child: Text('No banner yet \u2014 add one above.', style: TextStyle(color: Colors.grey, fontSize: 12)),
               );
             }
-            return Column(
-              children: banners
-                  .map((b) => DepthCard(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
+            return AdminReorderList<BannerModel>(
+              items: banners,
+              inCard: true,
+              idOf: (b) => b.id,
+              onSave: (list) => _fs.saveOrder('banners', list.map((b) => b.id).toList()),
+              contentBuilder: (context, b) => ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                           leading: NetImage(url: b.imageUrl, width: 64, height: 36, fallbackIcon: '🖼️', radius: 6),
                           title: Text(
                             b.batchId != null ? 'Pay & Get \u2192 ${batchTitles[b.batchId] ?? 'batch (deleted?)'}' : (b.linkUrl ?? '(no link)'),
@@ -1326,10 +1329,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          trailing: IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteBannerConfirm(b)),
+                          trailing: IconButton(tooltip: 'Delete', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteBannerConfirm(b)),
                         ),
-                      ))
-                  .toList(),
             );
           },
           ),
