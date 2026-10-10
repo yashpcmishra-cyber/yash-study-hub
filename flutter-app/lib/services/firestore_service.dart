@@ -335,8 +335,9 @@ class FirestoreService {
       final doc = await _db.collection('batchAccess').doc(id).get().timeout(const Duration(seconds: 12));
       final data = doc.data();
       if (!doc.exists || data == null || data['status'] != 'granted') return const AccessCheck();
-      final stored = (data['accessCode'] as String?) ?? '';
-      if (stored.isEmpty || stored != code.trim()) return const AccessCheck();
+      // The access code is no longer needed: access belongs to the student's
+      // logged-in email, so it survives uninstall / reinstall / new phone.
+      // [code] is still accepted only so older callers keep compiling.
       final exp = (data['expiresAt'] as Timestamp?)?.toDate();
       if (exp != null && !DateTime.now().isBefore(exp)) return AccessCheck(expired: true, expiresAt: exp);
       return AccessCheck(granted: true, expiresAt: exp);
