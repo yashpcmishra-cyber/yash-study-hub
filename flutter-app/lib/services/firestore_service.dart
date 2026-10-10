@@ -8,6 +8,30 @@ class FirestoreService {
 
   // ---- small helpers ----
 
+  // Admin "arrange" feature: saves a hand-made order by writing the position
+  // number (0, 1, 2 ...) into each document's `order` field. Only this one
+  // field is touched. Used for batches, banners, PDF / video / mock-test
+  // folders and the PDFs / videos / tests inside them.
+  static const _orderable = {
+    'batches', 'banners', 'pdfFolders', 'pdfs', 'videoFolders', 'videos', 'mockTestFolders', 'mockTests',
+  };
+
+  Future<void> saveOrder(String collection, List<String> idsInOrder) async {
+    if (!_orderable.contains(collection)) throw ArgumentError('Cannot arrange "$collection"');
+    var batch = _db.batch();
+    var pending = 0;
+    for (var i = 0; i < idsInOrder.length; i++) {
+      batch.update(_db.collection(collection).doc(idsInOrder[i]), {'order': i});
+      pending++;
+      if (pending >= 400) {
+        await batch.commit();
+        batch = _db.batch();
+        pending = 0;
+      }
+    }
+    if (pending > 0) await batch.commit();
+  }
+
   // Deletes every document a query returns (in chunks, so it also works for
   // big folders). Returns how many documents were deleted.
   Future<int> _deleteAll(Query<Map<String, dynamic>> q) async {
@@ -42,10 +66,11 @@ class FirestoreService {
   }
 
   // ---- Batches ----
-  // Oldest first (the order the admin added them).
+  // The admin's hand-made order first, then anything never arranged (oldest
+  // first). See compareOrderThenCreated.
   Stream<List<BatchModel>> streamBatches() => _db.collection('batches').snapshots().map((snap) {
         final list = snap.docs.map((d) => BatchModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.title, b.title));
+        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
         return list;
       });
 
@@ -201,7 +226,7 @@ class FirestoreService {
           .snapshots()
           .map((snap) {
         final list = snap.docs.map((d) => VideoFolderModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.name, b.name));
+        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.name, b.name));
         return list;
       });
 
@@ -246,7 +271,7 @@ class FirestoreService {
             .map((d) => VideoModel.fromMap(d.id, d.data()))
             .where((v) => !v.hidden)
             .toList();
-        list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.title, b.title));
+        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
         return list;
       });
 
@@ -500,7 +525,7 @@ class FirestoreService {
     if (batchId != null) q = q.where('batchId', isEqualTo: batchId);
     return q.snapshots().map((snap) {
       final list = snap.docs.map((d) => PdfFolderModel.fromMap(d.id, d.data())).toList();
-      list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.name, b.name));
+      list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.name, b.name));
       return list;
     });
   }
@@ -514,7 +539,7 @@ class FirestoreService {
           .snapshots()
           .map((snap) {
         final list = snap.docs.map((d) => PdfModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.title, b.title));
+        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
         return list;
       });
 
@@ -542,7 +567,7 @@ class FirestoreService {
   // ---- Mock Tests ----
   Stream<List<MockTestFolderModel>> streamMockFolders() => _db.collection('mockTestFolders').snapshots().map((snap) {
         final list = snap.docs.map((d) => MockTestFolderModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.examName, b.examName));
+        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.examName, b.examName));
         return list;
       });
 
@@ -560,7 +585,7 @@ class FirestoreService {
           .snapshots()
           .map((snap) {
         final list = snap.docs.map((d) => MockTestFolderModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.examName, b.examName));
+        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.examName, b.examName));
         return list;
       });
 
@@ -584,7 +609,7 @@ class FirestoreService {
           .snapshots()
           .map((snap) {
         final list = snap.docs.map((d) => MockTestModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareCreatedAsc(a.createdAt, b.createdAt, a.title, b.title));
+        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
         return list;
       });
 
