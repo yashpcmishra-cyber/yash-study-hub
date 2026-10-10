@@ -6,6 +6,8 @@ const String kFreeVideoBatchId = 'free';
 
 DateTime? _dt(dynamic v) => v is Timestamp ? v.toDate() : null;
 
+int? _optInt(dynamic v) => v is num ? v.toInt() : null;
+
 int _nonNeg(dynamic v) {
   final n = v is num ? v.toInt() : 0;
   return n < 0 ? 0 : n;
@@ -37,6 +39,21 @@ int compareCreatedAsc(DateTime? a, DateTime? b, String titleA, String titleB) {
   return c != 0 ? c : ta.compareTo(tb);
 }
 
+/// Admin's hand-made order first (the `order` number, lower = higher up).
+/// Items that have no `order` yet (never arranged, or added after the last
+/// arranging) come AFTER the arranged ones, oldest first - so a list nobody
+/// has arranged looks exactly as it did before, and a newly added item lands
+/// at the end.
+int compareOrderThenCreated(int? orderA, int? orderB, DateTime? a, DateTime? b, String titleA, String titleB) {
+  if (orderA != null && orderB != null) {
+    final c = orderA.compareTo(orderB);
+    return c != 0 ? c : compareCreatedAsc(a, b, titleA, titleB);
+  }
+  if (orderA != null) return -1;
+  if (orderB != null) return 1;
+  return compareCreatedAsc(a, b, titleA, titleB);
+}
+
 class BatchModel {
   final String id;
   final String title;
@@ -51,6 +68,8 @@ class BatchModel {
   // true = "Mock Test Series": a paid product with ONLY mock tests (no
   // videos / PDFs). Old batches have no such field, so they stay normal.
   final bool mockOnly;
+  // Admin's manual position (null = never arranged).
+  final int? order;
 
   BatchModel({
     required this.id,
@@ -62,6 +81,7 @@ class BatchModel {
     this.createdAt,
     this.validityMonths = 0,
     this.mockOnly = false,
+    this.order,
   });
 
   bool get hasValidity => validityMonths > 0;
@@ -77,6 +97,7 @@ class BatchModel {
         createdAt: _dt(m['createdAt']),
         validityMonths: _nonNeg(m['validityMonths']),
         mockOnly: m['mockOnly'] == true,
+        order: _optInt(m['order']),
       );
 
   Map<String, dynamic> toMap() => {
@@ -97,8 +118,9 @@ class PdfFolderModel {
   final String type; // "free" | "batch"
   final String? batchId;
   final DateTime? createdAt;
+  final int? order;
 
-  PdfFolderModel({required this.id, required this.name, required this.type, this.batchId, this.createdAt});
+  PdfFolderModel({required this.id, required this.name, required this.type, this.batchId, this.createdAt, this.order});
 
   factory PdfFolderModel.fromMap(String id, Map<String, dynamic> m) => PdfFolderModel(
         id: id,
@@ -106,6 +128,7 @@ class PdfFolderModel {
         type: m['type'] ?? 'free',
         batchId: m['batchId'],
         createdAt: _dt(m['createdAt']),
+        order: _optInt(m['order']),
       );
 
   Map<String, dynamic> toMap() => {'name': name, 'type': type, 'batchId': batchId};
@@ -119,6 +142,7 @@ class PdfModel {
   final String? batchId;
   final String? folderId;
   final DateTime? createdAt;
+  final int? order;
 
   PdfModel({
     required this.id,
@@ -128,6 +152,7 @@ class PdfModel {
     this.batchId,
     this.folderId,
     this.createdAt,
+    this.order,
   });
 
   factory PdfModel.fromMap(String id, Map<String, dynamic> m) => PdfModel(
@@ -138,6 +163,7 @@ class PdfModel {
         batchId: m['batchId'],
         folderId: m['folderId'],
         createdAt: _dt(m['createdAt']),
+        order: _optInt(m['order']),
       );
 
   Map<String, dynamic> toMap() => {'title': title, 'iconUrl': iconUrl, 'driveLink': driveLink, 'batchId': batchId, 'folderId': folderId};
@@ -148,14 +174,16 @@ class VideoFolderModel {
   final String name;
   final String batchId; // a paid batch id, or kFreeVideoBatchId for the free section
   final DateTime? createdAt;
+  final int? order;
 
-  VideoFolderModel({required this.id, required this.name, required this.batchId, this.createdAt});
+  VideoFolderModel({required this.id, required this.name, required this.batchId, this.createdAt, this.order});
 
   factory VideoFolderModel.fromMap(String id, Map<String, dynamic> m) => VideoFolderModel(
         id: id,
         name: m['name'] ?? '',
         batchId: m['batchId'] ?? '',
         createdAt: _dt(m['createdAt']),
+        order: _optInt(m['order']),
       );
 
   Map<String, dynamic> toMap() => {'name': name, 'batchId': batchId};
@@ -172,6 +200,8 @@ class VideoModel {
   final DateTime? publishedAt; // set by the YouTube auto-fetch script
   final DateTime? createdAt;
   final bool hidden; // true = admin hid an auto-fetched video
+  // Admin's manual position INSIDE a folder (null = never arranged).
+  final int? order;
 
   VideoModel({
     required this.id,
@@ -184,6 +214,7 @@ class VideoModel {
     this.publishedAt,
     this.createdAt,
     this.hidden = false,
+    this.order,
   });
 
   factory VideoModel.fromMap(String id, Map<String, dynamic> m) => VideoModel(
@@ -197,6 +228,7 @@ class VideoModel {
         publishedAt: _dt(m['publishedAt']),
         createdAt: _dt(m['createdAt']),
         hidden: m['hidden'] == true,
+        order: _optInt(m['order']),
       );
 
   /// One entry of the `appConfig/latestVideos` list written by the
@@ -469,8 +501,9 @@ class MockTestFolderModel {
   // Paid batches this folder is shown in (max 2). Empty / missing = FREE
   // folder (old folders have no such field, so they stay free).
   final List<String> batchIds;
+  final int? order;
 
-  MockTestFolderModel({required this.id, required this.examName, this.createdAt, this.batchIds = const []});
+  MockTestFolderModel({required this.id, required this.examName, this.createdAt, this.batchIds = const [], this.order});
 
   bool get isFree => batchIds.isEmpty;
 
@@ -479,6 +512,7 @@ class MockTestFolderModel {
         examName: m['examName'] ?? '',
         createdAt: _dt(m['createdAt']),
         batchIds: (m['batchIds'] is List) ? (m['batchIds'] as List).map((e) => e.toString()).toList() : <String>[],
+        order: _optInt(m['order']),
       );
 
   Map<String, dynamic> toMap() => {'examName': examName};
@@ -661,6 +695,7 @@ class MockTestModel {
   // Optional subject folder INSIDE the exam folder (e.g. "Maths", "Reasoning").
   // Old tests have no subject (empty) - they simply show directly in the exam folder.
   final String subject;
+  final int? order;
 
   MockTestModel({
     required this.id,
@@ -672,6 +707,7 @@ class MockTestModel {
     this.marksPerQuestion = 1,
     this.negativeMarks = 0,
     this.subject = '',
+    this.order,
   });
 
   factory MockTestModel.fromMap(String id, Map<String, dynamic> m) => MockTestModel(
@@ -684,6 +720,7 @@ class MockTestModel {
         marksPerQuestion: (m['marksPerQuestion'] as num?)?.toDouble() ?? 1,
         negativeMarks: (m['negativeMarks'] as num?)?.toDouble() ?? 0,
         subject: (m['subject'] ?? '').toString().trim(),
+        order: _optInt(m['order']),
       );
 
   Map<String, dynamic> toMap() => {
