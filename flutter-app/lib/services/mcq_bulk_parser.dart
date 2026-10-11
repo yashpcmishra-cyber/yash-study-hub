@@ -107,6 +107,48 @@ bool isReasoningSubject(String subject) {
       t.contains('\u0924\u0930\u094d\u0915'); // तर्क
 }
 
+/// True when the subject box says Quant / Maths / Aptitude / DI.
+bool isQuantSubject(String subject) {
+  final t = subject.trim().toLowerCase();
+  if (t.isEmpty) return false;
+  return t.contains('quant') ||
+      t.contains('aptitude') ||
+      t.contains('math') ||
+      t.contains('numerical') ||
+      t.contains('data interpretation') ||
+      t.contains('\u0917\u0923\u093f\u0924') || // गणित (also अंकगणित)
+      t.contains('\u0915\u094d\u0935\u093e\u0902\u091f'); // क्वांट
+}
+
+/// Directions / DI format is automatic for Reasoning and for Quant.
+bool isDirectionsSubject(String subject) => isReasoningSubject(subject) || isQuantSubject(subject);
+
+/// Quant / DI sample: Directions + graph picture (IMG:) + 3 questions.
+const String kDiBulkTemplate = r'''Directions (Q1-3): Study the graph carefully and answer the questions.
+निर्देश (प्र. 1-3): ग्राफ का ध्यानपूर्वक अध्ययन कीजिए और प्रश्नों के उत्तर दीजिए।
+IMG: PASTE-IMAGE-LINK-HERE
+Q: What is the total of P and Q? || P और Q का कुल योग क्या है?
+A: 800 || 800
+B: 900 || 900
+C: 1000 || 1000
+D: 1100 || 1100
+ANS: B
+EXP: Optional. || वैकल्पिक।
+Q: Second question of the same graph. || उसी ग्राफ पर दूसरा प्रश्न।
+A: One || एक
+B: Two || दो
+C: Three || तीन
+D: Four || चार
+ANS: C
+Q: Third question of the same graph. || उसी ग्राफ पर तीसरा प्रश्न।
+A: One || एक
+B: Two || दो
+C: Three || तीन
+D: Four || चार
+ANS: A
+------------------------------
+''';
+
 class McqParseResult {
   final List<MockQuestion> questions;
   final List<String> errors;
@@ -124,6 +166,7 @@ class _Draft {
   String lastKey = '';
   int? ans;
   String? ansRaw;
+  String passageImage = '';
 }
 
 final RegExp _qRe = RegExp(r'^(?:Q|QUESTION)\s*\d*\s*[:.)\-]\s*(.*)$', caseSensitive: false);
@@ -134,6 +177,7 @@ final RegExp _alnum = RegExp(r'[A-Za-z0-9]');
 // Reasoning only.
 final RegExp _sepRe = RegExp(r'^[\-\u2013\u2014_=*~]{3,}$');
 final RegExp _dirRe = RegExp(r'^(?:directions?|\u0928\u093f\u0930\u094d\u0926\u0947\u0936)', caseSensitive: false); // Directions / निर्देश
+final RegExp _imgRe = RegExp(r'^IMG\s*[:=]\s*(\S+)', caseSensitive: false);
 final RegExp _devanagari = RegExp(r'[\u0900-\u097F]');
 final RegExp _bulletRe = RegExp(r'^[*\u2022\-]\s+');
 
@@ -207,6 +251,7 @@ McqParseResult parseBulkMcqs(String raw, {bool reasoning = false}) {
   var collecting = false;
   var passEn = '';
   var passHi = '';
+  var passImg = '';
 
   for (final rawLine in lines) {
     final line = rawLine.trim();
@@ -218,6 +263,23 @@ McqParseResult parseBulkMcqs(String raw, {bool reasoning = false}) {
         collecting = true;
         passEn = '';
         passHi = '';
+        passImg = '';
+        continue;
+      }
+      // "IMG: https://..." = the DI graph picture of this group.
+      final im = _imgRe.firstMatch(line);
+      if (im != null) {
+        if (!collecting) {
+          collecting = true;
+          passEn = '';
+          passHi = '';
+        }
+        final link = (im.group(1) ?? '').trim();
+        if (link.toLowerCase().startsWith('http')) {
+          passImg = link;
+        } else {
+          errors.add('IMG line needs a real https:// link (use the "Upload DI image" button).');
+        }
         continue;
       }
       // A new "Directions" line starts a new passage (even without ----).
@@ -225,6 +287,7 @@ McqParseResult parseBulkMcqs(String raw, {bool reasoning = false}) {
         collecting = true;
         passEn = '';
         passHi = '';
+        passImg = '';
       }
       if (collecting) {
         final q0 = _qRe.firstMatch(line);
@@ -255,6 +318,7 @@ McqParseResult parseBulkMcqs(String raw, {bool reasoning = false}) {
         // Only Hindi directions written: show them for both languages.
         cur.passage = passEn.isNotEmpty ? passEn : passHi;
         cur.passageHi = passEn.isNotEmpty ? passHi : '';
+        cur.passageImage = passImg;
       }
       drafts.add(cur);
       _put(cur, 'q', q.group(1) ?? '');
@@ -344,6 +408,7 @@ McqParseResult parseBulkMcqs(String raw, {bool reasoning = false}) {
       passage: d.passage,
       // Hindi directions are used only when there are English ones too.
       passageHi: d.passage.isNotEmpty ? d.passageHi : '',
+      passageImage: d.passageImage,
     ));
   }
 
