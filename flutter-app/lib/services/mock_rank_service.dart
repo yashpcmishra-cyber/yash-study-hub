@@ -7,6 +7,10 @@ import '../models/models.dart';
 /// Hindi chuna ho aur Hindi text ho to Hindi, warna English.
 String mockText(MockQuestion q, bool hi) => (hi && q.textHi.trim().isNotEmpty) ? q.textHi : q.text;
 
+/// Reasoning directions / puzzle information shared by a group of questions.
+/// Hindi chuna ho aur Hindi passage ho to Hindi, warna English. Empty = none.
+String mockPassage(MockQuestion q, bool hi) => ((hi && q.passageHi.trim().isNotEmpty) ? q.passageHi : q.passage).trim();
+
 List<String> mockOptions(MockQuestion q, bool hi) =>
     (hi && q.optionsHi.length == q.options.length) ? q.optionsHi : q.options;
 
