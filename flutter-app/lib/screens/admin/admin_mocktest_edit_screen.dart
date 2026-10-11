@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import '../../models/models.dart';
 import '../../services/firestore_service.dart';
+import '../../services/image_upload_service.dart';
 import '../../services/mcq_bulk_parser.dart';
 import 'admin_mock_subject_widgets.dart';
 
@@ -38,7 +41,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
   bool _dirty = false;
   // Reasoning format: automatic for subject Reasoning, or switched on by hand.
   bool _forceReasoning = false;
-  bool get _reasoningMode => _forceReasoning || isReasoningSubject(_subject.text);
+  bool get _reasoningMode => _forceReasoning || isDirectionsSubject(_subject.text);
 
   @override
   void initState() {
@@ -102,6 +105,38 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
       _qs.removeAt(i);
       _dirty = true;
     });
+  }
+
+  final _imageUpload = ImageUploadService();
+  bool _uploadingImg = false;
+
+  // Pick the DI graph from the phone gallery, upload it (same GitHub images
+  // repo as banners/icons, so no Firebase Storage / paid plan) and write the
+  // "IMG: link" line into the paste box at the cursor.
+  Future<void> _uploadDiImage() async {
+    if (_uploadingImg) return;
+    final img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
+    if (img == null) return;
+    setState(() => _uploadingImg = true);
+    try {
+      final url = await _imageUpload.uploadImage(File(img.path));
+      final line = 'IMG: $url';
+      final text = _bulkCtrl.text;
+      var pos = _bulkCtrl.selection.baseOffset;
+      if (pos < 0 || pos > text.length) pos = text.length;
+      final before = text.substring(0, pos);
+      final after = text.substring(pos);
+      final pre = (before.isEmpty || before.endsWith('\n')) ? '' : '\n';
+      final inserted = '$pre$line\n';
+      _bulkCtrl.text = '$before$inserted$after';
+      _bulkCtrl.selection = TextSelection.collapsed(offset: before.length + inserted.length);
+      await Clipboard.setData(ClipboardData(text: line));
+      _snack('Image uploaded. The IMG: line was added to the paste box (and copied).');
+    } catch (e) {
+      _snack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _uploadingImg = false);
+    }
   }
 
   void _bulkAdd() {
@@ -300,7 +335,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
                 leading: Text('${i + 1}', style: const TextStyle(color: Colors.grey)),
                 title: Text(_qs[i].text, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13)),
                 subtitle: Text(
-                  'Answer ${String.fromCharCode(65 + (_qs[i].correctIndex.clamp(0, 3) as int))}  \u2022  ${_qs[i].textHi.isNotEmpty ? 'Hindi \u2713' : 'English only'}  \u2022  ${_qs[i].explanation.isNotEmpty ? 'Explanation \u2713' : 'No explanation'}${_qs[i].passage.isNotEmpty ? '  \u2022  Directions \u2713' : ''}',
+                  'Answer ${String.fromCharCode(65 + (_qs[i].correctIndex.clamp(0, 3) as int))}  \u2022  ${_qs[i].textHi.isNotEmpty ? 'Hindi \u2713' : 'English only'}  \u2022  ${_qs[i].explanation.isNotEmpty ? 'Explanation \u2713' : 'No explanation'}${(_qs[i].passage.isNotEmpty || _qs[i].passageImage.isNotEmpty) ? '  \u2022  Directions \u2713' : ''}${_qs[i].passageImage.isNotEmpty ? '  \u2022  Image \u2713' : ''}',
                   style: const TextStyle(color: Colors.grey, fontSize: 10),
                 ),
                 onTap: () => _editQuestion(i),
@@ -312,17 +347,17 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               activeColor: _gold,
-              title: Text(_reasoningMode ? 'Format in use: REASONING' : 'Format in use: Standard', style: TextStyle(color: _reasoningMode ? _gold : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              title: Text(_reasoningMode ? 'Format in use: DIRECTIONS / DI' : 'Format in use: Standard', style: TextStyle(color: _reasoningMode ? _gold : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
               subtitle: Text(
-                isReasoningSubject(_subject.text) ? 'Switched on automatically because the subject is Reasoning.' : 'Turns on automatically when the subject is Reasoning. Or switch it on by hand.',
+                isDirectionsSubject(_subject.text) ? 'Switched on automatically because the subject is Reasoning or Quant.' : 'Turns on automatically when the subject is Reasoning or Quant. Or switch it on by hand.',
                 style: const TextStyle(color: Colors.grey, fontSize: 11),
               ),
               value: _reasoningMode,
-              onChanged: isReasoningSubject(_subject.text) ? null : (v) => setState(() => _forceReasoning = v),
+              onChanged: isDirectionsSubject(_subject.text) ? null : (v) => setState(() => _forceReasoning = v),
             ),
             Text(
               _reasoningMode
-                  ? 'Reasoning format: Directions / puzzle information first, then its questions (Q: A: B: C: D: ANS: EXP:), then a ------ line. Same as in the Mock Tests tab.'
+                  ? 'Directions format (Reasoning / Quant DI): Directions first, then an optional IMG: picture line (use the Upload DI image button), then its questions (Q: A: B: C: D: ANS: EXP:), then a ------ line. Same as in the Mock Tests tab.'
                   : 'Same Q: A: B: C: D: ANS: EXP: format as in the Mock Tests tab.',
               style: const TextStyle(color: Colors.grey, fontSize: 11),
             ),
@@ -330,13 +365,23 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: _reasoningMode ? kReasoningBulkTemplate : kBulkTemplate));
+                  await Clipboard.setData(ClipboardData(text: _reasoningMode ? (isQuantSubject(_subject.text) ? kDiBulkTemplate : kReasoningBulkTemplate) : kBulkTemplate));
                   _snack('Sample format copied.');
                 },
                 icon: const Icon(Icons.copy, size: 16),
-                label: Text(_reasoningMode ? 'Copy Reasoning sample format' : 'Copy sample format'),
+                label: Text(_reasoningMode ? 'Copy Directions / DI sample format' : 'Copy sample format'),
               ),
             ),
+            const SizedBox(height: 6),
+            if (_reasoningMode)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _uploadingImg ? null : _uploadDiImage,
+                  icon: const Icon(Icons.image_outlined, size: 18),
+                  label: Text(_uploadingImg ? 'Uploading image...' : 'Upload DI image (adds IMG: line at cursor)'),
+                ),
+              ),
             const SizedBox(height: 6),
             TextField(controller: _bulkCtrl, minLines: 4, maxLines: 12, style: const TextStyle(color: Colors.white, fontSize: 13), decoration: const InputDecoration(hintText: 'Paste questions here', hintStyle: TextStyle(color: Colors.grey), border: OutlineInputBorder())),
             const SizedBox(height: 8),
@@ -373,6 +418,7 @@ class _QuestionDialogState extends State<_QuestionDialog> {
   late final TextEditingController _expHi;
   late final TextEditingController _pass;
   late final TextEditingController _passHi;
+  late final TextEditingController _img;
   late final List<TextEditingController> _o;
   late final List<TextEditingController> _oHi;
   late int _correct;
@@ -388,6 +434,7 @@ class _QuestionDialogState extends State<_QuestionDialog> {
     _expHi = TextEditingController(text: q?.explanationHi ?? '');
     _pass = TextEditingController(text: q?.passage ?? '');
     _passHi = TextEditingController(text: q?.passageHi ?? '');
+    _img = TextEditingController(text: q?.passageImage ?? '');
     _o = List.generate(4, (i) => TextEditingController(text: (q != null && i < q.options.length) ? q.options[i] : ''));
     _oHi = List.generate(4, (i) => TextEditingController(text: (q != null && i < q.optionsHi.length) ? q.optionsHi[i] : ''));
     _correct = (q?.correctIndex ?? 0).clamp(0, 3) as int;
@@ -395,7 +442,7 @@ class _QuestionDialogState extends State<_QuestionDialog> {
 
   @override
   void dispose() {
-    for (final c in [_q, _qHi, _exp, _expHi, _pass, _passHi, ..._o, ..._oHi]) {
+    for (final c in [_q, _qHi, _exp, _expHi, _pass, _passHi, _img, ..._o, ..._oHi]) {
       c.dispose();
     }
     super.dispose();
@@ -415,6 +462,11 @@ class _QuestionDialogState extends State<_QuestionDialog> {
       setState(() => _error = 'Hindi options are filled, so the Hindi question is needed too.');
       return;
     }
+    final imgT = _img.text.trim();
+    if (imgT.isNotEmpty && !imgT.toLowerCase().startsWith('http')) {
+      setState(() => _error = 'DI image link must start with https://');
+      return;
+    }
     Navigator.pop(
       context,
       MockQuestion(
@@ -427,6 +479,7 @@ class _QuestionDialogState extends State<_QuestionDialog> {
         explanationHi: _expHi.text.trim(),
         passage: _pass.text.trim(),
         passageHi: _passHi.text.trim(),
+        passageImage: imgT,
       ),
     );
   }
@@ -448,7 +501,8 @@ class _QuestionDialogState extends State<_QuestionDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _field(_pass, 'Directions / information (English, Reasoning only, optional)', lines: 6),
+              _field(_pass, 'Directions / information (English, optional)', lines: 6),
+              _field(_img, 'DI image link (https://..., optional)'),
               _field(_q, 'Question (English)', lines: 4),
               for (var i = 0; i < 4; i++)
                 Row(children: [
