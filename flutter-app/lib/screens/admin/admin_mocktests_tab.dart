@@ -42,12 +42,29 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
   // Bulk paste.
   final _bulkCtrl = TextEditingController();
   List<String> _bulkErrors = [];
+  // Reasoning format (Directions / puzzle info before the questions). It is
+  // used automatically when the subject is Reasoning; the switch can force
+  // it for a test whose subject has another name.
+  bool _forceReasoning = false;
+  bool get _reasoningMode => _forceReasoning || isReasoningSubject(_subject.text);
 
   @override
   bool get wantKeepAlive => true;
 
   @override
+  void initState() {
+    super.initState();
+    // Redraw the paste box instructions when the subject changes.
+    _subject.addListener(_onSubjectChanged);
+  }
+
+  void _onSubjectChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _subject.removeListener(_onSubjectChanged);
     _newFolderName.dispose();
     _testTitle.dispose();
     _subject.dispose();
@@ -114,7 +131,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
   }
 
   void _bulkAdd() {
-    final result = parseBulkMcqs(_bulkCtrl.text);
+    final result = parseBulkMcqs(_bulkCtrl.text, reasoning: _reasoningMode);
     if (!result.ok) {
       setState(() => _bulkErrors = result.errors);
       _snack('Please fix the problems listed below the box.');
@@ -372,19 +389,33 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
         const Divider(color: Colors.grey, height: 30),
         const Text('4b. Bulk paste (10 to 100 questions at once)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
-        const Text(
-          'Every question starts with Q: then options A: B: C: D:, then ANS: (A/B/C/D). EXP: (explanation) is optional. Write English || Hindi on one line for a bilingual test. Without || the text is a single language.',
-          style: TextStyle(color: Colors.grey, fontSize: 11),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          activeColor: const Color(0xFFFFFF29),
+          title: Text(_reasoningMode ? 'Format in use: REASONING' : 'Format in use: Standard', style: TextStyle(color: _reasoningMode ? const Color(0xFFFFFF29) : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+          subtitle: Text(
+            isReasoningSubject(_subject.text) ? 'Switched on automatically because the subject is Reasoning.' : 'Turns on automatically when the subject is Reasoning. Or switch it on by hand.',
+            style: const TextStyle(color: Colors.grey, fontSize: 11),
+          ),
+          value: _reasoningMode,
+          onChanged: isReasoningSubject(_subject.text) ? null : (v) => setState(() => _forceReasoning = v),
+        ),
+        Text(
+          _reasoningMode
+              ? 'Reasoning: write the Directions / puzzle information first (English line, then its Hindi line, or English || Hindi on one line; start a bullet with *). Then the questions of that group, each with Q: A: B: C: D: ANS: and optional EXP:. Put a line of dashes (------) after the group; the next group starts with its own Directions. The directions are shown above every question of the group in the test. Questions with no directions are fine too.'
+              : 'Every question starts with Q: then options A: B: C: D:, then ANS: (A/B/C/D). EXP: (explanation) is optional. Write English || Hindi on one line for a bilingual test. Without || the text is a single language.',
+          style: const TextStyle(color: Colors.grey, fontSize: 11),
         ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             onPressed: () async {
-              await Clipboard.setData(const ClipboardData(text: kBulkTemplate));
-              _snack('Format copied. Paste it anywhere and fill in your questions.');
+              await Clipboard.setData(ClipboardData(text: _reasoningMode ? kReasoningBulkTemplate : kBulkTemplate));
+              _snack(_reasoningMode ? 'Reasoning format copied. Paste it anywhere and fill in your questions.' : 'Format copied. Paste it anywhere and fill in your questions.');
             },
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copy sample format'),
+            label: Text(_reasoningMode ? 'Copy Reasoning sample format' : 'Copy sample format'),
           ),
         ),
         TextField(
@@ -411,7 +442,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
               leading: Text('${e.key + 1}', style: const TextStyle(color: Colors.grey)),
               title: Text(e.value.text, style: const TextStyle(color: Colors.white, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(
-                '${e.value.textHi.isNotEmpty ? 'Hindi ✓' : 'English only'}  •  ${e.value.explanation.isNotEmpty ? 'Explanation ✓' : 'No explanation'}',
+                '${e.value.textHi.isNotEmpty ? 'Hindi ✓' : 'English only'}  •  ${e.value.explanation.isNotEmpty ? 'Explanation ✓' : 'No explanation'}${e.value.passage.isNotEmpty ? '  •  Directions ✓' : ''}',
                 style: const TextStyle(color: Colors.grey, fontSize: 10),
               ),
               trailing: IconButton(

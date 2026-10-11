@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/models.dart';
 import '../../services/firestore_service.dart';
 import '../../services/mcq_bulk_parser.dart';
@@ -35,6 +36,9 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
   List<String> _bulkErrors = [];
   bool _saving = false;
   bool _dirty = false;
+  // Reasoning format: automatic for subject Reasoning, or switched on by hand.
+  bool _forceReasoning = false;
+  bool get _reasoningMode => _forceReasoning || isReasoningSubject(_subject.text);
 
   @override
   void initState() {
@@ -47,10 +51,16 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
     _subject = TextEditingController(text: t.subject);
     _qs = List<MockQuestion>.from(t.questions);
     _folderId = t.folderId;
+    _subject.addListener(_onSubjectChanged);
+  }
+
+  void _onSubjectChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _subject.removeListener(_onSubjectChanged);
     _title.dispose();
     _minutes.dispose();
     _marks.dispose();
@@ -95,7 +105,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
   }
 
   void _bulkAdd() {
-    final r = parseBulkMcqs(_bulkCtrl.text);
+    final r = parseBulkMcqs(_bulkCtrl.text, reasoning: _reasoningMode);
     if (!r.ok) {
       setState(() => _bulkErrors = r.errors);
       return;
@@ -290,7 +300,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
                 leading: Text('${i + 1}', style: const TextStyle(color: Colors.grey)),
                 title: Text(_qs[i].text, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13)),
                 subtitle: Text(
-                  'Answer ${String.fromCharCode(65 + (_qs[i].correctIndex.clamp(0, 3) as int))}  \u2022  ${_qs[i].textHi.isNotEmpty ? 'Hindi \u2713' : 'English only'}  \u2022  ${_qs[i].explanation.isNotEmpty ? 'Explanation \u2713' : 'No explanation'}',
+                  'Answer ${String.fromCharCode(65 + (_qs[i].correctIndex.clamp(0, 3) as int))}  \u2022  ${_qs[i].textHi.isNotEmpty ? 'Hindi \u2713' : 'English only'}  \u2022  ${_qs[i].explanation.isNotEmpty ? 'Explanation \u2713' : 'No explanation'}${_qs[i].passage.isNotEmpty ? '  \u2022  Directions \u2713' : ''}',
                   style: const TextStyle(color: Colors.grey, fontSize: 10),
                 ),
                 onTap: () => _editQuestion(i),
@@ -298,7 +308,35 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
               ),
             const Divider(color: Colors.grey, height: 28),
             const Text('Add many questions at once (10 to 100)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            const Text('Same Q: A: B: C: D: ANS: EXP: format as in the Mock Tests tab.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              activeColor: _gold,
+              title: Text(_reasoningMode ? 'Format in use: REASONING' : 'Format in use: Standard', style: TextStyle(color: _reasoningMode ? _gold : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                isReasoningSubject(_subject.text) ? 'Switched on automatically because the subject is Reasoning.' : 'Turns on automatically when the subject is Reasoning. Or switch it on by hand.',
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+              value: _reasoningMode,
+              onChanged: isReasoningSubject(_subject.text) ? null : (v) => setState(() => _forceReasoning = v),
+            ),
+            Text(
+              _reasoningMode
+                  ? 'Reasoning format: Directions / puzzle information first, then its questions (Q: A: B: C: D: ANS: EXP:), then a ------ line. Same as in the Mock Tests tab.'
+                  : 'Same Q: A: B: C: D: ANS: EXP: format as in the Mock Tests tab.',
+              style: const TextStyle(color: Colors.grey, fontSize: 11),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: _reasoningMode ? kReasoningBulkTemplate : kBulkTemplate));
+                  _snack('Sample format copied.');
+                },
+                icon: const Icon(Icons.copy, size: 16),
+                label: Text(_reasoningMode ? 'Copy Reasoning sample format' : 'Copy sample format'),
+              ),
+            ),
             const SizedBox(height: 6),
             TextField(controller: _bulkCtrl, minLines: 4, maxLines: 12, style: const TextStyle(color: Colors.white, fontSize: 13), decoration: const InputDecoration(hintText: 'Paste questions here', hintStyle: TextStyle(color: Colors.grey), border: OutlineInputBorder())),
             const SizedBox(height: 8),
@@ -333,6 +371,8 @@ class _QuestionDialogState extends State<_QuestionDialog> {
   late final TextEditingController _qHi;
   late final TextEditingController _exp;
   late final TextEditingController _expHi;
+  late final TextEditingController _pass;
+  late final TextEditingController _passHi;
   late final List<TextEditingController> _o;
   late final List<TextEditingController> _oHi;
   late int _correct;
@@ -346,6 +386,8 @@ class _QuestionDialogState extends State<_QuestionDialog> {
     _qHi = TextEditingController(text: q?.textHi ?? '');
     _exp = TextEditingController(text: q?.explanation ?? '');
     _expHi = TextEditingController(text: q?.explanationHi ?? '');
+    _pass = TextEditingController(text: q?.passage ?? '');
+    _passHi = TextEditingController(text: q?.passageHi ?? '');
     _o = List.generate(4, (i) => TextEditingController(text: (q != null && i < q.options.length) ? q.options[i] : ''));
     _oHi = List.generate(4, (i) => TextEditingController(text: (q != null && i < q.optionsHi.length) ? q.optionsHi[i] : ''));
     _correct = (q?.correctIndex ?? 0).clamp(0, 3) as int;
@@ -353,7 +395,7 @@ class _QuestionDialogState extends State<_QuestionDialog> {
 
   @override
   void dispose() {
-    for (final c in [_q, _qHi, _exp, _expHi, ..._o, ..._oHi]) {
+    for (final c in [_q, _qHi, _exp, _expHi, _pass, _passHi, ..._o, ..._oHi]) {
       c.dispose();
     }
     super.dispose();
@@ -383,6 +425,8 @@ class _QuestionDialogState extends State<_QuestionDialog> {
         optionsHi: hiTyped == 4 ? _oHi.map((c) => c.text.trim()).toList() : <String>[],
         explanation: _exp.text.trim(),
         explanationHi: _expHi.text.trim(),
+        passage: _pass.text.trim(),
+        passageHi: _passHi.text.trim(),
       ),
     );
   }
@@ -404,6 +448,7 @@ class _QuestionDialogState extends State<_QuestionDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _field(_pass, 'Directions / information (English, Reasoning only, optional)', lines: 6),
               _field(_q, 'Question (English)', lines: 4),
               for (var i = 0; i < 4; i++)
                 Row(children: [
@@ -416,6 +461,7 @@ class _QuestionDialogState extends State<_QuestionDialog> {
               const Divider(color: Colors.grey),
               const Text('Hindi (optional)', style: TextStyle(color: _gold, fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 6),
+              _field(_passHi, 'Directions / information (Hindi)', lines: 6),
               _field(_qHi, 'Question (Hindi)', lines: 4),
               for (var i = 0; i < 4; i++) _field(_oHi[i], 'Option ${String.fromCharCode(65 + i)} (Hindi)'),
               _field(_expHi, 'Explanation (Hindi)', lines: 4),
