@@ -202,6 +202,9 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
     final correct = q.correctIndex;
     final opts = mockOptions(q, _hindi);
     final explanation = mockExplanation(q, _hindi).trim();
+    // Reasoning directions: shown once, on the first question of a group.
+    final passage = mockPassage(q, _hindi);
+    final samePassageAsPrev = i > 0 && mockPassage(widget.test.questions[i - 1], _hindi) == passage;
 
     final IconData icon;
     final Color iconColor;
@@ -223,6 +226,14 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (passage.isNotEmpty && !samePassageAsPrev)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
+              child: Text(passage, style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4)),
+            ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

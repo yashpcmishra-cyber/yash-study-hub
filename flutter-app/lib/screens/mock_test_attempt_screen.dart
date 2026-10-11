@@ -308,6 +308,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _passageBox(q),
                 Text(mockText(q, _hindi), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600, height: 1.4)),
                 const SizedBox(height: 16),
                 for (var oi = 0; oi < opts.length; oi++) _optionTile(oi, opts[oi]),
@@ -317,6 +318,20 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
         ),
         _bottomBar(total),
       ],
+    );
+  }
+
+  // Reasoning: Directions / puzzle information shared by a group of questions.
+  // Nothing is shown for other subjects (their questions have no passage).
+  Widget _passageBox(MockQuestion q, {bool compact = false}) {
+    final p = mockPassage(q, _hindi);
+    if (p.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(compact ? 8 : 12),
+      decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
+      child: Text(p, style: TextStyle(color: Colors.white70, fontSize: compact ? 12.5 : 14, height: 1.4)),
     );
   }
 
@@ -379,6 +394,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                       children: [
                         Text(_marksLine(total), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                         const SizedBox(height: 6),
+                        _passageBox(q, compact: true),
                         Text(mockText(q, _hindi), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
                       ],
                     ),
