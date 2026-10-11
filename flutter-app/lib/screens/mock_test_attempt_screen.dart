@@ -6,6 +6,7 @@ import '../services/firestore_service.dart';
 import '../services/mock_rank_service.dart';
 import 'mock_test_scorecard_screen.dart';
 import '../widgets/space_background.dart';
+import '../widgets/di_image.dart';
 
 const _navy = Color(0xFF081136);
 const _cardBg = Color(0xFF101D57);
@@ -325,13 +326,20 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
   // Nothing is shown for other subjects (their questions have no passage).
   Widget _passageBox(MockQuestion q, {bool compact = false}) {
     final p = mockPassage(q, _hindi);
-    if (p.isEmpty) return const SizedBox.shrink();
+    final img = q.passageImage.trim();
+    if (p.isEmpty && img.isEmpty) return const SizedBox.shrink();
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.all(compact ? 8 : 12),
       decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
-      child: Text(p, style: TextStyle(color: Colors.white70, fontSize: compact ? 12.5 : 14, height: 1.4)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (p.isNotEmpty) Text(p, style: TextStyle(color: Colors.white70, fontSize: compact ? 12.5 : 14, height: 1.4)),
+          if (img.isNotEmpty) Padding(padding: EdgeInsets.only(top: p.isNotEmpty ? 8 : 0), child: DiImage(url: img)),
+        ],
+      ),
     );
   }
 

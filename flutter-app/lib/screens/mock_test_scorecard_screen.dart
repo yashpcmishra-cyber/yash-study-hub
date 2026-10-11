@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/mock_rank_service.dart';
+import '../widgets/di_image.dart';
 
 const _navy = Color(0xFF081136);
 const _cardBg = Color(0xFF101D57);
@@ -204,7 +205,10 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
     final explanation = mockExplanation(q, _hindi).trim();
     // Reasoning directions: shown once, on the first question of a group.
     final passage = mockPassage(q, _hindi);
-    final samePassageAsPrev = i > 0 && mockPassage(widget.test.questions[i - 1], _hindi) == passage;
+    final passageImg = q.passageImage.trim();
+    final samePassageAsPrev = i > 0 &&
+        mockPassage(widget.test.questions[i - 1], _hindi) == passage &&
+        widget.test.questions[i - 1].passageImage.trim() == passageImg;
 
     final IconData icon;
     final Color iconColor;
@@ -226,13 +230,19 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (passage.isNotEmpty && !samePassageAsPrev)
+          if ((passage.isNotEmpty || passageImg.isNotEmpty) && !samePassageAsPrev)
             Container(
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
-              child: Text(passage, style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (passage.isNotEmpty) Text(passage, style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4)),
+                  if (passageImg.isNotEmpty) Padding(padding: EdgeInsets.only(top: passage.isNotEmpty ? 8 : 0), child: DiImage(url: passageImg)),
+                ],
+              ),
             ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
