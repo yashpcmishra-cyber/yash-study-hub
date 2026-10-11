@@ -533,6 +533,9 @@ class MockQuestion {
   // copy, so each question stays independent. Other subjects leave it empty.
   final String passage;
   final String passageHi;
+  // Optional DI graph / table picture (https link). Shared by every question of
+  // the same DI group, like the directions text. Works for Quant and Reasoning.
+  final String passageImage;
 
   MockQuestion({
     required this.text,
@@ -544,6 +547,7 @@ class MockQuestion {
     this.explanationHi = '',
     this.passage = '',
     this.passageHi = '',
+    this.passageImage = '',
   });
 
   factory MockQuestion.fromMap(Map<String, dynamic> m) => MockQuestion(
@@ -556,6 +560,7 @@ class MockQuestion {
         explanationHi: m['explanationHi'] ?? '',
         passage: m['passage'] ?? '',
         passageHi: m['passageHi'] ?? '',
+        passageImage: m['passageImage'] ?? '',
       );
 
   Map<String, dynamic> toMap() => {
@@ -568,6 +573,7 @@ class MockQuestion {
         if (explanationHi.isNotEmpty) 'explanationHi': explanationHi,
         if (passage.isNotEmpty) 'passage': passage,
         if (passageHi.isNotEmpty) 'passageHi': passageHi,
+        if (passageImage.isNotEmpty) 'passageImage': passageImage,
       };
 }
 
