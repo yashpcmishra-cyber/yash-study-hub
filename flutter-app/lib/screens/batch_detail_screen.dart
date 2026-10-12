@@ -145,14 +145,14 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
           _busy = false;
           _expired = true;
           _expiresAt = res.expiresAt;
-          _checkMsg = 'Your access has expired. To renew: pay again, send the screenshot on Telegram, then tap "Check Access" with the code box empty. / Access khatam ho gaya. Renew ke liye dobara pay karo, screenshot Telegram par bhejo, phir code khaali chhodkar "Check Access" dabao.';
+          _checkMsg = 'Your access has expired. To renew: pay again, send the screenshot on Telegram / Gmail, then tap "Check Access" with the code box empty. / Access khatam ho gaya. Renew ke liye dobara pay karo, screenshot Telegram / Gmail par bhejo, phir code khaali chhodkar "Check Access" dabao.';
         });
         return;
       }
       if (code.isEmpty) {
         // No code yet: tell the admin this student has paid / wants access.
         // (A wrong code does NOT create another request.)
-        String message = 'Request sent — send your payment screenshot on Telegram so admin can verify. / Request bhej di — apni payment screenshot Telegram par bhejo verify ke liye.';
+        String message = 'Request sent — send your payment screenshot on Telegram / Gmail so admin can verify. / Request bhej di — apni payment screenshot Telegram / Gmail par bhejo verify ke liye.';
         try {
           await _fs
               .submitAccessRequest(_email, widget.batch.id, widget.batch.title, phone: _phoneController.text.trim(), name: _name)
@@ -184,6 +184,23 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
   Future<void> _copyUpiId(AppConfigModel cfg) async {
     await Clipboard.setData(ClipboardData(text: cfg.upiId));
     _snack('UPI ID copied! Paste it in your payment app (GPay/PhonePe/Paytm) and pay \u20b9${widget.batch.price}. / UPI ID copy ho gayi! Apne payment app mein paste karke \u20b9${widget.batch.price} pay karo.');
+  }
+
+  // Opens the phone's mail app with To / Subject / Body already filled so the
+  // admin can tell who paid for what. The student attaches the screenshot
+  // himself (a mailto: link cannot attach files).
+  Future<void> _emailScreenshot(AppConfigModel cfg) async {
+    final subject = 'Payment screenshot - ${widget.batch.title}';
+    final body = 'Hello Admin,\n\n'
+        'I have paid for this batch. My payment screenshot is attached.\n\n'
+        'Batch: ${widget.batch.title}\n'
+        'Amount: \u20b9${widget.batch.price}\n'
+        'Name: ${_name.isNotEmpty ? _name : '-'}\n'
+        'Email (app account): $_email\n'
+        'WhatsApp: ${_phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : '-'}\n\n'
+        'Please share my access code. Thank you.';
+    final url = 'mailto:${cfg.paymentEmail}?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}';
+    await openExternalLink(context, url);
   }
 
   Widget _unlockStep(String number, String en, String hi, {bool isLast = false}) {
@@ -350,21 +367,51 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                       const SizedBox(height: 10),
                       _unlockStep('1', 'Tap the UPI ID above to copy it.', 'ऊपर UPI ID पर टैप करके कॉपी करें।'),
                       _unlockStep('2', 'Paste it in your payment app (GPay / PhonePe / Paytm) and pay ₹${widget.batch.price}.', 'अपने पेमेंट ऐप में पेस्ट करके ₹${widget.batch.price} का भुगतान करें।'),
-                      _unlockStep('3', 'Send your payment screenshot on Telegram.', 'अपनी पेमेंट स्क्रीनशॉट Telegram पर भेजें।'),
-                      _unlockStep('4', 'Come back here and tap "Check Access" (enter the code below once admin shares it).', 'यहाँ वापस आकर "Check Access" दबाएँ (admin से code milte hi neeche daal dena)।', isLast: true),
+                      _unlockStep('3', 'Send your payment slip screenshot on Telegram / Gmail \u2014 any one method is enough.', 'अपनी पेमेंट स्लिप का स्क्रीनशॉट Telegram / Gmail में से किसी एक तरीके से भेजें।'),
+                      _unlockStep('4', 'Admin will verify it and share your access code. Come back here, enter the code below and tap "Check Access".', 'Admin verify करके आपको access code भेजेगा। यहाँ वापस आकर नीचे code डालें और "Check Access" दबाएँ।', isLast: true),
                     ],
                   ),
                 ),
                 const SizedBox(height: 14),
-                ElevatedButton.icon(
-                  onPressed: () => openExternalLink(context, cfg.paymentTelegramUrl),
-                  icon: const Icon(Icons.send, size: 18),
-                  label: Text('Send screenshot on Telegram\nTelegram पर स्क्रीनशॉट भेजें', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2AABEE),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(52),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                const Text('Send screenshot via any one / किसी एक से स्क्रीनशॉट भेजें', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => openExternalLink(context, cfg.paymentTelegramUrl),
+                        icon: const Icon(Icons.send, size: 18),
+                        label: const Text('Telegram\nTelegram पर भेजें', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2AABEE),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 52),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _emailScreenshot(cfg),
+                        icon: const Icon(Icons.email_outlined, size: 18),
+                        label: const Text('Gmail\nGmail पर भेजें', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEA4335),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 52),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'No Telegram? Email it to / Telegram नहीं है तो ईमेल करें:\n${cfg.paymentEmail}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
                   ),
                 ),
                 const SizedBox(height: 20),
