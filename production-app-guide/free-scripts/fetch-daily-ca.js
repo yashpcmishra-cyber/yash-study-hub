@@ -91,8 +91,21 @@ async function getText(url) {
   throw new Error(`HTTP ${lastStatus} for ${url}`);
 }
 
+// PIB's RSS sometimes has a bare "&" (e.g. "R&D", "Q&A", or "...PRID=1&Lang=1" in a
+// link) that is not escaped as "&amp;". rss-parser's strict XML parser then dies with
+// "Invalid character in entity name". Escape every "&" that is not already a valid
+// entity, leaving CDATA sections untouched (they may contain raw "&" legally).
+function sanitizeXml(xml) {
+  return xml
+    .split(/(<!\[CDATA\[[\s\S]*?\]\]>)/)
+    .map((part, i) => (i % 2 ? part : part.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, "&amp;")))
+    .join("")
+    // control characters are also illegal in XML 1.0 (keep tab, LF, CR)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+}
+
 async function readFeed() {
-  const xml = (await getText(FEED_URL)).replace(/^\uFEFF/, "").trim();
+  const xml = sanitizeXml((await getText(FEED_URL)).replace(/^\uFEFF/, "").trim());
   const feed = await parser.parseString(xml);
   const out = [];
   for (const it of feed.items || []) {
