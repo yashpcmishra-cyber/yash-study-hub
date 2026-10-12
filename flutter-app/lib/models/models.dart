@@ -613,6 +613,8 @@ class AppConfigModel {
   final String upiId;
   final String telegramUrl;
   final String paymentTelegramUrl;
+  // Gmail address where students can send the payment screenshot if they have no Telegram.
+  final String paymentEmail;
   final String whatsappUrl;
   final String youtubeUrl;
 
@@ -623,6 +625,7 @@ class AppConfigModel {
     this.upiId = 'yshpay@upi',
     this.telegramUrl = 'https://t.me/YashStudyHub',
     this.paymentTelegramUrl = 'https://t.me/YSHinfo',
+    this.paymentEmail = 'officialteamysh@gmail.com',
     this.whatsappUrl = 'https://whatsapp.com/channel/0029VbCnzSvKmCPLxoMBuk33',
     this.youtubeUrl = 'https://www.youtube.com/c/YashStudyHub',
   });
@@ -637,6 +640,7 @@ class AppConfigModel {
       upiId: (m['upiId'] as String?)?.trim().isNotEmpty == true ? m['upiId'] : d.upiId,
       telegramUrl: (m['telegramUrl'] as String?)?.trim().isNotEmpty == true ? m['telegramUrl'] : d.telegramUrl,
       paymentTelegramUrl: (m['paymentTelegramUrl'] as String?)?.trim().isNotEmpty == true ? m['paymentTelegramUrl'] : d.paymentTelegramUrl,
+      paymentEmail: (m['paymentEmail'] as String?)?.trim().isNotEmpty == true ? (m['paymentEmail'] as String).trim() : d.paymentEmail,
       whatsappUrl: (m['whatsappUrl'] as String?)?.trim().isNotEmpty == true ? m['whatsappUrl'] : d.whatsappUrl,
       youtubeUrl: (m['youtubeUrl'] as String?)?.trim().isNotEmpty == true ? m['youtubeUrl'] : d.youtubeUrl,
     );
@@ -649,11 +653,12 @@ class AppConfigModel {
         'upiId': upiId,
         'telegramUrl': telegramUrl,
         'paymentTelegramUrl': paymentTelegramUrl,
+        'paymentEmail': paymentEmail,
         'whatsappUrl': whatsappUrl,
         'youtubeUrl': youtubeUrl,
       };
 
-  AppConfigModel copyWith({String? logoUrl, String? appName, String? tagline, String? upiId, String? telegramUrl, String? paymentTelegramUrl, String? whatsappUrl, String? youtubeUrl}) =>
+  AppConfigModel copyWith({String? logoUrl, String? appName, String? tagline, String? upiId, String? telegramUrl, String? paymentTelegramUrl, String? paymentEmail, String? whatsappUrl, String? youtubeUrl}) =>
       AppConfigModel(
         logoUrl: logoUrl ?? this.logoUrl,
         appName: appName ?? this.appName,
@@ -661,6 +666,7 @@ class AppConfigModel {
         upiId: upiId ?? this.upiId,
         telegramUrl: telegramUrl ?? this.telegramUrl,
         paymentTelegramUrl: paymentTelegramUrl ?? this.paymentTelegramUrl,
+        paymentEmail: paymentEmail ?? this.paymentEmail,
         whatsappUrl: whatsappUrl ?? this.whatsappUrl,
         youtubeUrl: youtubeUrl ?? this.youtubeUrl,
       );
