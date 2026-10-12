@@ -104,11 +104,47 @@ function sanitizeXml(xml) {
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
 }
 
+function decodeEntities(s) {
+  return String(s)
+    .replace(/&#x([0-9a-fA-F]+);/g, (m, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (m, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+// Tolerant fallback: PIB's feed is not always valid XML (raw "<", quotes, "&" inside a
+// title), and which release is broken changes hour to hour. We only need each item's
+// title and link, so pull them out with plain text matching instead of a strict parser.
+function extractItemsLoosely(xml) {
+  const grab = (block, tag) => {
+    const m = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i").exec(block);
+    if (!m) return "";
+    return decodeEntities(m[1].replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1")).trim();
+  };
+  const items = [];
+  const re = /<item[\s>][\s\S]*?<\/item>/gi;
+  let m;
+  while ((m = re.exec(xml))) items.push({ title: grab(m[0], "title"), link: grab(m[0], "link") });
+  return items;
+}
+
 async function readFeed() {
-  const xml = sanitizeXml((await getText(FEED_URL)).replace(/^\uFEFF/, "").trim());
-  const feed = await parser.parseString(xml);
+  const raw = (await getText(FEED_URL)).replace(/^\uFEFF/, "").trim();
+  let rawItems;
+  try {
+    rawItems = (await parser.parseString(sanitizeXml(raw))).items || [];
+  } catch (err) {
+    console.warn(`Strict feed parse failed (${String(err.message).replace(/\s+/g, " ")}); using tolerant parser.`);
+    rawItems = extractItemsLoosely(raw);
+    if (rawItems.length === 0) {
+      throw new Error(`Feed has no readable items. Starts with: ${raw.slice(0, 200).replace(/\s+/g, " ")}`);
+    }
+  }
   const out = [];
-  for (const it of feed.items || []) {
+  for (const it of rawItems) {
     const prid = prOf(it.link);
     const title = String(it.title || "").trim();
     if (!prid || !title || title === "Press Release") continue;
