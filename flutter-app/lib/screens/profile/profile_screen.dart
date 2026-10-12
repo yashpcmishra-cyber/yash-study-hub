@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../app_globals.dart';
 import '../../models/models.dart';
+import '../../services/account_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/open_link.dart';
@@ -138,6 +139,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
   }
 
+  // "Delete Account": warning + password check in ONE dialog. Only when the
+  // dialog returns true (data and login are already deleted) do we leave.
+  Future<void> _deleteAccount() async {
+    final done = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _DeleteAccountDialog(),
+    );
+    if (done != true || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Your account and data have been deleted. / Aapka account aur data delete ho gaya.')),
+    );
+    Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+  }
+
   InputDecoration _dec(String label, IconData icon) => InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.grey),
@@ -209,7 +225,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         appBar: AppBar(
           automaticallyImplyLeading: !widget.isSetup,
           title: Text(widget.isSetup ? 'Complete Your Profile' : 'My Profile'),
-          actions: [IconButton(icon: const Icon(Icons.logout), tooltip: 'Logout', onPressed: _logout)],
+          actions: [
+            // Icon with its name written under it, right next to Logout.
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: _deleteAccount,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.delete_forever_outlined, color: Color(0xFFFF5252), size: 24),
+                    Text('Delete Account', style: TextStyle(color: Color(0xFFFF5252), fontSize: 9.5, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+            IconButton(icon: const Icon(Icons.logout), tooltip: 'Logout', onPressed: _logout),
+          ],
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -284,6 +318,120 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
+      ),
+    );
+  }
+}
+
+/// Confirmation dialog for Delete Account. Pops `true` only after the data
+/// AND the login have really been deleted; stays open (with a red message)
+/// if the password is wrong or something fails.
+class _DeleteAccountDialog extends StatefulWidget {
+  const _DeleteAccountDialog();
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _password = TextEditingController();
+  bool _busy = false;
+  bool _obscure = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirm() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final err = await AccountService().deleteAccount(_password.text);
+    if (!mounted) return;
+    if (err == null) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() {
+        _busy = false;
+        _error = err;
+      });
+    }
+  }
+
+  Widget _line(String text, {Color color = Colors.white70}) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(text, style: TextStyle(color: color, fontSize: 13)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_busy,
+      child: AlertDialog(
+        backgroundColor: const Color(0xFF081136),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5252)),
+            SizedBox(width: 8),
+            Expanded(child: Text('Delete Account?', style: TextStyle(color: Colors.white))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _line('This will permanently delete your login and your data. This cannot be undone.', color: Colors.white),
+              _line('Yeh aapka login aur data hamesha ke liye hata dega. Wapas nahi aa sakta.', color: Colors.white),
+              const SizedBox(height: 8),
+              _line('\u2022 Your profile (name, state, district, gender, qualification)'),
+              _line('\u2022 Your doubts / queries and the replies'),
+              _line('\u2022 Your email login'),
+              const SizedBox(height: 6),
+              _line(
+                'Note: the admin\u2019s paid-batch access / payment record is not removed.',
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _password,
+                enabled: !_busy,
+                obscureText: _obscure,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Enter password to confirm',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(_error!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12.5)),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _busy ? null : () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD32F2F), foregroundColor: Colors.white),
+            onPressed: _busy ? null : _confirm,
+            child: _busy
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Delete Forever'),
+          ),
+        ],
       ),
     );
   }
