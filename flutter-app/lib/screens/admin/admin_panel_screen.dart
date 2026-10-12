@@ -258,6 +258,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   final _brandUpiCtrl = TextEditingController();
   final _brandTelegramCtrl = TextEditingController();
   final _brandPaymentTelegramCtrl = TextEditingController();
+  final _brandPaymentEmailCtrl = TextEditingController();
   final _brandWhatsappCtrl = TextEditingController();
   final _brandYoutubeCtrl = TextEditingController();
   final _bannerLinkCtrl = TextEditingController();
@@ -302,6 +303,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     _brandUpiCtrl.dispose();
     _brandTelegramCtrl.dispose();
     _brandPaymentTelegramCtrl.dispose();
+    _brandPaymentEmailCtrl.dispose();
     _brandWhatsappCtrl.dispose();
     _brandYoutubeCtrl.dispose();
     _bannerLinkCtrl.dispose();
@@ -1123,6 +1125,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         upiId: _brandUpiCtrl.text.trim().isEmpty ? null : _brandUpiCtrl.text.trim(),
         telegramUrl: _brandTelegramCtrl.text.trim().isEmpty ? null : _brandTelegramCtrl.text.trim(),
         paymentTelegramUrl: _brandPaymentTelegramCtrl.text.trim().isEmpty ? null : _brandPaymentTelegramCtrl.text.trim(),
+        paymentEmail: _brandPaymentEmailCtrl.text.trim().isEmpty ? null : _brandPaymentEmailCtrl.text.trim(),
         whatsappUrl: _brandWhatsappCtrl.text.trim().isEmpty ? null : _brandWhatsappCtrl.text.trim(),
         youtubeUrl: _brandYoutubeCtrl.text.trim().isEmpty ? null : _brandYoutubeCtrl.text.trim(),
       ));
@@ -1145,6 +1148,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           _brandUpiCtrl.text = cfg.upiId;
           _brandTelegramCtrl.text = cfg.telegramUrl;
           _brandPaymentTelegramCtrl.text = cfg.paymentTelegramUrl;
+          _brandPaymentEmailCtrl.text = cfg.paymentEmail;
           _brandWhatsappCtrl.text = cfg.whatsappUrl;
           _brandYoutubeCtrl.text = cfg.youtubeUrl;
           _brandFieldsLoaded = true;
@@ -1180,6 +1184,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             TextField(controller: _brandUpiCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'UPI ID', labelStyle: TextStyle(color: Colors.grey))),
             TextField(controller: _brandTelegramCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Telegram URL', helperText: 'Official channel — shown on Home', labelStyle: TextStyle(color: Colors.grey), helperStyle: TextStyle(color: Colors.grey, fontSize: 11))),
             TextField(controller: _brandPaymentTelegramCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Payment Telegram URL', helperText: 'Where students send their payment screenshot (can be different from above)', labelStyle: TextStyle(color: Colors.grey), helperStyle: TextStyle(color: Colors.grey, fontSize: 11))),
+            TextField(controller: _brandPaymentEmailCtrl, keyboardType: TextInputType.emailAddress, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Payment Gmail', helperText: 'Students without Telegram email their payment screenshot here', labelStyle: TextStyle(color: Colors.grey), helperStyle: TextStyle(color: Colors.grey, fontSize: 11))),
             TextField(controller: _brandWhatsappCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'WhatsApp URL', labelStyle: TextStyle(color: Colors.grey))),
             TextField(controller: _brandYoutubeCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'YouTube URL', labelStyle: TextStyle(color: Colors.grey))),
             const SizedBox(height: 10),
