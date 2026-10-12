@@ -28,3 +28,23 @@ Future<void> syncLocalStudentIdentity(String email, String name) async {
     // the next successful sync.
   }
 }
+
+/// Used by "Delete Account": forgets everything personal that this phone
+/// remembered about the student. The anonymous install counter keys
+/// (anon_install_id / last_active_day) are left alone on purpose - they
+/// contain no personal information.
+Future<void> clearLocalStudentData() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    const fixed = ['student_email', 'student_name', 'attempt_identity', 'seen_query_replies'];
+    for (final k in fixed) {
+      await prefs.remove(k);
+    }
+    // access_code_<batchId> keys (one per batch the student opened)
+    for (final k in prefs.getKeys().where((k) => k.startsWith('access_code_')).toList()) {
+      await prefs.remove(k);
+    }
+  } catch (_) {
+    // Best-effort only.
+  }
+}
