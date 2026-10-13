@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import '../models/models.dart';
+import 'content_seen_store.dart';
 
 class FirestoreService {
   final _db = FirebaseFirestore.instance;
@@ -65,6 +66,50 @@ class FirestoreService {
     }
   }
 
+  // ---- "New content" red dots on the Home grid ----
+  // Every time the admin adds something NEW, one timestamp field is written
+  // (merge) into the existing doc appConfig/main. Students already read that
+  // doc, so this costs no extra reads. Never throws: if it fails the upload
+  // itself is still fine, the red dot just does not show.
+  Future<void> _markUpdated(String field) async {
+    try {
+      await _db.collection('appConfig').doc('main').set({field: FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  bool _isPaidBatchId(String? id) => id != null && id.isNotEmpty && id != kFreeVideoBatchId;
+
+  // After a new mock test: free folder -> Mock Tests dot, folder inside a
+  // paid batch -> Paid Batches dot.
+  Future<void> _markMockUpdated(String folderId) async {
+    try {
+      final doc = await _db.collection('mockTestFolders').doc(folderId).get().timeout(const Duration(seconds: 10));
+      final ids = doc.data()?['batchIds'];
+      final inBatch = ids is List && ids.isNotEmpty;
+      await _markUpdated(inBatch ? 'newBatchesAt' : 'newMocksAt');
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  // Home grid: the 4 tiles listen to this one doc.
+  Stream<ContentUpdates> streamContentUpdates() =>
+      _db.collection('appConfig').doc('main').snapshots().map((d) => ContentUpdates.fromMap(d.data()));
+
+  // Time of the newest notification (1 tiny read). Epoch 0 = none yet.
+  Stream<DateTime> streamLatestNotificationTime() => _db
+          .collection('notifications')
+          .orderBy('sentAt', descending: true)
+          .limit(1)
+          .snapshots()
+          .map((snap) {
+        if (snap.docs.isEmpty) return DateTime.fromMillisecondsSinceEpoch(0);
+        final v = snap.docs.first.data()['sentAt'];
+        return v is Timestamp ? v.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+      });
+
   // ---- Batches ----
   // The admin's hand-made order first, then anything never arranged (oldest
   // first). See compareOrderThenCreated.
@@ -82,8 +127,10 @@ class FirestoreService {
     return BatchModel.fromMap(doc.id, data);
   }
 
-  Future<void> addBatch(BatchModel b) =>
-      _db.collection('batches').add({...b.toMap(), 'createdAt': FieldValue.serverTimestamp()});
+  Future<void> addBatch(BatchModel b) async {
+    await _db.collection('batches').add({...b.toMap(), 'createdAt': FieldValue.serverTimestamp()});
+    await _markUpdated('newBatchesAt');
+  }
 
   // Partial update — only overwrites the fields actually passed in, so
   // editing just the price (say) never clobbers the icon or counts.
@@ -115,6 +162,7 @@ class FirestoreService {
   Future<void> addPdf(PdfModel p) async {
     await _db.collection('pdfs').add({...p.toMap(), 'createdAt': FieldValue.serverTimestamp()});
     await _bumpBatchCount(p.batchId, 'pdfs', 1);
+    await _markUpdated(_isPaidBatchId(p.batchId) ? 'newBatchesAt' : 'newPdfsAt');
   }
 
   Future<void> deletePdf(String id, {String? batchId}) async {
@@ -204,6 +252,11 @@ class FirestoreService {
   Future<void> addVideo(VideoModel v) async {
     await _db.collection('videos').add({...v.toMap(), 'createdAt': FieldValue.serverTimestamp()});
     await _bumpBatchCount(v.batchId, 'videos', 1);
+    // The hourly YouTube auto-fetch never goes through here, so it can't
+    // light the dot - only videos the admin adds by hand.
+    if (v.source != 'youtube_auto') {
+      await _markUpdated(_isPaidBatchId(v.batchId) ? 'newBatchesAt' : 'newVideosAt');
+    }
   }
 
   // Auto-fetched YouTube videos are re-created by the hourly script if they
@@ -590,8 +643,11 @@ class FirestoreService {
       });
 
   // Admin: which paid batches a folder belongs to ([] = free).
-  Future<void> setMockFolderBatches(String folderId, List<String> batchIds) =>
-      _db.collection('mockTestFolders').doc(folderId).update({'batchIds': batchIds});
+  Future<void> setMockFolderBatches(String folderId, List<String> batchIds) async {
+    await _db.collection('mockTestFolders').doc(folderId).update({'batchIds': batchIds});
+    // Folder just became free -> new for Mock Tests; just added to a batch -> new for Paid Batches.
+    await _markUpdated(batchIds.isEmpty ? 'newMocksAt' : 'newBatchesAt');
+  }
 
   // Rename an exam folder (only examName changes; tests stay linked by id).
   Future<void> renameMockFolder(String id, String newName) =>
@@ -613,11 +669,13 @@ class FirestoreService {
         return list;
       });
 
-  Future<void> saveMockTest(MockTestModel t) {
+  Future<void> saveMockTest(MockTestModel t) async {
     if (t.id.isEmpty) {
-      return _db.collection('mockTests').add({...t.toMap(), 'createdAt': FieldValue.serverTimestamp()});
+      await _db.collection('mockTests').add({...t.toMap(), 'createdAt': FieldValue.serverTimestamp()});
+      await _markMockUpdated(t.folderId); // only NEW tests light the dot, not edits
+      return;
     }
-    return _db.collection('mockTests').doc(t.id).set(t.toMap(), SetOptions(merge: true));
+    await _db.collection('mockTests').doc(t.id).set(t.toMap(), SetOptions(merge: true));
   }
 
   // Move a test to another exam folder and/or subject (only these 2 fields change).
