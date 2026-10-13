@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../services/content_seen_store.dart';
 import '../services/firestore_service.dart';
 import '../models/models.dart';
 import '../widgets/depth_card.dart';
@@ -15,6 +16,7 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _fs = FirestoreService();
   late final Stream<List<NotificationModel>> _stream = _fs.streamNotifications();
+  int _markedMs = 0; // newest notification already marked as seen
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +29,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (!snap.hasData) return const LoadingView();
           final items = snap.data!;
           if (items.isEmpty) return const EmptyView('No notifications yet');
+          // The student is looking at the list = these are seen
+          // (clears the red dot on the Home bell). List is newest first.
+          final newest = items.first.sentAt;
+          if (newest != null && newest.millisecondsSinceEpoch != _markedMs) {
+            _markedMs = newest.millisecondsSinceEpoch;
+            WidgetsBinding.instance.addPostFrameCallback((_) => ContentSeenStore.markSeen('notif', newest));
+          }
           return ListView.builder(
             padding: const EdgeInsets.all(14),
             itemCount: items.length,

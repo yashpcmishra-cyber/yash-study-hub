@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_globals.dart';
+import '../services/content_seen_store.dart';
 import '../services/firestore_service.dart';
 import '../services/queries_service.dart';
 import '../services/query_seen_store.dart';
@@ -46,6 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
   late Stream<List<VideoModel>> _fallbackVideosStream;
   late Stream<List<QueryModel>> _myQueriesStream; // for the red dot on the Queries tile
   Set<String> _seenReplies = <String>{};
+  late Stream<ContentUpdates> _updatesStream; // red dots on Mock / PDF / Video / Batches tiles
+  late Stream<DateTime> _notifTimeStream; // red dot on the bell
+  ContentUpdates? _updates; // latest values (null until loaded from Firebase)
   String _studentName = ''; // for the "Hello! Welcome ..." line
 
   void _initStreams() {
@@ -53,6 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _bannersStream = _fs.streamBanners();
     _latestVideosStream = _fs.streamLatestVideos();
     _fallbackVideosStream = _fs.streamAutoFetchedVideos();
+    _updatesStream = _fs.streamContentUpdates();
+    _notifTimeStream = _fs.streamLatestNotificationTime();
     final uid = FirebaseAuth.instance.currentUser?.uid;
     _myQueriesStream = uid == null ? const Stream<List<QueryModel>>.empty() : QueriesService().streamMine(uid);
   }
@@ -100,6 +106,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _initStreams();
     _loadSeen();
+    ContentSeenStore.seen.addListener(_onSeenChanged);
+    ContentSeenStore.load();
     _loadStudentName();
     // App was opened by tapping a push notification -> go straight to the
     // Notifications screen.
@@ -110,6 +118,30 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
       });
     }
+  }
+
+  @override
+  void dispose() {
+    ContentSeenStore.seen.removeListener(_onSeenChanged);
+    super.dispose();
+  }
+
+  // The saved "seen" times changed (a screen was opened) -> redraw the dots.
+  void _onSeenChanged() {
+    if (mounted) setState(() {});
+  }
+
+  // Student opened a Home tile: everything up to now counts as seen.
+  void _seenGrid(String key) {
+    final u = _updates;
+    if (u == null) return; // not loaded yet - nothing to clear
+    ContentSeenStore.markSeen(key, u.forKey(key));
+  }
+
+  // Bottom/side menu: opening the PDF tab also counts as "PDF Library opened".
+  void _goTab(int i) {
+    if (i == 2) _seenGrid('pdfs');
+    setState(() => _tab = i);
   }
 
   // The app logo at the top-left of the header doubles as the hidden Admin
@@ -147,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (landscape)
               YshSideNav(
                 currentIndex: _tab,
-                onTap: (i) => setState(() => _tab = i),
+                onTap: _goTab,
               ),
             Expanded(child: KeyedSubtree(key: _contentKey, child: SafeArea(child: screens[_tab]))),
           ],
@@ -156,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ? null
             : YshBottomNav(
                 currentIndex: _tab,
-                onTap: (i) => setState(() => _tab = i),
+                onTap: _goTab,
               ),
       ),
     );
@@ -189,6 +221,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeBody() {
+    return StreamBuilder<ContentUpdates>(
+      stream: _updatesStream,
+      builder: (context, updSnap) {
+        final upd = updSnap.data; // null until the first value arrives
+        _updates = upd;
+        return _buildHomeBodyWith(upd);
+      },
+    );
+  }
+
+  Widget _buildHomeBodyWith(ContentUpdates? upd) {
     return StreamBuilder<AppConfigModel>(
       stream: _cfgStream,
       builder: (context, cfgSnap) {
@@ -247,9 +290,41 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Text('🔔', style: TextStyle(fontSize: 22)),
-                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                            StreamBuilder<DateTime>(
+                              stream: _notifTimeStream,
+                              builder: (context, nSnap) {
+                                final latest = nSnap.data;
+                                // Red dot = a notification (from the last 24 h, which is
+                                // what the Notifications screen lists) not opened yet.
+                                final hasNew = latest != null &&
+                                    ContentSeenStore.unread('notif', latest) &&
+                                    DateTime.now().difference(latest) < const Duration(days: 1);
+                                return Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    IconButton(
+                                      icon: const Text('🔔', style: TextStyle(fontSize: 22)),
+                                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                                    ),
+                                    if (hasNew)
+                                      Positioned(
+                                        top: 7,
+                                        right: 7,
+                                        child: IgnorePointer(
+                                          child: Container(
+                                            width: 13,
+                                            height: 13,
+                                            decoration: BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: const Color(0xFF0A0A0A), width: 2),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -291,10 +366,39 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisSpacing: gap,
                           childAspectRatio: cellW / cellH,
                           children: [
-                            _quickAccessCard('📝', 'Mock Tests', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MockTestsScreen()))),
-                            _quickAccessCard('📚', 'PDF Library', () => setState(() => _tab = 2)),
-                            _quickAccessCard('🎬', 'Video Classes', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VideoClassesScreen()))),
-                            _quickAccessCard('🎓', 'Paid Batches', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BatchesScreen()))),
+                            _quickAccessCard(
+                              '📝',
+                              'Mock Tests',
+                              () {
+                                _seenGrid('mocks');
+                                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MockTestsScreen()));
+                              },
+                              dot: ContentSeenStore.unread('mocks', upd?.mocks),
+                            ),
+                            _quickAccessCard(
+                              '📚',
+                              'PDF Library',
+                              () => _goTab(2),
+                              dot: ContentSeenStore.unread('pdfs', upd?.pdfs),
+                            ),
+                            _quickAccessCard(
+                              '🎬',
+                              'Video Classes',
+                              () {
+                                _seenGrid('videos');
+                                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VideoClassesScreen()));
+                              },
+                              dot: ContentSeenStore.unread('videos', upd?.videos),
+                            ),
+                            _quickAccessCard(
+                              '🎓',
+                              'Paid Batches',
+                              () {
+                                _seenGrid('batches');
+                                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BatchesScreen()));
+                              },
+                              dot: ContentSeenStore.unread('batches', upd?.batches),
+                            ),
                             _quickAccessCard('📖', 'My Course', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyCourseScreen()))),
                             StreamBuilder<List<QueryModel>>(
                               stream: _myQueriesStream,
@@ -418,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     if (!dot) return card;
-    // Red dot (top-right corner) = there is a reply the student has not seen.
+    // Red dot (top-right corner) = something new the student has not opened yet.
     return Stack(
       children: [
         Positioned.fill(child: card),
