@@ -50,21 +50,21 @@ class ShareService {
   static Future<void> freeMock(BuildContext context, String title, {bool folder = false}) => _send(
         context,
         folder ? '\u{1F4DD} Free Mock Tests: $title' : '\u{1F4DD} Free Mock Test: $title',
-        '$_appName app mein bilkul free practice karo.',
+        'Practice absolutely free on the $_appName app.\n$_appName ऐप पर बिल्कुल फ्री प्रैक्टिस करें।',
       );
 
   /// Free PDF (or a whole free PDF folder).
   static Future<void> freePdf(BuildContext context, String title, {bool folder = false}) => _send(
         context,
         folder ? '\u{1F4C1} Free PDFs: $title' : '\u{1F4C4} Free PDF: $title',
-        '$_appName app mein free padho.',
+        'Study free on the $_appName app.\n$_appName ऐप पर फ्री पढ़ें।',
       );
 
   /// Paid batch: promo only (name + app link). No content link at all.
   static Future<void> paidBatch(BuildContext context, String title) => _send(
         context,
         '\u{1F393} $title',
-        '$_appName app mein ye batch available hai. App download karke join karo.',
+        'This batch is available on the $_appName app. Download the app and join.\nयह बैच $_appName ऐप पर उपलब्ध है। ऐप डाउनलोड करके जॉइन करें।',
       );
 }
 

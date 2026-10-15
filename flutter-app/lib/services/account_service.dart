@@ -29,10 +29,10 @@ class AccountService {
     final user = _auth.currentUser;
     final email = user?.email;
     if (user == null || email == null || email.isEmpty) {
-      return 'You are not logged in. / Aap login nahi hain.';
+      return 'You are not logged in. / आप लॉगिन नहीं हैं।';
     }
     if (password.isEmpty) {
-      return 'Please enter your password. / Apna password daalo.';
+      return 'Please enter your password. / अपना पासवर्ड डालें।';
     }
 
     // 1) Verify the password.
@@ -43,11 +43,11 @@ class AccountService {
         case 'wrong-password':
         case 'invalid-credential':
         case 'invalid-login-credentials':
-          return 'Wrong password. / Password galat hai.';
+          return 'Wrong password. / पासवर्ड गलत है।';
         case 'too-many-requests':
-          return 'Too many attempts. Please try again after some time. / Bahut zyada koshish, thodi der baad try karo.';
+          return 'Too many attempts. Please try again after some time. / बहुत ज़्यादा कोशिशें हो गईं, कुछ देर बाद दोबारा कोशिश करें।';
         case 'network-request-failed':
-          return 'No internet connection. / Internet nahi hai.';
+          return 'No internet connection. / इंटरनेट नहीं है।';
         default:
           return e.message ?? 'Could not verify your password.';
       }
