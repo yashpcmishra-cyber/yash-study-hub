@@ -53,7 +53,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       body: records == null
           ? const LoadingView()
           : records.isEmpty
-              ? const EmptyView('Abhi koi data nahi.\nEk mock test ya Daily Quiz do — phir yahan aapka progress dikhega.\n\nकोई मॉक टेस्ट या डेली क्विज़ दीजिए, फिर प्रोग्रेस दिखेगा।')
+              ? const EmptyView('No data yet.\nTake a Mock Test or Daily Quiz \u2014 your progress will show up here.\n\nअभी कोई डेटा नहीं है।\nकोई मॉक टेस्ट या डेली क्विज़ दीजिए, फिर प्रोग्रेस यहाँ दिखेगा।')
               : _content(records),
     );
   }
@@ -114,16 +114,16 @@ class _ProgressScreenState extends State<ProgressScreen> {
               Expanded(
                 child: Text(
                   _streak.days == 0
-                      ? 'Streak shuru karne ke liye roz app kholo.'
-                      : 'Streak: ${_streak.filled}/7 din'
-                          '${_streak.completedWeeks > 0 ? '  •  🏆 ${_streak.completedWeeks} baar 7 din poore' : ''}',
+                      ? 'Open the app every day to start your streak.\nस्ट्रीक शुरू करने के लिए रोज़ ऐप खोलें।'
+                      : 'Streak: ${_streak.filled}/7 days / दिन'
+                          '${_streak.completedWeeks > 0 ? '  •  🏆 ${_streak.completedWeeks}x 7 days / 7 दिन पूरे' : ''}',
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                 ),
               ),
             ]),
           ),
           const SizedBox(height: 18),
-          const Text('Pichhle tests ka score (%)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text('Recent tests score (%) / पिछले टेस्ट का स्कोर (%)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.fromLTRB(10, 14, 10, 8),
@@ -142,7 +142,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
           const Text('Subject-wise accuracy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
           if (subjects.isEmpty)
-            const Text('Abhi subject ka data nahi.', style: TextStyle(color: Colors.grey, fontSize: 12))
+            const Text('No subject data yet. / अभी विषय का डेटा नहीं है।', style: TextStyle(color: Colors.grey, fontSize: 12))
           else
             Container(
               padding: const EdgeInsets.all(12),
@@ -155,14 +155,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: const Color(0x22FFFF29), borderRadius: BorderRadius.circular(12)),
               child: Text(
-                '💡 Sabse kamzor: ${weak.name} (${weak.accuracy.toStringAsFixed(0)}%). Isme zyada practice karo.',
+                '💡 Weakest: ${weak.name} (${weak.accuracy.toStringAsFixed(0)}%). Practice this more.\nसबसे कमज़ोर: ${weak.name}। इसमें ज़्यादा अभ्यास करें।',
                 style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.35),
               ),
             ),
           ],
           const SizedBox(height: 14),
           const Text(
-            'Ye data sirf aapke phone me hai aur 30 din baad apne aap hat jaata hai.',
+            'This data stays only on your phone and is removed after 30 days.\nयह डेटा केवल आपके फ़ोन में है और 30 दिन बाद अपने आप हट जाता है।',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey, fontSize: 11.5),
           ),
@@ -216,7 +216,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         children: [
           Row(children: [
             Expanded(child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13))),
-            Text('${acc.toStringAsFixed(0)}%  •  ${s.attempted} sawal', style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600)),
+            Text('${acc.toStringAsFixed(0)}%  •  ${s.attempted} Qs / सवाल', style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600)),
           ]),
           const SizedBox(height: 5),
           ClipRRect(

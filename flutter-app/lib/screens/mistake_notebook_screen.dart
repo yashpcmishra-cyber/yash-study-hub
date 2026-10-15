@@ -50,7 +50,7 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
     if (items.isEmpty) return;
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => QuizSessionScreen(
-        title: fromMistakes ? 'Practice: Galtiyan' : 'Practice: Saved',
+        title: fromMistakes ? 'Practice: Mistakes / गलतियाँ' : 'Practice: Saved',
         questions: items.map((e) => e.question).toList(),
         bookmarkSource: 'Practice',
         onFinished: (answers) => StudyStore.recordPractice(
@@ -98,8 +98,8 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
             labelColor: _gold,
             unselectedLabelColor: Colors.white60,
             tabs: [
-              Tab(text: '❌ Galtiyan (${_mistakes.length})'),
-              Tab(text: '⭐ Saved (${_saved.length})'),
+              Tab(text: '❌ Mistakes / गलतियाँ (${_mistakes.length})'),
+              Tab(text: '⭐ Saved / सेव (${_saved.length})'),
             ],
           ),
         ),
@@ -130,8 +130,8 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
     if (items.isEmpty) {
       return EmptyView(
         fromMistakes
-            ? 'Abhi koi galti nahi 🎉\nMock test ya Daily Quiz me jo sawal galat honge, yahan apne aap aa jaayenge.'
-            : 'Abhi kuch saved nahi.\nKisi bhi sawal par 🔖 dabao, wo yahan save ho jaayega.',
+            ? 'No mistakes yet 🎉\nWrong questions from Mock Tests or Daily Quiz will appear here automatically.\n\nअभी कोई गलती नहीं 🎉\nMock Test या Daily Quiz में गलत हुए सवाल अपने आप यहाँ आ जाएँगे।'
+            : 'Nothing saved yet.\nTap 🔖 on any question to save it here.\n\nअभी कुछ सेव नहीं है।\nकिसी भी सवाल पर 🔖 दबाएँ, वह यहाँ सेव हो जाएगा।',
       );
     }
     return ListView(
@@ -140,13 +140,13 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
         ElevatedButton.icon(
           onPressed: () => _practice(items, fromMistakes: fromMistakes),
           icon: const Icon(Icons.play_arrow),
-          label: Text('Practice ${items.length > 10 ? "10" : items.length} sawal'),
+          label: Text('Practice ${items.length > 10 ? "10" : items.length} questions / सवाल'),
         ),
         const SizedBox(height: 6),
         Text(
           fromMistakes
-              ? 'Practice me sahi kiye sawal notebook se hat jaate hain. 30 din purani entries apne aap hat jaati hain.'
-              : '30 din purani entries apne aap hat jaati hain.',
+              ? 'Questions you answer correctly in practice are removed from the notebook. Entries older than 30 days are removed automatically.\nप्रैक्टिस में सही किए सवाल नोटबुक से हट जाते हैं। 30 दिन पुरानी एंट्रियाँ अपने आप हट जाती हैं।'
+              : 'Entries older than 30 days are removed automatically.\n30 दिन पुरानी एंट्रियाँ अपने आप हट जाती हैं।',
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.grey, fontSize: 11.5),
         ),
@@ -158,9 +158,9 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
 
   String _ago(DateTime t) {
     final d = DateTime.now().difference(t).inDays;
-    if (d <= 0) return 'aaj';
-    if (d == 1) return 'kal';
-    return '$d din pehle';
+    if (d <= 0) return 'today / आज';
+    if (d == 1) return 'yesterday / कल';
+    return '$d days ago / $d दिन पहले';
   }
 
   Widget _card(SavedQuestion e, {required bool fromMistakes}) {

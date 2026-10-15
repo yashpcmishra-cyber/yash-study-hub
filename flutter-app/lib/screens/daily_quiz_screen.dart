@@ -7,8 +7,8 @@ import 'quiz_session_screen.dart';
 const _navy = Color(0xFF081136);
 const _cardBg = Color(0xFF101D57);
 
-/// Aaj ka Daily Quiz (5 sawal, PIB Current Affairs se, Hindi + English).
-/// Quiz GitHub Action banata hai; app roz sirf 1 read se use padhta hai.
+/// Today's Daily Quiz (5 questions, from PIB Current Affairs, Hindi + English).
+/// The quiz is created by a GitHub Action; the app reads it with just 1 read per day.
 class DailyQuizScreen extends StatefulWidget {
   const DailyQuizScreen({super.key});
 
@@ -88,7 +88,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
         child: ListView(children: const [
           SizedBox(
             height: 400,
-            child: EmptyView('Aaj ka quiz abhi tayyar nahi hai.\nRoz subah ~6 baje aata hai — thodi der baad kholo.\n\nआज का क्विज़ अभी तैयार नहीं है। रोज़ सुबह ~6 बजे आता है।'),
+            child: EmptyView('Today\u2019s quiz is not ready yet.\nPlease check back a little later.\n\nआज का क्विज़ अभी तैयार नहीं है।\nकृपया थोड़ी देर बाद देखें।'),
           ),
         ]),
       );
@@ -110,10 +110,10 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
               children: [
                 const Text('🧠', style: TextStyle(fontSize: 40)),
                 const SizedBox(height: 6),
-                Text(isOld ? 'Kal ka Daily Quiz' : 'Aaj ka Daily Quiz',
+                Text(isOld ? 'Yesterday\u2019s Daily Quiz / कल का डेली क्विज़' : 'Today\u2019s Daily Quiz / आज का डेली क्विज़',
                     style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 20)),
                 const SizedBox(height: 4),
-                Text('${quiz.questions.length} sawal • PIB Current Affairs se • Hindi + English',
+                Text('${quiz.questions.length} questions • from PIB Current Affairs • Hindi + English\n${quiz.questions.length} सवाल • PIB करेंट अफेयर्स से • हिंदी + अंग्रेज़ी',
                     textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF101D57), fontSize: 12.5)),
               ],
             ),
@@ -128,7 +128,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   const Text('✅', style: TextStyle(fontSize: 26)),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text('Ho gaya! Aapka score: ${_done!.score} / ${_done!.total}',
+                    child: Text('Done! Your score / पूरा हुआ! आपका स्कोर: ${_done!.score} / ${_done!.total}',
                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
                   ),
                 ],
@@ -137,17 +137,17 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           if (doneToday)
             const Padding(
               padding: EdgeInsets.only(top: 8),
-              child: Text('Dobara khel sakte ho — par score aur goal me sirf pehli baar gina jaata hai.',
+              child: Text('You can play again \u2014 but only the first attempt counts for score and goal.\nआप दोबारा खेल सकते हैं \u2014 पर स्कोर और गोल में केवल पहला प्रयास गिना जाता है।',
                   textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 11.5)),
             ),
           const SizedBox(height: 14),
           ElevatedButton(
             onPressed: () => _start(quiz),
-            child: Text(doneToday ? 'Dobara khelo' : 'Quiz shuru karo'),
+            child: Text(doneToday ? 'Play again / दोबारा खेलें' : 'Start quiz / क्विज़ शुरू करें'),
           ),
           const SizedBox(height: 14),
           const Text(
-            'Har jawab ke baad turant sahi/galat aur explanation dikhta hai. Galat sawal apne aap Mistake Notebook me save ho jaate hain.',
+            'After every answer you instantly see right/wrong and the explanation. Wrong questions are saved to the Mistake Notebook automatically.\nहर जवाब के बाद सही/गलत और व्याख्या तुरंत दिखती है। गलत सवाल अपने आप Mistake Notebook में सेव हो जाते हैं।',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
           ),

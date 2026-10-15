@@ -36,7 +36,7 @@ Future<void> openPdfInApp(
   final text = link.trim();
   final uri = Uri.tryParse(text);
   if (text.isEmpty || uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
-    snack('This PDF link is not valid. / Ye PDF link sahi nahi hai.');
+    snack('This PDF link is not valid. / यह PDF लिंक सही नहीं है।');
     return;
   }
 
@@ -49,7 +49,7 @@ Future<void> openPdfInApp(
     if (allowExternalOpen) {
       await openExternalLink(context, text);
     } else {
-      snack('This link cannot be opened inside the app. Ask the admin to add the PDF\u2019s own Drive file link. / Admin se PDF ka apna Drive file link lagwao.');
+      snack('This link cannot be opened inside the app. Ask the admin to add the PDF\u2019s own Drive file link. / एडमिन से PDF का अपना Drive फ़ाइल लिंक लगवाएँ।');
     }
     return;
   } else {
@@ -238,7 +238,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   Future<void> _download() async {
     if (_downloading) return;
     setState(() => _downloading = true);
-    _snack('Downloading... / Download ho rahi hai...');
+    _snack('Downloading... / डाउनलोड हो रहा है...');
     try {
       final res = await http.get(Uri.parse(_downloadUrl())).timeout(const Duration(minutes: 3));
       final bytes = res.bodyBytes;
@@ -256,14 +256,14 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         allowedExtensions: ['pdf'],
         bytes: bytes,
       );
-      if (saved != null) _snack('PDF saved. / PDF save ho gayi.');
+      if (saved != null) _snack('PDF saved. / PDF सेव हो गई।');
     } catch (_) {
       if (widget.allowExternalOpen && mounted) {
         // Free PDFs: fall back to the phone's browser download.
-        _snack('Opening in browser to download... / Browser mein download khul raha hai...');
+        _snack('Opening in browser to download... / डाउनलोड के लिए ब्राउज़र में खुल रहा है...');
         await openExternalLink(context, _downloadUrl());
       } else {
-        _snack('Could not download this PDF. Try again. / PDF download nahi hui. Dobara try karo.');
+        _snack('Could not download this PDF. Try again. / PDF डाउनलोड नहीं हुई। दोबारा कोशिश करें।');
       }
     } finally {
       if (mounted) setState(() => _downloading = false);
@@ -377,7 +377,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     const Icon(Icons.picture_as_pdf, color: Colors.white38, size: 40),
                     const SizedBox(height: 12),
                     const Text(
-                      'Could not load this PDF. Check your internet connection and try again. / PDF load nahi hui. Internet check karke dobara try karo.',
+                      'Could not load this PDF. Check your internet connection and try again. / PDF लोड नहीं हुई। इंटरनेट जाँचकर दोबारा कोशिश करें।',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white54),
                     ),

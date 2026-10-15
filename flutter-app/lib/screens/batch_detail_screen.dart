@@ -114,7 +114,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
     if (_busy) return;
     final code = _codeController.text.trim();
     if (_email.isEmpty) {
-      setState(() => _checkMsg = 'Please log in again — your account email could not be read. / Dobara login karo.');
+      setState(() => _checkMsg = 'Please log in again — your account email could not be read. / कृपया दोबारा लॉगिन करें।');
       return;
     }
     setState(() {
@@ -145,31 +145,31 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
           _busy = false;
           _expired = true;
           _expiresAt = res.expiresAt;
-          _checkMsg = 'Your access has expired. To renew: pay again, send the screenshot on Telegram / Gmail, then tap "Check Access" with the code box empty. / Access khatam ho gaya. Renew ke liye dobara pay karo, screenshot Telegram / Gmail par bhejo, phir code khaali chhodkar "Check Access" dabao.';
+          _checkMsg = 'Your access has expired. To renew: pay again, send the screenshot on Telegram / Gmail, then tap "Check Access" with the code box empty. / एक्सेस खत्म हो गया। रिन्यू करने के लिए दोबारा भुगतान करें, स्क्रीनशॉट Telegram / Gmail पर भेजें, फिर कोड बॉक्स खाली रखकर "Check Access" दबाएँ।';
         });
         return;
       }
       if (code.isEmpty) {
         // No code yet: tell the admin this student has paid / wants access.
         // (A wrong code does NOT create another request.)
-        String message = 'Request sent — send your payment screenshot on Telegram / Gmail so admin can verify. / Request bhej di — apni payment screenshot Telegram / Gmail par bhejo verify ke liye.';
+        String message = 'Request sent — send your payment screenshot on Telegram / Gmail so admin can verify. / रिक्वेस्ट भेज दी गई — वेरिफ़ाई के लिए अपनी पेमेंट का स्क्रीनशॉट Telegram / Gmail पर भेजें।';
         try {
           await _fs
               .submitAccessRequest(_email, widget.batch.id, widget.batch.title, phone: _phoneController.text.trim(), name: _name)
               .timeout(const Duration(seconds: 12));
         } on TimeoutException {
-          message = 'Request saved — it will be sent as soon as you are back online. / Request save ho gayi — online aate hi bhej di jaayegi.';
+          message = 'Request saved — it will be sent as soon as you are back online. / रिक्वेस्ट सेव हो गई — ऑनलाइन आते ही भेज दी जाएगी।';
         }
         if (!mounted) return;
         setState(() {
           _busy = false;
-          _checkMsg = 'After payment, admin will give you an access code — enter that too. / Payment ke baad admin tumhe access code dega — wo bhi yahan daalo.';
+          _checkMsg = 'After payment, admin will give you an access code — enter that too. / भुगतान के बाद एडमिन आपको एक्सेस कोड देगा — उसे भी यहाँ डालें।';
         });
         _snack(message);
       } else {
         setState(() {
           _busy = false;
-          _checkMsg = 'Code didn’t match. Confirm your code with the admin, or wait a bit if it hasn’t been granted yet. / Code match nahi hua. Admin se confirm karo, ya thoda wait karo agar abhi tak grant nahi hua.';
+          _checkMsg = 'Code didn’t match. Confirm your code with the admin, or wait a bit if it hasn’t been granted yet. / कोड मैच नहीं हुआ। एडमिन से कन्फ़र्म करें, या अगर अभी तक एक्सेस नहीं मिला है तो थोड़ा इंतज़ार करें।';
         });
       }
     } catch (_) {
@@ -183,7 +183,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
 
   Future<void> _copyUpiId(AppConfigModel cfg) async {
     await Clipboard.setData(ClipboardData(text: cfg.upiId));
-    _snack('UPI ID copied! Paste it in your payment app (GPay/PhonePe/Paytm) and pay \u20b9${widget.batch.price}. / UPI ID copy ho gayi! Apne payment app mein paste karke \u20b9${widget.batch.price} pay karo.');
+    _snack('UPI ID copied! Paste it in your payment app (GPay/PhonePe/Paytm) and pay \u20b9${widget.batch.price}. / UPI ID कॉपी हो गई! अपने पेमेंट ऐप में पेस्ट करके \u20b9${widget.batch.price} का भुगतान करें।');
   }
 
   // Opens the phone's mail app with To / Subject / Body already filled so the
@@ -437,7 +437,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                 ),
                 const Padding(
                   padding: EdgeInsets.only(top: 6),
-                  child: Text('Pay with this email — access unlocks on this account automatically. / Isi email se pay karo — access khud is account par unlock ho jaayega.', style: TextStyle(color: Colors.grey, fontSize: 11), textAlign: TextAlign.center),
+                  child: Text('Pay with this email — access unlocks on this account automatically. / इसी ईमेल से भुगतान करें — एक्सेस अपने आप इस अकाउंट पर अनलॉक हो जाएगा।', style: TextStyle(color: Colors.grey, fontSize: 11), textAlign: TextAlign.center),
                 ),
                 const SizedBox(height: 10),
                 TextField(
@@ -483,7 +483,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 4, left: 21),
       child: Text(
-        soon ? 'Valid till $date \u00b7 $left \u2014 contact admin to renew / renew ke liye admin se baat karo' : 'Valid till $date \u00b7 $left',
+        soon ? 'Valid till $date \u00b7 $left \u2014 contact admin to renew / रिन्यू के लिए एडमिन से बात करें' : 'Valid till $date \u00b7 $left',
         style: TextStyle(color: soon ? Colors.orangeAccent : Colors.grey, fontSize: 11.5),
       ),
     );

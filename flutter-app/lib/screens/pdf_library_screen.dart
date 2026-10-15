@@ -144,7 +144,7 @@ class _BatchFoldersTabState extends State<_BatchFoldersTab> {
     if (!mounted) return;
     if (!ok) {
       _snack(expired
-          ? 'Your access to this batch has expired \u2014 renew it under Paid Batches. / Access khatam ho gaya \u2014 Paid Batches mein renew karo.'
+          ? 'Your access to this batch has expired \u2014 renew it under Paid Batches. / एक्सेस खत्म हो गया \u2014 Paid Batches में रिन्यू करें।'
           : 'This batch is locked \u2014 unlock it first (under Paid Batches).');
       return;
     }

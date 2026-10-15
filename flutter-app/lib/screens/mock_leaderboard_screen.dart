@@ -73,7 +73,7 @@ class _MockLeaderboardScreenState extends State<MockLeaderboardScreen> {
           Text(widget.testTitle,
               textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 4),
-          Text('${d.total} ${d.total == 1 ? 'student' : 'students'} ne ye test diya',
+          Text('${d.total} ${d.total == 1 ? 'student has' : 'students have'} taken this test / ${d.total} छात्रों ने यह टेस्ट दिया',
               textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 12)),
           const SizedBox(height: 12),
           _myCard(d),
@@ -81,7 +81,7 @@ class _MockLeaderboardScreenState extends State<MockLeaderboardScreen> {
           if (d.rows.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 30),
-              child: EmptyView('Abhi kisi ne ye test nahi diya.\nPehle aap bano! 🏆'),
+              child: EmptyView('No one has taken this test yet.\nBe the first! 🏆\n\nअभी किसी ने यह टेस्ट नहीं दिया।\nपहले आप बनें! 🏆'),
             )
           else ...[
             const Text('Top ranks', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
@@ -90,8 +90,9 @@ class _MockLeaderboardScreenState extends State<MockLeaderboardScreen> {
           ],
           const SizedBox(height: 12),
           const Text(
-            'Rank sirf marks se tay hota hai — naam kisi ka nahi dikhta. Barabar marks = barabar rank. '
-            'Pehle attempt ke marks gine jaate hain. Data 30 din baad hat jaata hai.',
+            'Rank depends only on marks \u2014 no names are shown. Equal marks = equal rank. '
+            'The first attempt\u2019s marks are counted. Data is removed after 30 days.\n'
+            'रैंक केवल अंकों से तय होती है — नाम नहीं दिखते। बराबर अंक = बराबर रैंक। पहले प्रयास के अंक गिने जाते हैं। डेटा 30 दिन बाद हट जाता है।',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey, fontSize: 11.5, height: 1.4),
           ),
@@ -112,12 +113,12 @@ class _MockLeaderboardScreenState extends State<MockLeaderboardScreen> {
           ? Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _big('#${d.myRank}', 'Aapka rank'),
-                _big(fmtMarks(d.myMarks ?? 0), 'Aapke marks'),
+                _big('#${d.myRank}', 'Your rank / आपकी रैंक'),
+                _big(fmtMarks(d.myMarks ?? 0), 'Your marks / आपके अंक'),
               ],
             )
           : const Text(
-              'Aapne ye test abhi nahi diya. Test dene ke baad yahan aapka rank dikhega.',
+              'You have not taken this test yet. Your rank will appear here after you take it.\nआपने यह टेस्ट अभी नहीं दिया है। टेस्ट देने के बाद आपकी रैंक यहाँ दिखेगी।',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF081136), fontSize: 13, fontWeight: FontWeight.w600),
             ),

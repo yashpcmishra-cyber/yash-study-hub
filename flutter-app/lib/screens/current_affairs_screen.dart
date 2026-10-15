@@ -125,13 +125,13 @@ class _DailyCaViewState extends State<DailyCaView> {
     setState(() {
       _dayIndex = i;
       _topic = 'all';
-      _note = auto ? 'Aaj ki lines abhi nahi aayi \u2014 ${_dayLabel(i)} ki dikha rahe hain' : null;
+      _note = auto ? 'Today\u2019s lines are not available yet \u2014 showing ${_dayLabel(i)} / आज की लाइनें अभी उपलब्ध नहीं हैं \u2014 ${_dayLabel(i)} की दिखा रहे हैं' : null;
       _stream = _fs.streamDailyCA(_keyOf(_days[i]));
     });
   }
 
-  // Aaj (Today) khaali ho to sabse taaza din (pichhle 3 din mein se) apne aap
-  // dikha do, taaki subah-subah screen khaali na rahe. Sirf ek baar chalta hai.
+  // If Today is empty, automatically show the latest day (out of the last 3 days)
+  // so the screen is never empty. Runs only once.
   Future<void> _tryFallback() async {
     for (var i = 1; i < 4 && i < _days.length; i++) {
       try {
@@ -297,7 +297,7 @@ class _DailyCaViewState extends State<DailyCaView> {
                   });
                 }
                 content = const PullableMessage(
-                  child: EmptyView('Is din ke one-liners abhi nahi aaye \u2014 thodi der baad dekhein'),
+                  child: EmptyView('One-liners for this day are not available yet \u2014 please check back later.\nइस दिन के वन-लाइनर्स अभी उपलब्ध नहीं हैं \u2014 कृपया बाद में देखें।'),
                 );
               } else {
                 final items = snap.data!;

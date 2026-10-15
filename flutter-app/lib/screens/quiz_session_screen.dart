@@ -16,7 +16,7 @@ class QuizSessionScreen extends StatefulWidget {
   final String title;
   final List<MockQuestion> questions;
   final Future<void> Function(List<int?> answers) onFinished;
-  final String bookmarkSource; // bookmark karne par "kahan se aaya" me dikhega
+  final String bookmarkSource; // shown as the "source" when a question is bookmarked
 
   const QuizSessionScreen({
     super.key,
@@ -97,8 +97,8 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: _cardBg,
-        title: const Text('Quiz beech me chhodna hai?', style: TextStyle(color: Colors.white, fontSize: 16)),
-        content: const Text('Abhi tak ka progress save nahi hoga. / अभी तक का प्रोग्रेस सेव नहीं होगा।', style: TextStyle(color: Colors.white70, fontSize: 13)),
+        title: const Text('Leave the quiz? / क्विज़ बीच में छोड़ना है?', style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: const Text('Your progress so far will not be saved. / अभी तक का प्रोग्रेस सेव नहीं होगा।', style: TextStyle(color: Colors.white70, fontSize: 13)),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Continue')),
           TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Exit', style: TextStyle(color: Colors.redAccent))),
@@ -275,11 +275,11 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
     final pct = total == 0 ? 0 : correct * 100 / total;
     final String msg;
     if (pct >= 80) {
-      msg = 'Shandaar! 🔥 / शानदार!';
+      msg = 'Excellent! 🔥 / शानदार!';
     } else if (pct >= 50) {
-      msg = 'Accha hai, thoda aur! 💪 / अच्छा है, थोड़ा और!';
+      msg = 'Good, a little more! 💪 / अच्छा है, थोड़ा और!';
     } else {
-      msg = 'Koi baat nahi, roz practice karo 🚀 / रोज़ अभ्यास करो';
+      msg = 'No worries, practice daily 🚀 / कोई बात नहीं, रोज़ अभ्यास करो';
     }
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -293,7 +293,7 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
           child: Column(
             children: [
               Text('$correct / $total', style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 40)),
-              const Text('Sahi jawab', style: TextStyle(color: Color(0xFF101D57), fontSize: 13)),
+              const Text('Correct answers / सही जवाब', style: TextStyle(color: Color(0xFF101D57), fontSize: 13)),
               const SizedBox(height: 10),
               Text(msg, textAlign: TextAlign.center, style: const TextStyle(color: _navy, fontWeight: FontWeight.w600, fontSize: 13)),
             ],
@@ -301,7 +301,7 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
         ),
         const SizedBox(height: 14),
         const Text(
-          'Galat sawal apne aap "Mistake Notebook" me chale gaye hain. / गलत सवाल अपने आप Mistake Notebook में चले गए हैं।',
+          'Wrong questions were added to the "Mistake Notebook" automatically. / गलत सवाल अपने आप Mistake Notebook में चले गए हैं।',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
         ),
