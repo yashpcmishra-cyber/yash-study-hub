@@ -131,8 +131,31 @@ function extractItemsLoosely(xml) {
   return items;
 }
 
+// PIB sometimes answers with an ordinary web page ("Untitled Page") instead of the RSS XML
+// (throttling / blocking of GitHub's servers). Detect that, and retry on both PIB hosts.
+const FEED_URLS = [FEED_URL, FEED_URL.replace("https://pib.gov.in/", "https://www.pib.gov.in/")];
+const looksLikeFeed = (s) => /<rss[\s>]|<feed[\s>]|<item[\s>]/i.test(s) && !/^\s*<!DOCTYPE html/i.test(s);
+
+async function getFeedText() {
+  for (let round = 1; round <= 3; round++) {
+    for (const url of FEED_URLS) {
+      try {
+        const txt = (await getText(url)).replace(/^\uFEFF/, "").trim();
+        if (looksLikeFeed(txt)) return txt;
+        console.warn(`PIB sent a web page instead of the RSS feed (${url}), round ${round}/3.`);
+      } catch (err) {
+        console.warn(`Could not read ${url}: ${err.message}`);
+      }
+      await sleep(4000 * round);
+    }
+  }
+  const e = new Error("PIB did not return the RSS feed (it may be temporarily blocking GitHub). The next hourly run will try again.");
+  e.pibUnavailable = true;
+  throw e;
+}
+
 async function readFeed() {
-  const raw = (await getText(FEED_URL)).replace(/^\uFEFF/, "").trim();
+  const raw = await getFeedText();
   let rawItems;
   try {
     rawItems = (await parser.parseString(sanitizeXml(raw))).items || [];
@@ -360,6 +383,11 @@ async function main() {
 main()
   .then(() => process.exit(0))
   .catch((err) => {
+    if (err && err.pibUnavailable) {
+      // Not our bug and not worth a red failure: nothing was changed, the next hourly run retries.
+      console.log(`::warning::${err.message}`);
+      process.exit(0);
+    }
     console.error("fetch-daily-ca failed:", err.message);
     process.exit(1);
   });
