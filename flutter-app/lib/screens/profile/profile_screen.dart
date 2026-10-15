@@ -96,7 +96,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final district = _district.text.trim();
     final qualMissingOther = _qualification == 'Other' && _qualOther.text.trim().isEmpty;
     if (name.isEmpty || _state == null || district.isEmpty || _gender == null || _qualification == null || qualMissingOther) {
-      setState(() => _error = 'Please fill in all fields. / Saari details bharo.');
+      setState(() => _error = 'Please fill in all fields. / सारी जानकारी भरें।');
       return;
     }
     setState(() {
@@ -122,7 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
       } else {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated! / Profile update ho gayi!')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated! / प्रोफ़ाइल अपडेट हो गई!')));
       }
     } catch (_) {
       if (!mounted) return;
@@ -149,7 +149,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (done != true || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Your account and data have been deleted. / Aapka account aur data delete ho gaya.')),
+      const SnackBar(content: Text('Your account and data have been deleted. / आपका अकाउंट और डेटा डिलीट हो गया है।')),
     );
     Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
   }
@@ -255,7 +255,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       if (widget.isSetup) ...[
                         const Text(
-                          'One last step — tell us a bit about yourself.\nEk aakhri step — apne baare mein thoda batao.',
+                          'One last step — tell us a bit about yourself.\nएक आखिरी स्टेप — अपने बारे में थोड़ा बताइए।',
                           style: TextStyle(color: Colors.white70, fontSize: 13),
                           textAlign: TextAlign.center,
                         ),
@@ -386,7 +386,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _line('This will permanently delete your login and your data. This cannot be undone.', color: Colors.white),
-              _line('Yeh aapka login aur data hamesha ke liye hata dega. Wapas nahi aa sakta.', color: Colors.white),
+              _line('यह आपका लॉगिन और डेटा हमेशा के लिए हटा देगा। वापस नहीं आ सकता।', color: Colors.white),
               const SizedBox(height: 8),
               _line('\u2022 Your profile (name, state, district, gender, qualification)'),
               _line('\u2022 Your doubts / queries and the replies'),
