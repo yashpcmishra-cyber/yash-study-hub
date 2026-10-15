@@ -574,7 +574,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                     ),
                   const SizedBox(height: 10),
                   const Text(
-                    'Only phones that have opened the updated app are counted. Reinstall = counted again. / Sirf naye app version wale phones ginte hain.',
+                    'Only phones that have opened the updated app are counted. Reinstall = counted again. / केवल अपडेटेड ऐप खोलने वाले फ़ोन गिने जाते हैं।',
                     style: TextStyle(color: Colors.grey, fontSize: 11),
                   ),
                 ]);
@@ -1358,7 +1358,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
       await _fs.sendNotification(title, body).timeout(const Duration(seconds: 12));
       _notifyTitleCtrl.clear();
       _notifyBodyCtrl.clear();
-      _snack('Saved \u2014 students\u2019 phones get the push notification within about 5-10 minutes.');
+      _snack('Saved \u2014 students\u2019 phones will get the push notification shortly. / सेव हो गया \u2014 छात्रों के फ़ोन पर पुश नोटिफ़िकेशन जल्द पहुँच जाएगा।');
     } catch (e) {
       _snack('Could not send: $e');
     }
@@ -1376,7 +1376,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         ElevatedButton(onPressed: _sendNotification, child: const Text('Send to all students')),
         const SizedBox(height: 10),
         const Text(
-          'It appears in the app\u2019s Notifications list straight away. The push to phones is sent by the free GitHub automation, which checks every few minutes.',
+          'It appears in the app\u2019s Notifications list straight away. The push to phones is sent automatically by the free GitHub automation. / फ़ोन पर पुश नोटिफ़िकेशन फ्री GitHub ऑटोमेशन अपने आप भेजता है।',
           style: TextStyle(color: Colors.grey, fontSize: 11),
         ),
       ],

@@ -70,7 +70,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     } else {
       setState(() {
         _needsVerification = false;
-        _error = 'This account is not the admin account. Log in with the admin email below. / Ye admin account nahi hai — neeche admin email se login karo.';
+        _error = 'This account is not the admin account. Log in with the admin email below. / यह एडमिन अकाउंट नहीं है — नीचे दिए एडमिन ईमेल से लॉगिन करें।';
       });
     }
   }
