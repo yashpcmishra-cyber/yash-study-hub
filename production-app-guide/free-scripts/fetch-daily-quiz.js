@@ -1,9 +1,9 @@
 /**
  * Daily Quiz (free: GitHub Actions + free Gemini key, no Blaze needed).
  *
- * Roz subah (~6 AM IST) ek chhota quiz banata hai, un hi PIB current-affairs
- * lines se jo fetch-daily-ca.js pehle se Firestore me rakhta hai
- * (dailyCA/{yyyy-MM-dd}.items). Koi nayi website / API nahi chahiye.
+ * Creates a small quiz from the same PIB current-affairs lines that
+ * fetch-daily-ca.js already keeps in Firestore
+ * (dailyCA/{yyyy-MM-dd}.items). No new website / API is needed.
  *
  * Output: ONE Firestore document   dailyCA/quiz_{yyyy-MM-dd}
  *   { qdate, kind: "quiz", questions: [ {text, textHi, options[4], optionsHi[4],
@@ -260,8 +260,8 @@ async function main() {
     try {
       // Same shape the admin panel uses; send-notifications.js delivers it to everyone.
       await db.collection("notifications").add({
-        title: "\u{1F9E0} Daily Quiz ready!",
-        body: "Aaj ke current-affairs sawal try karo aur apni streak badhao \u{1F525}",
+        title: "\u{1F9E0} Daily Quiz ready! / डेली क्विज़ तैयार है!",
+        body: "Try today\u2019s current-affairs questions and grow your streak \u{1F525} / आज के करेंट अफेयर्स सवाल हल करें और अपनी स्ट्रीक बढ़ाएँ \u{1F525}",
         sent: false,
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
       });

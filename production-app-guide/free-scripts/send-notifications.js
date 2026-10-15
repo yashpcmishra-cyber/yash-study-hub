@@ -91,7 +91,7 @@ async function sendAdminQueryAlert() {
   const latest = fresh[0].data();
   const who = String(latest.studentName || "Student").trim() || "Student";
   const text = String(latest.text || "").replace(/\s+/g, " ").trim().slice(0, 90);
-  const title = fresh.length === 1 ? "Nayi query aayi hai" : `${fresh.length} nayi queries aayi hain`;
+  const title = fresh.length === 1 ? "New doubt received / नया डाउट आया है" : `${fresh.length} new doubts received / ${fresh.length} नए डाउट आए हैं`;
 
   await admin.messaging().send({
     topic: "admin_alerts",
@@ -125,7 +125,7 @@ async function sendAdminGrantAlert() {
   const latest = fresh[0].data();
   const who = String(latest.studentName || latest.studentEmail || "Student").trim() || "Student";
   const batchName = String(latest.batchTitle || "").replace(/\s+/g, " ").trim().slice(0, 60);
-  const title = fresh.length === 1 ? "Nayi Grant Request aayi hai" : `${fresh.length} nayi Grant Requests aayi hain`;
+  const title = fresh.length === 1 ? "New Grant Request / नई ग्रांट रिक्वेस्ट आई है" : `${fresh.length} new Grant Requests / ${fresh.length} नई ग्रांट रिक्वेस्ट आई हैं`;
   const body = batchName ? `${who}: ${batchName}` : who;
 
   await admin.messaging().send({
