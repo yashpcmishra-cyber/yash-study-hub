@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/models.dart';
 import '../services/daily_quiz_service.dart';
 import '../services/study_store.dart';
 import '../widgets/state_views.dart';
@@ -7,7 +8,7 @@ import 'quiz_session_screen.dart';
 const _navy = Color(0xFF081136);
 const _cardBg = Color(0xFF101D57);
 
-/// Today's Daily Quiz (5 questions, from PIB Current Affairs, Hindi + English).
+/// Today's Daily Quiz (5 or 10 questions as per the Daily goal, from PIB Current Affairs, Hindi + English).
 /// The quiz is created by a GitHub Action; the app reads it with just 1 read per day.
 class DailyQuizScreen extends StatefulWidget {
   const DailyQuizScreen({super.key});
@@ -22,6 +23,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
   QuizDone? _done;
   Object? _error;
   bool _loading = true;
+  int _count = StudyStore.defaultGoal; // number of questions = Daily goal (5 or 10)
 
   @override
   void initState() {
@@ -37,8 +39,10 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     try {
       final q = await _svc.load(force: force);
       final d = await StudyStore.quizDone();
+      final g = await StudyStore.goalTarget();
       if (!mounted) return;
       setState(() {
+        _count = g;
         _quiz = q;
         _done = d;
         _loading = false;
@@ -52,13 +56,13 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     }
   }
 
-  Future<void> _start(DailyQuiz quiz) async {
+  Future<void> _start(DailyQuiz quiz, List<MockQuestion> qs) async {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => QuizSessionScreen(
         title: 'Daily Quiz',
-        questions: quiz.questions,
+        questions: qs,
         bookmarkSource: 'Daily Quiz ${quiz.day}',
-        onFinished: (answers) => StudyStore.recordDailyQuiz(day: quiz.day, questions: quiz.questions, answers: answers),
+        onFinished: (answers) => StudyStore.recordDailyQuiz(day: quiz.day, questions: qs, answers: answers),
       ),
     ));
     final d = await StudyStore.quizDone();
@@ -95,6 +99,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     }
     final doneToday = _done != null && _done!.day == quiz.day;
     final isOld = quiz.day != StudyStore.today();
+    final qs = quiz.questions.take(_count).toList();
     return RefreshIndicator(
       onRefresh: () => _load(force: true),
       child: ListView(
@@ -113,7 +118,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                 Text(isOld ? 'Yesterday\u2019s Daily Quiz / कल का डेली क्विज़' : 'Today\u2019s Daily Quiz / आज का डेली क्विज़',
                     style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 20)),
                 const SizedBox(height: 4),
-                Text('${quiz.questions.length} questions • from PIB Current Affairs • Hindi + English\n${quiz.questions.length} सवाल • PIB करेंट अफेयर्स से • हिंदी + अंग्रेज़ी',
+                Text('${qs.length} questions • from PIB Current Affairs • Hindi + English\n${qs.length} सवाल • PIB करेंट अफेयर्स से • हिंदी + अंग्रेज़ी',
                     textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF101D57), fontSize: 12.5)),
               ],
             ),
@@ -142,12 +147,18 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
             ),
           const SizedBox(height: 14),
           ElevatedButton(
-            onPressed: () => _start(quiz),
+            onPressed: () => _start(quiz, qs),
             child: Text(doneToday ? 'Play again / दोबारा खेलें' : 'Start quiz / क्विज़ शुरू करें'),
           ),
           const SizedBox(height: 14),
           const Text(
             'After every answer you instantly see right/wrong and the explanation. Wrong questions are saved to the Mistake Notebook automatically.\nहर जवाब के बाद सही/गलत और व्याख्या तुरंत दिखती है। गलत सवाल अपने आप Mistake Notebook में सेव हो जाते हैं।',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Quiz length follows your Daily goal (5 or 10) on the Home screen.\nक्विज़ में सवालों की संख्या Home के Daily goal (5 या 10) के अनुसार होती है।',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
           ),
