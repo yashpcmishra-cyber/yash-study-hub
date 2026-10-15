@@ -1,0 +1,28 @@
+name: Fetch Daily Quiz (free, from Current Affairs + Gemini)
+
+on:
+  schedule:
+    - cron: '30 0 * * *'   # 6:00 AM IST - makes today's quiz
+    - cron: '30 3 * * *'   # 9:00 AM IST - retry (does nothing if the quiz already exists)
+  workflow_dispatch: {}    # press "Run workflow" to make one by hand
+
+concurrency:
+  group: fetch-daily-quiz
+  cancel-in-progress: false
+
+jobs:
+  quiz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node fetch-daily-quiz.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
