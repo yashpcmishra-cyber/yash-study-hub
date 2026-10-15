@@ -21,8 +21,8 @@
  * Env: FIREBASE_SERVICE_ACCOUNT, GEMINI_API_KEY   (dono pehle se GitHub secrets me hain)
  *      QUIZ_NOTIFY=false  -> "Daily Quiz ready" push notification band
  */
-const QUESTIONS_WANTED = 5;
-const MIN_QUESTIONS = 3; // isse kam valid sawal bane to quiz publish nahi hota (agli run phir try karegi)
+const QUESTIONS_WANTED = 10; // app shows the first 5 or all 10, as per the student's Daily goal
+const MIN_QUESTIONS = 5; // isse kam valid sawal bane to quiz publish nahi hota (agli run phir try karegi)
 const MIN_SOURCE_ITEMS = 6; // quiz banane ke liye kam se kam itni current-affairs lines chahiye
 const MAX_SOURCE_ITEMS = 25;
 const LOOKBACK_DAYS = 3; // aaj + pichhle 3 din ki lines
