@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _email.text.trim();
     final pass = _password.text;
     if (email.isEmpty || pass.isEmpty) {
-      setState(() => _error = 'Please enter both email and password. / Email aur password dono daalo.');
+      setState(() => _error = 'Please enter both email and password. / ईमेल और पासवर्ड दोनों डालें।');
       return;
     }
     setState(() {
@@ -74,13 +74,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _forgotPassword() async {
     final email = _email.text.trim();
     if (email.isEmpty) {
-      setState(() => _error = 'Enter your email above first, then tap "Forgot password?". / Pehle upar email daalo.');
+      setState(() => _error = 'Enter your email above first, then tap "Forgot password?". / पहले ऊपर ईमेल डालें।');
       return;
     }
     final err = await _auth.resetPassword(email);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(err ?? 'Password reset link sent to $email / Reset link bhej diya gaya.'),
+      content: Text(err ?? 'Password reset link sent to $email / रीसेट लिंक भेज दिया गया है।'),
     ));
   }
 
@@ -109,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const Text('Welcome back', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                 const SizedBox(height: 4),
-                const Text('Login to continue / Jaari rakhne ke liye login karo', style: TextStyle(color: Colors.grey, fontSize: 12.5), textAlign: TextAlign.center),
+                const Text('Login to continue / जारी रखने के लिए लॉगिन करें', style: TextStyle(color: Colors.grey, fontSize: 12.5), textAlign: TextAlign.center),
                 const SizedBox(height: 28),
                 TextField(
                   controller: _email,

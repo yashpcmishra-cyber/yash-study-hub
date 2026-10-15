@@ -39,19 +39,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final pass = _password.text;
     final confirm = _confirm.text;
     if (name.isEmpty) {
-      setState(() => _error = 'Please enter your full name. / Apna pura naam daalo.');
+      setState(() => _error = 'Please enter your full name. / अपना पूरा नाम डालें।');
       return;
     }
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _error = 'Please enter a valid email. / Sahi email daalo.');
+      setState(() => _error = 'Please enter a valid email. / सही ईमेल डालें।');
       return;
     }
     if (pass.length < 6) {
-      setState(() => _error = 'Password must be at least 6 characters. / Password kam se kam 6 characters ka ho.');
+      setState(() => _error = 'Password must be at least 6 characters. / पासवर्ड कम से कम 6 अक्षरों का हो।');
       return;
     }
     if (pass != confirm) {
-      setState(() => _error = 'Passwords do not match. / Dono password same nahi hain.');
+      setState(() => _error = 'Passwords do not match. / दोनों पासवर्ड एक जैसे नहीं हैं।');
       return;
     }
     setState(() {
@@ -89,7 +89,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Create your student account\napna student account banao', style: TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center),
+              const Text('Create your student account\nअपना स्टूडेंट अकाउंट बनाएँ', style: TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center),
               const SizedBox(height: 24),
               TextField(
                 controller: _name,
