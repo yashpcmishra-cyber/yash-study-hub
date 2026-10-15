@@ -143,7 +143,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
         backgroundColor: _cardBg,
         title: const Text('Daily goal (questions) / रोज़ का लक्ष्य (सवाल)', style: TextStyle(color: Colors.white, fontSize: 17)),
         children: [
-          for (final n in const [10, 20, 30, 50, 100])
+          for (final n in StudyStore.goalOptions)
             SimpleDialogOption(
               onPressed: () => Navigator.of(ctx).pop(n),
               child: Text('$n questions per day / $n सवाल प्रतिदिन${n == _goal ? '  ✓' : ''}', style: TextStyle(color: n == _goal ? _gold : Colors.white, fontSize: 15)),
