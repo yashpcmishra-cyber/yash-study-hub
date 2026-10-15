@@ -70,7 +70,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
           backgroundColor: _cardBg,
-          title: const Text('Exam countdown', style: TextStyle(color: Colors.white, fontSize: 17)),
+          title: const Text('Exam countdown / परीक्षा काउंटडाउन', style: TextStyle(color: Colors.white, fontSize: 17)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +80,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
                 maxLength: 30,
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
-                  labelText: 'Exam ka naam (jaise SSC CGL)',
+                  labelText: 'Exam name (e.g. SSC CGL) / परीक्षा का नाम',
                   labelStyle: TextStyle(color: Colors.white60),
                   counterText: '',
                 ),
@@ -88,7 +88,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 icon: const Icon(Icons.event, size: 18),
-                label: Text(picked == null ? 'Exam ki date chuno' : _fmt(picked!)),
+                label: Text(picked == null ? 'Pick exam date / परीक्षा की तारीख चुनें' : _fmt(picked!)),
                 onPressed: () async {
                   final now = DateTime.now();
                   final today = DateTime(now.year, now.month, now.day);
@@ -104,7 +104,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
             ],
           ),
           actions: [
-            if (_exam.isSet) TextButton(onPressed: () => Navigator.of(ctx).pop('clear'), child: const Text('Hatao', style: TextStyle(color: Colors.redAccent))),
+            if (_exam.isSet) TextButton(onPressed: () => Navigator.of(ctx).pop('clear'), child: const Text('Remove / हटाएँ', style: TextStyle(color: Colors.redAccent))),
             TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
             TextButton(onPressed: () => Navigator.of(ctx).pop('save'), child: const Text('Save')),
           ],
@@ -117,7 +117,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
     } else if (action == 'save') {
       final d = picked;
       if (d == null) {
-        _toast('Pehle exam ki date chuno. / पहले परीक्षा की तारीख चुनें।');
+        _toast('Pick the exam date first. / पहले परीक्षा की तारीख चुनें।');
         return;
       }
       await StudyStore.saveExam(name.isEmpty ? 'Exam' : name, d);
@@ -141,12 +141,12 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
       context: context,
       builder: (ctx) => SimpleDialog(
         backgroundColor: _cardBg,
-        title: const Text('Roz ka goal (sawal)', style: TextStyle(color: Colors.white, fontSize: 17)),
+        title: const Text('Daily goal (questions) / रोज़ का लक्ष्य (सवाल)', style: TextStyle(color: Colors.white, fontSize: 17)),
         children: [
           for (final n in const [10, 20, 30, 50, 100])
             SimpleDialogOption(
               onPressed: () => Navigator.of(ctx).pop(n),
-              child: Text('$n sawal / din${n == _goal ? '  ✓' : ''}', style: TextStyle(color: n == _goal ? _gold : Colors.white, fontSize: 15)),
+              child: Text('$n questions per day / $n सवाल प्रतिदिन${n == _goal ? '  ✓' : ''}', style: TextStyle(color: n == _goal ? _gold : Colors.white, fontSize: 15)),
             ),
         ],
       ),
@@ -197,7 +197,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                s.justCompleted ? '7-din streak poori! 🎉' : '7-Din Streak',
+                s.justCompleted ? '7-day streak complete! 🎉 / 7 दिन की स्ट्रीक पूरी!' : '7-Day Streak / 7 दिन की स्ट्रीक',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
@@ -239,16 +239,16 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
     final String small;
     if (!e.isSet) {
       big = '🎯';
-      small = 'Exam date set karo';
+      small = 'Set exam date\nपरीक्षा की तारीख चुनें';
     } else if (left < 0) {
       big = '✅';
-      small = '${e.name} ho gaya — nayi date set karo';
+      small = '${e.name} is over\nनई तारीख चुनें';
     } else if (left == 0) {
-      big = 'Aaj!';
-      small = e.name;
+      big = 'Today!';
+      small = '${e.name} • आज';
     } else {
       big = '$left';
-      small = '${e.name} • din bache';
+      small = '${e.name}\ndays left / दिन बाकी';
     }
     return GestureDetector(
       onTap: _editExam,
@@ -303,12 +303,12 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Aaj ka goal', style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+                  const Text('Today\u2019s goal / आज का लक्ष्य', style: TextStyle(color: Colors.white70, fontSize: 11.5)),
                   const SizedBox(height: 2),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
-                    child: Text('$_done / $_goal sawal', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    child: Text('$_done / $_goal Qs / सवाल', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                   ),
                 ],
               ),
