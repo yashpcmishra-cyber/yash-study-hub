@@ -9,12 +9,14 @@ import '../services/content_seen_store.dart';
 import '../services/firestore_service.dart';
 import '../services/queries_service.dart';
 import '../services/query_seen_store.dart';
+import '../services/study_store.dart';
 import '../models/models.dart';
 import '../models/query_model.dart';
 import '../utils/open_link.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/banner_carousel.dart';
+import '../widgets/study_corner_card.dart';
 import 'pdf_library_screen.dart';
 import 'video_classes_screen.dart';
 import 'news_screen.dart';
@@ -24,6 +26,9 @@ import 'mock_tests_screen.dart';
 import 'batch_detail_screen.dart';
 import 'my_course_screen.dart';
 import 'queries_screen.dart';
+import 'daily_quiz_screen.dart';
+import 'mistake_notebook_screen.dart';
+import 'progress_screen.dart';
 import 'notifications_screen.dart';
 import 'admin/admin_login_screen.dart';
 import 'profile/profile_screen.dart';
@@ -51,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late Stream<DateTime> _notifTimeStream; // red dot on the bell
   ContentUpdates? _updates; // latest values (null until loaded from Firebase)
   String _studentName = ''; // for the "Hello! Welcome ..." line
+  bool _quizDoneToday = false; // red dot on the Daily Quiz tile until today's quiz is played
 
   void _initStreams() {
     _cfgStream = _fs.streamAppConfig();
@@ -96,6 +102,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadQuizDone() async {
+    try {
+      final q = await StudyStore.quizDone();
+      final done = q != null && q.day == StudyStore.today();
+      if (mounted && done != _quizDoneToday) setState(() => _quizDoneToday = done);
+    } catch (_) {
+      // red dot simply stays as it was
+    }
+  }
+
   Future<void> _loadSeen() async {
     final seen = await QuerySeenStore.load();
     if (mounted) setState(() => _seenReplies = seen);
@@ -109,6 +125,8 @@ class _HomeScreenState extends State<HomeScreen> {
     ContentSeenStore.seen.addListener(_onSeenChanged);
     ContentSeenStore.load();
     _loadStudentName();
+    _loadQuizDone();
+    StudyStore.changes.addListener(_loadQuizDone);
     // App was opened by tapping a push notification -> go straight to the
     // Notifications screen.
     if (openNotificationsOnStart) {
@@ -123,6 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     ContentSeenStore.seen.removeListener(_onSeenChanged);
+    StudyStore.changes.removeListener(_loadQuizDone);
     super.dispose();
   }
 
@@ -250,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const socialH = 64.0 + 10; // social card + its top gap
                 final bannerH = banners.isEmpty ? 0.0 : (box.maxWidth - sidePad * 2) * 9 / 16 + 14 + 14; // image + dots + gaps
                 final free = box.maxHeight - headerH - bannerH - socialH - 14 /* grid top gap */ - gap - 8 /* bottom */;
-                final cellH = (free / 2).clamp(72.0, 96.0).toDouble(); // chhote blocks
+                final cellH = (free / 3).clamp(72.0, 96.0).toDouble(); // chhote blocks (3 rows)
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -412,6 +431,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                 dot: QuerySeenStore.hasUnread(qSnap.data ?? const <QueryModel>[], _seenReplies),
                               ),
                             ),
+                            _quickAccessCard(
+                              '\u{1F9E0}',
+                              'Daily Quiz',
+                              () async {
+                                await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DailyQuizScreen()));
+                                _loadQuizDone();
+                              },
+                              dot: !_quizDoneToday,
+                            ),
+                            _quickAccessCard('\u{1F4D3}', 'Notebook', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MistakeNotebookScreen()))),
+                            _quickAccessCard('\u{1F4CA}', 'Progress', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProgressScreen()))),
                           ],
                         ),
                       ),
@@ -420,6 +450,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(14, 22, 14, 0), // grid ke glow se gap
                         child: _SocialRotator(cfg: cfg),
+                      ),
+
+                      // Study Corner: 7-day streak, exam countdown, daily goal
+                      // (all data lives on the phone).
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(sidePad, 16, sidePad, 0),
+                        child: StudyCornerCard(),
                       ),
 
                       // YouTube auto-fetch section — sits BELOW the social

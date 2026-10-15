@@ -6,6 +6,7 @@ import '../widgets/depth_card.dart';
 import '../widgets/state_views.dart';
 import '../services/mock_rank_service.dart';
 import 'mock_test_attempt_screen.dart';
+import 'mock_leaderboard_screen.dart';
 
 /// Inside an exam folder:
 /// - [subject] == null  -> subject folders (if any test has a subject) and the
@@ -38,15 +39,22 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
           style: const TextStyle(color: Colors.grey, fontSize: 11),
         ),
         // Share button only when this folder is FREE (paid-batch tests are never shareable).
-        trailing: widget.folder.isFree
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ShareButton(onPressed: () => ShareService.freeMock(context, t.title)),
-                  const Icon(Icons.chevron_right, color: Colors.grey),
-                ],
-              )
-            : const Icon(Icons.chevron_right, color: Colors.grey),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Leaderboard: sirf marks ke hisaab se rank list (naam nahi dikhte).
+            IconButton(
+              tooltip: 'Leaderboard',
+              visualDensity: VisualDensity.compact,
+              icon: const Text('\u{1F3C6}', style: TextStyle(fontSize: 20)),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => MockLeaderboardScreen(testId: t.id, testTitle: t.title),
+              )),
+            ),
+            if (widget.folder.isFree) ShareButton(onPressed: () => ShareService.freeMock(context, t.title)),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }

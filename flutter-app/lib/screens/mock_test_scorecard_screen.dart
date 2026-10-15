@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/mock_rank_service.dart';
+import '../services/study_store.dart';
 import '../widgets/di_image.dart';
+import 'mock_leaderboard_screen.dart';
 
 const _navy = Color(0xFF081136);
 const _cardBg = Color(0xFF101D57);
@@ -34,11 +36,17 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
   late final Future<MockRankInfo?> _rankFuture;
   late final bool _hasHindi;
   bool _hindi = false;
+  Set<String> _saved = <String>{}; // bookmark kiye sawal (sirf phone me)
 
   @override
   void initState() {
     super.initState();
     _r = MockResult.compute(widget.test, widget.answers);
+    // Study data (sirf phone me): history, galat sawal -> Mistake Notebook, daily goal.
+    StudyStore.recordMockResult(test: widget.test, answers: widget.answers, result: _r);
+    StudyStore.bookmarkKeys().then((s) {
+      if (mounted) setState(() => _saved = s);
+    });
     _hasHindi = mockHasHindi(widget.test);
     // Rank ka kaam alag chalta hai - result turant dikhta hai, rank baad me aata hai.
     _rankFuture = MockRankService().submitAndGetRank(
@@ -120,6 +128,19 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
           ]),
           const SizedBox(height: 8),
           for (var i = 0; i < t.questions.length; i++) _reviewCard(i),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => MockLeaderboardScreen(testId: t.id, testTitle: t.title, refreshOnOpen: true),
+            )),
+            icon: const Text('\u{1F3C6}', style: TextStyle(fontSize: 18)),
+            label: const Text('Leaderboard'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _gold,
+              side: const BorderSide(color: _gold),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
           const SizedBox(height: 10),
           ElevatedButton(onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst), child: const Text('Back to Home')),
           const SizedBox(height: 10),
@@ -252,6 +273,17 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
               Expanded(
                 child: Text('${i + 1}. ${mockText(q, _hindi)}', style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35)),
               ),
+              InkWell(
+                onTap: () => _toggleSave(q),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Icon(
+                    _saved.contains(StudyStore.qKey(q)) ? Icons.bookmark : Icons.bookmark_border,
+                    color: _saved.contains(StudyStore.qKey(q)) ? _gold : Colors.white54,
+                    size: 22,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -276,6 +308,19 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _toggleSave(MockQuestion q) async {
+    final nowSaved = await StudyStore.toggleBookmark(q, subject: widget.test.subject.trim(), source: widget.test.title);
+    if (!mounted) return;
+    final key = StudyStore.qKey(q);
+    setState(() {
+      if (nowSaved) {
+        _saved = {..._saved, key};
+      } else {
+        _saved = _saved.where((k) => k != key).toSet();
+      }
+    });
   }
 
   Widget _reviewOption(int oi, String text, int correct, int? given) {
