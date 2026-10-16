@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'content_seen_store.dart';
 
@@ -413,9 +414,12 @@ class FirestoreService {
       final doc = await _db.collection('batchAccess').doc(id).get().timeout(const Duration(seconds: 12));
       final data = doc.data();
       if (!doc.exists || data == null || data['status'] != 'granted') return const AccessCheck();
-      // The access code is no longer needed: access belongs to the student's
-      // logged-in email, so it survives uninstall / reinstall / new phone.
-      // [code] is still accepted only so older callers keep compiling.
+      // The access code IS required: the admin gives it to the student after
+      // verifying the payment. A granted record alone is not enough — without
+      // the right code (empty / wrong) nothing is unlocked and nothing about
+      // the record (e.g. its expiry) is revealed.
+      final savedCode = (data['accessCode'] ?? '').toString().trim();
+      if (savedCode.isEmpty || savedCode != code.trim()) return const AccessCheck();
       final exp = (data['expiresAt'] as Timestamp?)?.toDate();
       if (exp != null && !DateTime.now().isBefore(exp)) return AccessCheck(expired: true, expiresAt: exp);
       return AccessCheck(granted: true, expiresAt: exp);
@@ -508,13 +512,19 @@ class FirestoreService {
     final clean = email.trim().toLowerCase();
     if (clean.isEmpty || batchIds.isEmpty) return const <String>{};
     final out = <String>{};
+    final prefs = await SharedPreferences.getInstance();
     await Future.wait(batchIds.map((id) async {
       try {
         final doc = await _db.collection('batchAccess').doc('${clean}_$id').get().timeout(const Duration(seconds: 10));
         final data = doc.data();
         final exp = (data?['expiresAt'] as Timestamp?)?.toDate();
         final expired = exp != null && !DateTime.now().isBefore(exp);
-        if (data != null && data['status'] == 'granted' && !expired) out.add(id);
+        // Badge only when the student has entered the right code on this phone.
+        final savedCode = (prefs.getString('access_code_$id') ?? '').trim();
+        final realCode = (data?['accessCode'] ?? '').toString().trim();
+        if (data != null && data['status'] == 'granted' && !expired && realCode.isNotEmpty && realCode == savedCode) {
+          out.add(id);
+        }
       } catch (_) {
         // offline / no access doc for this batch — it just won't show the badge
       }
