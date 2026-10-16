@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/models.dart';
+import '../app_colors.dart';
 
 /// Opens the phone's normal share menu (WhatsApp, Telegram, Instagram,
 /// Facebook ...) with a ready-made message + the app download link.
@@ -78,7 +79,7 @@ class ShareButton extends StatelessWidget {
     return IconButton(
       tooltip: 'Share',
       visualDensity: VisualDensity.compact,
-      icon: const Icon(Icons.share_outlined, size: 20, color: Colors.white70),
+      icon: Icon(Icons.share_outlined, size: 20, color: AppC.text70),
       onPressed: onPressed,
     );
   }
