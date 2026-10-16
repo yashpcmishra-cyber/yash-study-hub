@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_colors.dart';
 
 /// Spinner shown while a list is loading for the first time.
 class LoadingView extends StatelessWidget {
@@ -28,7 +29,7 @@ class EmptyView extends StatelessWidget {
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white54),
+          style: TextStyle(color: AppC.text54),
         ),
       ),
     );
@@ -55,19 +56,19 @@ class ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off, color: Colors.white38, size: 36),
+            Icon(Icons.cloud_off, color: AppC.text38, size: 36),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               "Couldn't load this right now.\nPlease check your internet connection and try again.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white54),
+              style: TextStyle(color: AppC.text54),
             ),
             if (error != null) ...[
               const SizedBox(height: 10),
               Text(
                 _short(error!),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white24, fontSize: 10),
+                style: TextStyle(color: AppC.text24, fontSize: 10),
               ),
             ],
           ],

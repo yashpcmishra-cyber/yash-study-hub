@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/study_store.dart';
 
-const _navy = Color(0xFF081136);
-const _tileBg = Color(0xFF080E2A);
-const _cardBg = Color(0xFF101D57);
-const _gold = Color(0xFFFFFF29);
+import '../app_colors.dart';
 
 /// Home screen ka "Study Corner": 7-din streak, exam countdown aur daily goal.
 /// (Daily Quiz / Notebook / Progress ke tiles Home ke grid me hain.)
@@ -69,8 +66,8 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
-          backgroundColor: _cardBg,
-          title: const Text('Exam countdown / परीक्षा काउंटडाउन', style: TextStyle(color: Colors.white, fontSize: 17)),
+          backgroundColor: AppC.card2,
+          title: Text('Exam countdown / परीक्षा काउंटडाउन', style: TextStyle(color: AppC.text, fontSize: 17)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,10 +75,10 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
               TextField(
                 controller: nameCtrl,
                 maxLength: 30,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                style: TextStyle(color: AppC.text),
+                decoration: InputDecoration(
                   labelText: 'Exam name (e.g. SSC CGL) / परीक्षा का नाम',
-                  labelStyle: TextStyle(color: Colors.white60),
+                  labelStyle: TextStyle(color: AppC.text60),
                   counterText: '',
                 ),
               ),
@@ -104,7 +101,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
             ],
           ),
           actions: [
-            if (_exam.isSet) TextButton(onPressed: () => Navigator.of(ctx).pop('clear'), child: const Text('Remove / हटाएँ', style: TextStyle(color: Colors.redAccent))),
+            if (_exam.isSet) TextButton(onPressed: () => Navigator.of(ctx).pop('clear'), child: Text('Remove / हटाएँ', style: TextStyle(color: AppC.red))),
             TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
             TextButton(onPressed: () => Navigator.of(ctx).pop('save'), child: const Text('Save')),
           ],
@@ -140,13 +137,13 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
     final v = await showDialog<int>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        backgroundColor: _cardBg,
-        title: const Text('Daily goal (questions) / रोज़ का लक्ष्य (सवाल)', style: TextStyle(color: Colors.white, fontSize: 17)),
+        backgroundColor: AppC.card2,
+        title: Text('Daily goal (questions) / रोज़ का लक्ष्य (सवाल)', style: TextStyle(color: AppC.text, fontSize: 17)),
         children: [
           for (final n in StudyStore.goalOptions)
             SimpleDialogOption(
               onPressed: () => Navigator.of(ctx).pop(n),
-              child: Text('$n questions per day / $n सवाल प्रतिदिन${n == _goal ? '  ✓' : ''}', style: TextStyle(color: n == _goal ? _gold : Colors.white, fontSize: 15)),
+              child: Text('$n questions per day / $n सवाल प्रतिदिन${n == _goal ? '  ✓' : ''}', style: TextStyle(color: n == _goal ? AppC.accent : AppC.text, fontSize: 15)),
             ),
         ],
       ),
@@ -161,9 +158,9 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _tileBg,
+        color: AppC.tile,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x66FFE81F)),
+        border: Border.all(color: AppC.tileBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,13 +195,13 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
             Expanded(
               child: Text(
                 s.justCompleted ? '7-day streak complete! 🎉 / 7 दिन की स्ट्रीक पूरी!' : '7-Day Streak / 7 दिन की स्ट्रीक',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
             if (s.completedWeeks > 0)
-              Text('🏆 x${s.completedWeeks}', style: const TextStyle(color: _gold, fontWeight: FontWeight.bold, fontSize: 12.5)),
+              Text('🏆 x${s.completedWeeks}', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 12.5)),
             const SizedBox(width: 8),
-            Text('${s.filled}/7', style: const TextStyle(color: _gold, fontWeight: FontWeight.bold, fontSize: 13)),
+            Text('${s.filled}/7', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 13)),
           ],
         ),
         const SizedBox(height: 8),
@@ -216,14 +213,14 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
                   height: 26,
                   margin: EdgeInsets.only(right: i == 7 ? 0 : 5),
                   decoration: BoxDecoration(
-                    color: i <= s.filled ? _gold : _navy,
+                    color: i <= s.filled ? AppC.gold : AppC.card,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: i <= s.filled ? _gold : Colors.white24),
+                    border: Border.all(color: i <= s.filled ? AppC.accent : AppC.text24),
                   ),
                   alignment: Alignment.center,
                   child: i <= s.filled
-                      ? const Icon(Icons.check, size: 16, color: _navy)
-                      : Text('$i', style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                      ? const Icon(Icons.check, size: 16, color: AppC.onGold)
+                      : Text('$i', style: TextStyle(color: AppC.text38, fontSize: 11)),
                 ),
               ),
           ],
@@ -254,13 +251,13 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
       onTap: _editExam,
       child: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(12)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FittedBox(fit: BoxFit.scaleDown, child: Text(big, style: const TextStyle(color: _gold, fontWeight: FontWeight.bold, fontSize: 28))),
+            FittedBox(fit: BoxFit.scaleDown, child: Text(big, style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 28))),
             const SizedBox(height: 2),
-            Text(small, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
+            Text(small, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppC.text70, fontSize: 11.5)),
           ],
         ),
       ),
@@ -274,7 +271,7 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
       onTap: _editGoal,
       child: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(12)),
         child: Row(
           children: [
             SizedBox(
@@ -289,11 +286,11 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
                     child: CircularProgressIndicator(
                       value: ratio,
                       strokeWidth: 5,
-                      backgroundColor: Colors.white12,
-                      color: reached ? Colors.greenAccent : _gold,
+                      backgroundColor: AppC.text12,
+                      color: reached ? AppC.green : AppC.accent,
                     ),
                   ),
-                  Text(reached ? '🎉' : '${(ratio * 100).round()}%', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                  Text(reached ? '🎉' : '${(ratio * 100).round()}%', style: TextStyle(color: AppC.text, fontSize: 11, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -303,12 +300,12 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Today\u2019s goal / आज का लक्ष्य', style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+                  Text('Today\u2019s goal / आज का लक्ष्य', style: TextStyle(color: AppC.text70, fontSize: 11.5)),
                   const SizedBox(height: 2),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
-                    child: Text('$_done / $_goal Qs / सवाल', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    child: Text('$_done / $_goal Qs / सवाल', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14)),
                   ),
                 ],
               ),

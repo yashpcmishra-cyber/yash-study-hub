@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../app_colors.dart';
 
 /// Small rounded picture from a web link, with an icon shown when there is
 /// no link, while loading, or if the picture fails to load.
@@ -25,7 +26,7 @@ class NetImage extends StatelessWidget {
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: const Color(0xFF192B72),
+        color: AppC.chip,
         borderRadius: BorderRadius.circular(radius),
       ),
       child: Text(

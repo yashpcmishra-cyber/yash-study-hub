@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_colors.dart';
 
 /// A drop-in replacement for [Card] that adds a tactile "3D" feel: a soft
 /// drop-shadow gives it depth at rest, and on tap it sinks slightly (shadow
@@ -56,10 +57,12 @@ class _DepthCardState extends State<DepthCard> {
 
   @override
   Widget build(BuildContext context) {
-    final glow = widget.glowColor;
-    final baseColor = widget.color ?? const Color(0xCC081136);
+    final isLight = AppTheme.isLight;
+    // Light theme me yellow glow safed par dikhta nahi, isliye halka blue glow.
+    final glow = (widget.glowColor != null && isLight) ? const Color(0xFF3F5BD9) : widget.glowColor;
+    final baseColor = widget.color ?? AppC.cardA80;
     final cardColor = (_pressed && widget.pressBrighten > 0)
-        ? (Color.lerp(baseColor, Colors.white, widget.pressBrighten) ?? baseColor)
+        ? (Color.lerp(baseColor, isLight ? const Color(0xFF9FB0F5) : Colors.white, widget.pressBrighten) ?? baseColor)
         : baseColor;
 
     Widget card = AnimatedContainer(
@@ -75,22 +78,28 @@ class _DepthCardState extends State<DepthCard> {
             : LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Color.lerp(cardColor, const Color(0xFF2A3F9E), 0.18) ?? cardColor, // top: bahut halka blue touch
-                  cardColor,
-                  Color.lerp(cardColor, Colors.black, 0.35) ?? cardColor, // bottom: deep dark blue
-                ],
+                colors: isLight
+                    ? [
+                        cardColor,
+                        cardColor,
+                        Color.lerp(cardColor, const Color(0xFFDCE3FF), 0.8) ?? cardColor, // light: neeche halka blue-grey
+                      ]
+                    : [
+                        Color.lerp(cardColor, const Color(0xFF2A3F9E), 0.18) ?? cardColor, // top: bahut halka blue touch
+                        cardColor,
+                        Color.lerp(cardColor, Colors.black, 0.35) ?? cardColor, // bottom: deep dark blue
+                      ],
                 stops: const [0.0, 0.5, 1.0],
               ),
         // Thin lit edge in the glow colour.
-        border: glow == null ? null : Border.all(color: glow.withOpacity(_pressed ? 0.85 : 0.6), width: 1.4),
+        border: glow == null ? (isLight ? Border.all(color: AppC.line) : null) : Border.all(color: glow.withOpacity(_pressed ? 0.85 : 0.6), width: 1.4),
         // Glow mode paints its shadow + glow OUTSIDE the card only (see
         // _RaisedGlowPainter), so nothing tints the inside of the card.
         boxShadow: glow != null
             ? null
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(_pressed ? 0.18 : 0.38),
+                  color: Colors.black.withOpacity(isLight ? (_pressed ? 0.06 : 0.14) : (_pressed ? 0.18 : 0.38)),
                   blurRadius: _pressed ? 4 : 12,
                   offset: Offset(0, _pressed ? 1 : 5),
                 ),
@@ -162,11 +171,12 @@ class _DepthCardState extends State<DepthCard> {
 /// Draws a soft dark drop-shadow and a coloured glow, but ONLY outside the
 /// card's rounded edge - so the inside of the card keeps its own clean colour.
 class _RaisedGlowPainter extends CustomPainter {
-  const _RaisedGlowPainter({required this.color, required this.radius, required this.pressed});
+  _RaisedGlowPainter({required this.color, required this.radius, required this.pressed}) : light = AppTheme.isLight;
 
   final Color color;
   final BorderRadius radius;
   final bool pressed;
+  final bool light;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -182,7 +192,7 @@ class _RaisedGlowPainter extends CustomPainter {
     canvas.drawRRect(
       rrect.shift(Offset(0, pressed ? 1 : 5)),
       Paint()
-        ..color = Colors.black.withOpacity(pressed ? 0.18 : 0.38)
+        ..color = Colors.black.withOpacity(light ? (pressed ? 0.06 : 0.16) : (pressed ? 0.18 : 0.38))
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, pressed ? 2 : 6),
     );
     // Neon glow: wide soft halo + tight bright halo, both in the border colour.
@@ -206,5 +216,5 @@ class _RaisedGlowPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RaisedGlowPainter old) => old.color != color || old.radius != radius || old.pressed != pressed;
+  bool shouldRepaint(covariant _RaisedGlowPainter old) => old.color != color || old.radius != radius || old.pressed != pressed || old.light != light;
 }

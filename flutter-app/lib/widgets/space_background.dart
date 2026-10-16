@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import '../app_colors.dart';
 
 /// Jis screen ka apna solid background hai (PDF viewer, video player, mock
 /// test) wo ye counter badhati hai jab tak khuli hai; counter 0 se zyada ho to
@@ -44,7 +45,7 @@ class _SpaceBackgroundState extends State<SpaceBackground> with SingleTickerProv
   }
 
   void _syncMute() {
-    _ticker.muted = _reduceMotion || spaceBackgroundPause.value > 0;
+    _ticker.muted = AppTheme.isLight || _reduceMotion || spaceBackgroundPause.value > 0;
   }
 
   void _onTick(Duration elapsed) {
@@ -64,6 +65,12 @@ class _SpaceBackgroundState extends State<SpaceBackground> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    // Light theme: saaf safed background, taare/asteroids band (battery bhi bachti hai).
+    final light = AppTheme.isLight;
+    _ticker.muted = light || _reduceMotion || spaceBackgroundPause.value > 0;
+    if (light) {
+      return IgnorePointer(child: ColoredBox(color: AppC.bg));
+    }
     return IgnorePointer(
       child: Stack(
         fit: StackFit.expand,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_colors.dart';
 
 class YshBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -38,22 +39,26 @@ class YshBottomNav extends StatelessWidget {
     // shortcuts, and Admin Login now lives behind a long-press on the
     // app logo at the top-left of the Home screen (see home_screen.dart).
     // Profile replaces it at the right end of the bar.
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: 60,
-        decoration: const BoxDecoration(
-          color: Color(0xE60A1440),
-          border: Border(top: BorderSide(color: Color(0xFF16276A))),
-        ),
-        child: Row(
-          children: [
-            _item(Icons.home, 'Home', 0),
-            _item(Icons.newspaper, 'News', 1),
-            _item(Icons.picture_as_pdf, 'PDFs', 2),
-            _item(Icons.account_balance, 'C.Affairs', 3),
-            _item(Icons.person, 'Profile', 4),
-          ],
+    // Rang (navy / dark) SafeArea ke BAHAR hai, taaki gesture-bar wali jagah
+    // me bhi patti ka rang aaye (light theme me wahan safed patti nahi dikhti).
+    return Container(
+      decoration: BoxDecoration(
+        color: AppC.navBar,
+        border: Border(top: BorderSide(color: AppC.navLine)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            children: [
+              _item(Icons.home, 'Home', 0),
+              _item(Icons.newspaper, 'News', 1),
+              _item(Icons.picture_as_pdf, 'PDFs', 2),
+              _item(Icons.account_balance, 'C.Affairs', 3),
+              _item(Icons.person, 'Profile', 4),
+            ],
+          ),
         ),
       ),
     );
@@ -89,9 +94,9 @@ class YshSideNav extends StatelessWidget {
       right: false,
       child: Container(
         width: 68,
-        decoration: const BoxDecoration(
-          color: Color(0xE60A1440),
-          border: Border(right: BorderSide(color: Color(0xFF16276A))),
+        decoration: BoxDecoration(
+          color: AppC.navBar,
+          border: Border(right: BorderSide(color: AppC.navLine)),
         ),
         child: Column(
           children: [
@@ -138,7 +143,7 @@ class _NavItemState extends State<_NavItem> {
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.active ? const Color(0xFFFFFF29) : Colors.grey;
+    final color = widget.active ? const Color(0xFFFFFF29) : AppC.navInactive;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) => _setPressed(true),

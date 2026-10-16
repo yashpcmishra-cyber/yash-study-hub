@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/models.dart';
 import '../utils/open_link.dart';
+import '../app_colors.dart';
 
 /// Auto-scrolling 16:9 image slider for the Home screen, fed entirely by
 /// whatever banners the admin has uploaded (Admin Panel -> Banners tab).
@@ -89,10 +90,10 @@ class _BannerCarouselState extends State<BannerCarousel> {
                         imageUrl: b.imageUrl,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        placeholder: (_, __) => Container(color: const Color(0xFF101D57)),
+                        placeholder: (_, __) => Container(color: AppC.card2),
                         errorWidget: (_, __, ___) => Container(
-                          color: const Color(0xFF101D57),
-                          child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                          color: AppC.card2,
+                          child: Icon(Icons.image_not_supported, color: AppC.muted),
                         ),
                       ),
                       // Banner linked to a batch = "Pay & Get" button.
@@ -103,11 +104,11 @@ class _BannerCarouselState extends State<BannerCarousel> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFFF29),
+                              color: AppC.gold,
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2))],
                             ),
-                            child: const Text('Pay & Get', style: TextStyle(color: Color(0xFF081136), fontWeight: FontWeight.bold, fontSize: 12.5)),
+                            child: const Text('Pay & Get', style: TextStyle(color: AppC.onGold, fontWeight: FontWeight.bold, fontSize: 12.5)),
                           ),
                         ),
                     ],
@@ -129,7 +130,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
                 width: _index == i ? 16 : 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: _index == i ? const Color(0xFFFFFF29) : Colors.grey.shade700,
+                  color: _index == i ? AppC.gold : AppC.dotOff,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
