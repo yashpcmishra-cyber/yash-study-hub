@@ -5,6 +5,7 @@ import '../utils/open_link.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/net_image.dart';
 import '../widgets/state_views.dart';
+import '../app_colors.dart';
 
 class NewsScreen extends StatefulWidget {
   final List<String> categories;
@@ -58,8 +59,8 @@ class _NewsScreenState extends State<NewsScreen> {
                   onTap: () => openExternalLink(context, n.link),
                   child: ListTile(
                     leading: NetImage(url: n.image, width: 50, height: 50, fallbackIcon: '📰', radius: 6),
-                    title: Text(n.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                    subtitle: Text(n.categoryLabel, style: const TextStyle(color: Color(0xFFFFFF29), fontSize: 10.5)),
+                    title: Text(n.title, style: TextStyle(color: AppC.text, fontSize: 13)),
+                    subtitle: Text(n.categoryLabel, style: TextStyle(color: AppC.accent, fontSize: 10.5)),
                   ),
                 );
               },

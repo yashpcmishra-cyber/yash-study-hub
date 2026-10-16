@@ -7,6 +7,7 @@ import '../widgets/state_views.dart';
 import '../services/mock_rank_service.dart';
 import 'mock_test_attempt_screen.dart';
 import 'mock_leaderboard_screen.dart';
+import '../app_colors.dart';
 
 /// Inside an exam folder:
 /// - [subject] == null  -> subject folders (if any test has a subject) and the
@@ -32,11 +33,11 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestAttemptScreen(test: t))),
       child: ListTile(
         leading: const Text('📝', style: TextStyle(fontSize: 22)),
-        title: Text(t.title, style: const TextStyle(color: Colors.white)),
+        title: Text(t.title, style: TextStyle(color: AppC.text)),
         subtitle: Text(
           '${t.questions.length} questions \u2022 ${t.durationMinutes > 0 ? '${t.durationMinutes} min' : 'No timer'} \u2022 ${fmtMarks(t.questions.length * t.marksPerQuestion)} marks'
           '${t.negativeMarks > 0 ? ' \u2022 \u2212${fmtMarks(t.negativeMarks)} negative' : ''}',
-          style: const TextStyle(color: Colors.grey, fontSize: 11),
+          style: TextStyle(color: AppC.muted, fontSize: 11),
         ),
         // Share button only when this folder is FREE (paid-batch tests are never shareable).
         trailing: Row(
@@ -52,7 +53,7 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
               )),
             ),
             if (widget.folder.isFree) ShareButton(onPressed: () => ShareService.freeMock(context, t.title)),
-            const Icon(Icons.chevron_right, color: Colors.grey),
+            Icon(Icons.chevron_right, color: AppC.muted),
           ],
         ),
       ),
@@ -65,9 +66,9 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestListScreen(folder: widget.folder, subject: g.name))),
       child: ListTile(
         leading: const Text('📚', style: TextStyle(fontSize: 22)),
-        title: Text(g.name, style: const TextStyle(color: Colors.white)),
-        subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+        title: Text(g.name, style: TextStyle(color: AppC.text)),
+        subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: TextStyle(color: AppC.muted, fontSize: 11)),
+        trailing: Icon(Icons.chevron_right, color: AppC.muted),
       ),
     );
   }
@@ -101,9 +102,9 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
           final items = <Widget>[
             ...split.groups.map(_subjectCard),
             if (split.groups.isNotEmpty && split.ungrouped.isNotEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 6, bottom: 8, left: 4),
-                child: Text('Other tests', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
+                child: Text('Other tests', style: TextStyle(color: AppC.muted, fontSize: 13, fontWeight: FontWeight.w600)),
               ),
             ...split.ungrouped.map(_testCard),
           ];

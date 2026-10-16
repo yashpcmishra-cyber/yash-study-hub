@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/study_store.dart';
 import '../widgets/state_views.dart';
 
-const _navy = Color(0xFF081136);
-const _cardBg = Color(0xFF101D57);
-const _gold = Color(0xFFFFFF29);
+import '../app_colors.dart';
 
 class _SubjectStat {
   final String name;
@@ -96,18 +94,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Row(children: [
-            _tile('Tests', '${records.length}', Colors.white),
+            _tile('Tests', '${records.length}', AppC.text),
             const SizedBox(width: 8),
-            _tile('Avg score', '${avgScore.toStringAsFixed(0)}%', _gold),
+            _tile('Avg score', '${avgScore.toStringAsFixed(0)}%', AppC.accent),
             const SizedBox(width: 8),
-            _tile('Accuracy', '${avgAcc.toStringAsFixed(0)}%', Colors.greenAccent),
+            _tile('Accuracy', '${avgAcc.toStringAsFixed(0)}%', AppC.green),
             const SizedBox(width: 8),
-            _tile('Best', '${best.toStringAsFixed(0)}%', Colors.white),
+            _tile('Best', '${best.toStringAsFixed(0)}%', AppC.text),
           ]),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(12)),
             child: Row(children: [
               const Text('🔥', style: TextStyle(fontSize: 22)),
               const SizedBox(width: 10),
@@ -117,17 +115,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       ? 'Open the app every day to start your streak.\nस्ट्रीक शुरू करने के लिए रोज़ ऐप खोलें।'
                       : 'Streak: ${_streak.filled}/7 days / दिन'
                           '${_streak.completedWeeks > 0 ? '  •  🏆 ${_streak.completedWeeks}x 7 days / 7 दिन पूरे' : ''}',
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  style: TextStyle(color: AppC.text, fontSize: 13),
                 ),
               ),
             ]),
           ),
           const SizedBox(height: 18),
-          const Text('Recent tests score (%) / पिछले टेस्ट का स्कोर (%)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text('Recent tests score (%) / पिछले टेस्ट का स्कोर (%)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.fromLTRB(10, 14, 10, 8),
-            decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(14)),
             child: SizedBox(
               height: 150,
               child: Row(
@@ -139,32 +137,32 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          const Text('Subject-wise accuracy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text('Subject-wise accuracy', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
           if (subjects.isEmpty)
-            const Text('No subject data yet. / अभी विषय का डेटा नहीं है।', style: TextStyle(color: Colors.grey, fontSize: 12))
+            Text('No subject data yet. / अभी विषय का डेटा नहीं है।', style: TextStyle(color: AppC.muted, fontSize: 12))
           else
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(14)),
               child: Column(children: [for (final s in subjects) _subjectRow(s)]),
             ),
           if (weak != null) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0x22FFFF29), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: AppC.goldWash, borderRadius: BorderRadius.circular(12)),
               child: Text(
                 '💡 Weakest: ${weak.name} (${weak.accuracy.toStringAsFixed(0)}%). Practice this more.\nसबसे कमज़ोर: ${weak.name}। इसमें ज़्यादा अभ्यास करें।',
-                style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.35),
+                style: TextStyle(color: AppC.text, fontSize: 13, height: 1.35),
               ),
             ),
           ],
           const SizedBox(height: 14),
-          const Text(
+          Text(
             'This data stays only on your phone and is removed after 30 days.\nयह डेटा केवल आपके फ़ोन में है और 30 दिन बाद अपने आप हट जाता है।',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 11.5),
+            style: TextStyle(color: AppC.muted, fontSize: 11.5),
           ),
         ],
       ),
@@ -175,11 +173,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(12)),
         child: Column(children: [
           FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18))),
           const SizedBox(height: 4),
-          FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 11))),
+          FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: TextStyle(color: AppC.muted, fontSize: 11))),
         ]),
       ),
     );
@@ -188,18 +186,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget _bar(TestRecord r, int n) {
     final p = r.scorePercent;
     final h = 100.0 * p / 100.0;
-    final Color c = p >= 70 ? Colors.greenAccent : (p >= 40 ? _gold : Colors.redAccent);
+    final Color c = p >= 70 ? AppC.green : (p >= 40 ? AppC.mid : AppC.red);
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            FittedBox(fit: BoxFit.scaleDown, child: Text(p.toStringAsFixed(0), style: const TextStyle(color: Colors.white70, fontSize: 10))),
+            FittedBox(fit: BoxFit.scaleDown, child: Text(p.toStringAsFixed(0), style: TextStyle(color: AppC.text70, fontSize: 10))),
             const SizedBox(height: 3),
             Container(height: h < 3 ? 3 : h, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(4))),
             const SizedBox(height: 4),
-            Text('$n', style: const TextStyle(color: Colors.grey, fontSize: 10)),
+            Text('$n', style: TextStyle(color: AppC.muted, fontSize: 10)),
           ],
         ),
       ),
@@ -208,20 +206,20 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _subjectRow(_SubjectStat s) {
     final acc = s.accuracy;
-    final Color c = acc >= 70 ? Colors.greenAccent : (acc >= 40 ? _gold : Colors.redAccent);
+    final Color c = acc >= 70 ? AppC.green : (acc >= 40 ? AppC.mid : AppC.red);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Expanded(child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13))),
+            Expanded(child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppC.text, fontSize: 13))),
             Text('${acc.toStringAsFixed(0)}%  •  ${s.attempted} Qs / सवाल', style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600)),
           ]),
           const SizedBox(height: 5),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(value: acc / 100, minHeight: 7, backgroundColor: _navy, color: c),
+            child: LinearProgressIndicator(value: acc / 100, minHeight: 7, backgroundColor: AppC.card, color: c),
           ),
         ],
       ),

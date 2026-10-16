@@ -5,9 +5,7 @@ import '../widgets/di_image.dart';
 import '../widgets/state_views.dart';
 import 'quiz_session_screen.dart';
 
-const _navy = Color(0xFF081136);
-const _cardBg = Color(0xFF101D57);
-const _gold = Color(0xFFFFFF29);
+import '../app_colors.dart';
 
 /// Mistake Notebook: galat kiye sawal (apne aap judte hain) + Saved (bookmark)
 /// sawal. Sab kuch sirf is phone me rehta hai, 30 din baad apne aap hat jaata hai.
@@ -94,8 +92,8 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
               ),
           ],
           bottom: TabBar(
-            indicatorColor: _gold,
-            labelColor: _gold,
+            indicatorColor: const Color(0xFFFFFF29),
+            labelColor: const Color(0xFFFFFF29),
             unselectedLabelColor: Colors.white60,
             tabs: [
               Tab(text: '❌ Mistakes / गलतियाँ (${_mistakes.length})'),
@@ -120,8 +118,8 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(color: active ? _gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
-        child: Text(label, style: TextStyle(color: active ? _navy : Colors.white70, fontWeight: FontWeight.bold, fontSize: 12)),
+        decoration: BoxDecoration(color: active ? AppC.gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
+        child: Text(label, style: TextStyle(color: active ? AppC.onGold : Colors.white70, fontWeight: FontWeight.bold, fontSize: 12)),
       ),
     );
   }
@@ -148,7 +146,7 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
               ? 'Questions you answer correctly in practice are removed from the notebook. Entries older than 30 days are removed automatically.\nप्रैक्टिस में सही किए सवाल नोटबुक से हट जाते हैं। 30 दिन पुरानी एंट्रियाँ अपने आप हट जाती हैं।'
               : 'Entries older than 30 days are removed automatically.\n30 दिन पुरानी एंट्रियाँ अपने आप हट जाती हैं।',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.grey, fontSize: 11.5),
+          style: TextStyle(color: AppC.muted, fontSize: 11.5),
         ),
         const SizedBox(height: 10),
         for (final e in items) _card(e, fromMistakes: fromMistakes),
@@ -173,15 +171,15 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Expanded(child: Text(tag, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.grey, fontSize: 11))),
+            Expanded(child: Text(tag, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppC.muted, fontSize: 11))),
             InkWell(
               onTap: () => _remove(e, fromMistakes: fromMistakes),
-              child: const Padding(padding: EdgeInsets.all(4), child: Icon(Icons.delete_outline, color: Colors.white54, size: 20)),
+              child: Padding(padding: EdgeInsets.all(4), child: Icon(Icons.delete_outline, color: AppC.text54, size: 20)),
             ),
           ]),
           if (passage.isNotEmpty || passageImg.isNotEmpty)
@@ -189,17 +187,17 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
               width: double.infinity,
               margin: const EdgeInsets.only(top: 6, bottom: 4),
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
+              decoration: BoxDecoration(color: AppC.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppC.text12)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (passage.isNotEmpty) Text(passage, style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4)),
+                  if (passage.isNotEmpty) Text(passage, style: TextStyle(color: AppC.text70, fontSize: 12.5, height: 1.4)),
                   if (passageImg.isNotEmpty) Padding(padding: EdgeInsets.only(top: passage.isNotEmpty ? 8 : 0), child: DiImage(url: passageImg)),
                 ],
               ),
             ),
           const SizedBox(height: 4),
-          Text(mockText(q, _hindi), style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35)),
+          Text(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 14, height: 1.35)),
           const SizedBox(height: 8),
           for (var oi = 0; oi < opts.length; oi++)
             Container(
@@ -208,11 +206,11 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: oi == q.correctIndex ? Colors.greenAccent : Colors.white12),
+                border: Border.all(color: oi == q.correctIndex ? AppC.green : AppC.text12),
               ),
               child: Text(
                 '${String.fromCharCode(65 + oi)}. ${opts[oi]}${oi == q.correctIndex ? '  ✓' : ''}',
-                style: TextStyle(color: oi == q.correctIndex ? Colors.greenAccent : Colors.white70, fontSize: 13),
+                style: TextStyle(color: oi == q.correctIndex ? AppC.green : AppC.text70, fontSize: 13),
               ),
             ),
           if (explanation.isNotEmpty)
@@ -220,13 +218,13 @@ class _MistakeNotebookScreenState extends State<MistakeNotebookScreen> {
               width: double.infinity,
               margin: const EdgeInsets.only(top: 2),
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0x22FFFF29), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: AppC.goldWash, borderRadius: BorderRadius.circular(10)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Explanation', style: TextStyle(color: _gold, fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text('Explanation', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 12)),
                   const SizedBox(height: 4),
-                  Text(explanation, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.35)),
+                  Text(explanation, style: TextStyle(color: AppC.text, fontSize: 13, height: 1.35)),
                 ],
               ),
             ),

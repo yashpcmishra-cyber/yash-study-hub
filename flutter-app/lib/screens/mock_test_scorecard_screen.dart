@@ -5,9 +5,7 @@ import '../services/study_store.dart';
 import '../widgets/di_image.dart';
 import 'mock_leaderboard_screen.dart';
 
-const _navy = Color(0xFF081136);
-const _cardBg = Color(0xFF101D57);
-const _gold = Color(0xFFFFFF29);
+import '../app_colors.dart';
 
 /// Result: marks (negative marking ke saath), accuracy, rank, sahi/galat/
 /// unattempted aur har question ka explanation.
@@ -74,15 +72,15 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
             ),
             child: Column(
               children: [
-                Text(t.title, textAlign: TextAlign.center, style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(t.title, textAlign: TextAlign.center, style: const TextStyle(color: AppC.onGold, fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 10),
-                Text('${fmtMarks(_r.marks)} / ${fmtMarks(_r.maxMarks)}', style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 32)),
-                const Text('Marks', style: TextStyle(color: Color(0xFF101D57), fontSize: 13)),
+                Text('${fmtMarks(_r.marks)} / ${fmtMarks(_r.maxMarks)}', style: const TextStyle(color: AppC.onGold, fontWeight: FontWeight.bold, fontSize: 32)),
+                const Text('Marks', style: TextStyle(color: AppC.onGold, fontSize: 13)),
                 if (t.negativeMarks > 0) ...[
                   const SizedBox(height: 6),
                   Text(
                     '+${fmtMarks(plus)}  \u2212${fmtMarks(minus)} (negative)',
-                    style: const TextStyle(color: Color(0xFF101D57), fontSize: 12),
+                    style: const TextStyle(color: AppC.onGold, fontSize: 12),
                   ),
                 ],
               ],
@@ -90,36 +88,36 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
           ),
           if (widget.autoSubmitted) ...[
             const SizedBox(height: 10),
-            const Text('Time is up \u2014 your test was submitted automatically.',
-                style: TextStyle(color: Colors.orangeAccent, fontSize: 12), textAlign: TextAlign.center),
+            Text('Time is up \u2014 your test was submitted automatically.',
+                style: TextStyle(color: AppC.orange, fontSize: 12), textAlign: TextAlign.center),
           ],
           if (widget.note != null) ...[
             const SizedBox(height: 10),
-            Text(widget.note!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12), textAlign: TextAlign.center),
+            Text(widget.note!, style: TextStyle(color: AppC.orange, fontSize: 12), textAlign: TextAlign.center),
           ],
           const SizedBox(height: 14),
           Row(children: [
             _rankTile(),
             const SizedBox(width: 8),
-            _tile('Accuracy', '${_r.accuracy.toStringAsFixed(1)}%', Colors.white),
+            _tile('Accuracy', '${_r.accuracy.toStringAsFixed(1)}%', AppC.text),
             const SizedBox(width: 8),
-            _tile('Time', fmtDuration(widget.timeTakenSec), Colors.white),
+            _tile('Time', fmtDuration(widget.timeTakenSec), AppC.text),
           ]),
           const SizedBox(height: 8),
           Row(children: [
-            _tile('Correct', '${_r.correct}', Colors.greenAccent),
+            _tile('Correct', '${_r.correct}', AppC.green),
             const SizedBox(width: 8),
-            _tile('Wrong', '${_r.wrong}', Colors.redAccent),
+            _tile('Wrong', '${_r.wrong}', AppC.red),
             const SizedBox(width: 8),
-            _tile('Unattempted', '${_r.unattempted}', Colors.grey),
+            _tile('Unattempted', '${_r.unattempted}', AppC.muted),
           ]),
           _rankNote(),
           const SizedBox(height: 18),
           Row(children: [
-            const Expanded(child: Text('Review', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
+            Expanded(child: Text('Review', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15))),
             if (_hasHindi)
               Container(
-                decoration: BoxDecoration(border: Border.all(color: Colors.white24), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(border: Border.all(color: AppC.text24), borderRadius: BorderRadius.circular(8)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   _langBtn('EN', !_hindi, () => setState(() => _hindi = false)),
                   _langBtn('\u0939\u093f\u0902', _hindi, () => setState(() => _hindi = true)),
@@ -136,8 +134,8 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
             icon: const Text('\u{1F3C6}', style: TextStyle(fontSize: 18)),
             label: const Text('Leaderboard'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: _gold,
-              side: const BorderSide(color: _gold),
+              foregroundColor: AppC.accent,
+              side: BorderSide(color: AppC.accent),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
@@ -153,11 +151,11 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-        decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(12)),
         child: Column(children: [
           FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18))),
           const SizedBox(height: 4),
-          FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 11))),
+          FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: TextStyle(color: AppC.muted, fontSize: 11))),
         ]),
       ),
     );
@@ -171,17 +169,17 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
           return Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-              decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(12)),
-              child: const Column(children: [
+              decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(12)),
+              child: Column(children: [
                 SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2)),
                 SizedBox(height: 6),
-                Text('Rank', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                Text('Rank', style: TextStyle(color: AppC.muted, fontSize: 11)),
               ]),
             ),
           );
         }
         final info = snap.data;
-        return _tile('Rank', info == null ? '\u2014' : '#${info.rank} / ${info.total}', _gold);
+        return _tile('Rank', info == null ? '\u2014' : '#${info.rank} / ${info.total}', AppC.accent);
       },
     );
   }
@@ -201,7 +199,7 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
         if (text == null) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+          child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: AppC.muted, fontSize: 11)),
         );
       },
     );
@@ -212,8 +210,8 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(color: active ? _gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
-        child: Text(label, style: TextStyle(color: active ? _navy : Colors.white70, fontWeight: FontWeight.bold, fontSize: 13)),
+        decoration: BoxDecoration(color: active ? AppC.gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
+        child: Text(label, style: TextStyle(color: active ? AppC.onGold : AppC.text70, fontWeight: FontWeight.bold, fontSize: 13)),
       ),
     );
   }
@@ -235,19 +233,19 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
     final Color iconColor;
     if (given == null) {
       icon = Icons.remove_circle_outline;
-      iconColor = Colors.grey;
+      iconColor = AppC.muted;
     } else if (given == correct) {
       icon = Icons.check_circle;
-      iconColor = Colors.greenAccent;
+      iconColor = AppC.green;
     } else {
       icon = Icons.cancel;
-      iconColor = Colors.redAccent;
+      iconColor = AppC.red;
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -256,11 +254,11 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
+              decoration: BoxDecoration(color: AppC.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppC.text12)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (passage.isNotEmpty) Text(passage, style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4)),
+                  if (passage.isNotEmpty) Text(passage, style: TextStyle(color: AppC.text70, fontSize: 12.5, height: 1.4)),
                   if (passageImg.isNotEmpty) Padding(padding: EdgeInsets.only(top: passage.isNotEmpty ? 8 : 0), child: DiImage(url: passageImg)),
                 ],
               ),
@@ -271,7 +269,7 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
               Icon(icon, color: iconColor, size: 20),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('${i + 1}. ${mockText(q, _hindi)}', style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35)),
+                child: Text('${i + 1}. ${mockText(q, _hindi)}', style: TextStyle(color: AppC.text, fontSize: 14, height: 1.35)),
               ),
               InkWell(
                 onTap: () => _toggleSave(q),
@@ -279,7 +277,7 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
                   padding: const EdgeInsets.only(left: 6),
                   child: Icon(
                     _saved.contains(StudyStore.qKey(q)) ? Icons.bookmark : Icons.bookmark_border,
-                    color: _saved.contains(StudyStore.qKey(q)) ? _gold : Colors.white54,
+                    color: _saved.contains(StudyStore.qKey(q)) ? AppC.accent : AppC.text54,
                     size: 22,
                   ),
                 ),
@@ -288,19 +286,19 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
           ),
           const SizedBox(height: 8),
           for (var oi = 0; oi < opts.length; oi++) _reviewOption(oi, opts[oi], correct, given),
-          if (given == null) const Padding(padding: EdgeInsets.only(top: 4), child: Text('Not attempted', style: TextStyle(color: Colors.grey, fontSize: 12))),
+          if (given == null) Padding(padding: EdgeInsets.only(top: 4), child: Text('Not attempted', style: TextStyle(color: AppC.muted, fontSize: 12))),
           if (explanation.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0x22FFFF29), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: AppC.goldWash, borderRadius: BorderRadius.circular(10)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Explanation', style: TextStyle(color: _gold, fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text('Explanation', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 12)),
                   const SizedBox(height: 4),
-                  Text(explanation, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.35)),
+                  Text(explanation, style: TextStyle(color: AppC.text, fontSize: 13, height: 1.35)),
                 ],
               ),
             ),
@@ -326,16 +324,16 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
   Widget _reviewOption(int oi, String text, int correct, int? given) {
     final isCorrect = oi == correct;
     final isGiven = oi == given;
-    Color border = Colors.white12;
-    Color textColor = Colors.white70;
+    Color border = AppC.text12;
+    Color textColor = AppC.text70;
     String mark = '';
     if (isCorrect) {
-      border = Colors.greenAccent;
-      textColor = Colors.greenAccent;
+      border = AppC.green;
+      textColor = AppC.green;
       mark = '  \u2713';
     } else if (isGiven) {
-      border = Colors.redAccent;
-      textColor = Colors.redAccent;
+      border = AppC.red;
+      textColor = AppC.red;
       mark = '  \u2717';
     }
     return Container(

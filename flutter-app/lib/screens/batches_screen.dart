@@ -6,6 +6,7 @@ import '../widgets/depth_card.dart';
 import '../widgets/net_image.dart';
 import '../widgets/state_views.dart';
 import 'batch_detail_screen.dart';
+import '../app_colors.dart';
 
 class BatchesScreen extends StatefulWidget {
   const BatchesScreen({super.key});
@@ -105,25 +106,25 @@ class _BatchesScreenState extends State<BatchesScreen> {
                   },
                   child: ListTile(
                     leading: NetImage(url: b.iconUrl, width: 44, height: 44, fallbackIcon: '🎓', radius: 10),
-                    title: Text(b.title, style: const TextStyle(color: Colors.white)),
-                    subtitle: Text('${b.mockOnly ? 'Mock Test Series' : '${b.videos} videos \u2022 ${b.pdfs} PDFs'}${b.hasValidity ? ' \u2022 ${b.validityLabel}' : ''}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                    title: Text(b.title, style: TextStyle(color: AppC.text)),
+                    subtitle: Text('${b.mockOnly ? 'Mock Test Series' : '${b.videos} videos \u2022 ${b.pdfs} PDFs'}${b.hasValidity ? ' \u2022 ${b.validityLabel}' : ''}', style: TextStyle(color: AppC.muted, fontSize: 11)),
                     trailing: isGranted
-                        ? const Row(
+                        ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text('✅', style: TextStyle(fontSize: 15)),
                               SizedBox(width: 4),
-                              Text('Unlocked', style: TextStyle(color: Colors.green, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                              Text('Unlocked', style: TextStyle(color: AppC.greenDeep, fontSize: 11.5, fontWeight: FontWeight.bold)),
                             ],
                           )
-                        : Text('\u20b9${b.price}', style: const TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold)),
+                        : Text('\u20b9${b.price}', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold)),
                   ),
                 );
                 if (!isGranted) return card;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.green, width: 2),
+                    border: Border.all(color: AppC.greenDeep, width: 2),
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: card,

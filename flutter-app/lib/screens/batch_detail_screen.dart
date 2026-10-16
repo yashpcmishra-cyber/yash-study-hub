@@ -13,6 +13,7 @@ import '../widgets/state_views.dart';
 import 'mock_test_attempt_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'video_player_screen.dart';
+import '../app_colors.dart';
 
 class BatchDetailScreen extends StatefulWidget {
   final BatchModel batch;
@@ -213,7 +214,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
             width: 22,
             height: 22,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(color: Color(0xFFFFFF29), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppC.gold, shape: BoxShape.circle),
             child: Text(number, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
           const SizedBox(width: 10),
@@ -221,9 +222,9 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(en, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                Text(en, style: TextStyle(color: AppC.text, fontSize: 13)),
                 const SizedBox(height: 2),
-                Text(hi, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(hi, style: TextStyle(color: AppC.muted, fontSize: 12)),
               ],
             ),
           ),
@@ -244,9 +245,9 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off, color: Colors.white38, size: 36),
+              Icon(Icons.cloud_off, color: AppC.text38, size: 36),
               const SizedBox(height: 10),
-              Text(_loadError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
+              Text(_loadError!, textAlign: TextAlign.center, style: TextStyle(color: AppC.text54)),
               const SizedBox(height: 14),
               ElevatedButton(
                 onPressed: () {
@@ -293,24 +294,24 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
               children: [
                 const Text('🔒', style: TextStyle(fontSize: 40)),
                 const SizedBox(height: 12),
-                const Text('This batch is locked', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                const Text('यह बैच लॉक है', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text('This batch is locked', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('यह बैच लॉक है', style: TextStyle(color: AppC.muted, fontSize: 13)),
                 if (_expired) ...[
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0x33FF9800),
+                      color: AppC.orangeWash,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.orangeAccent),
+                      border: Border.all(color: AppC.orange),
                     ),
                     child: Text(
                       _expiresAt != null
                           ? '⏰ Your access ended on ${DateFormat('d MMM yyyy').format(_expiresAt!)}. Renew below to unlock again. / आपका एक्सेस ${DateFormat('d MMM yyyy').format(_expiresAt!)} को खत्म हो गया। दोबारा अनलॉक करने के लिए नीचे रिन्यू करें।'
                           : '⏰ Your access to this batch has ended. Renew below to unlock again. / इस बैच का आपका एक्सेस खत्म हो गया। दोबारा अनलॉक करने के लिए नीचे रिन्यू करें।',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.orangeAccent, fontSize: 12.5),
+                      style: TextStyle(color: AppC.orange, fontSize: 12.5),
                     ),
                   ),
                 ],
@@ -318,7 +319,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                 Text(
                   'Amount to pay / भुगतान की राशि: ₹${widget.batch.price}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 if (widget.batch.hasValidity)
                   Padding(
@@ -326,7 +327,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                     child: Text(
                       'Validity / वैधता: ${monthsText(widget.batch.validityMonths)}',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style: TextStyle(color: AppC.text70, fontSize: 13),
                     ),
                   ),
                 const SizedBox(height: 16),
@@ -337,17 +338,17 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF081136),
+                      color: AppC.card,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFFFF29), width: 1),
+                      border: Border.all(color: AppC.accent, width: 1),
                     ),
                     child: Column(children: [
-                      const Text('UPI ID \u00b7 tap to copy / कॉपी करने के लिए टैप करें', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 11)),
+                      Text('UPI ID \u00b7 tap to copy / कॉपी करने के लिए टैप करें', textAlign: TextAlign.center, style: TextStyle(color: AppC.muted, fontSize: 11)),
                       const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(cfg.upiId, style: const TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold, fontSize: 15)),
+                          Text(cfg.upiId, style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 15)),
                           const SizedBox(width: 6),
                           const Text('📋', style: TextStyle(fontSize: 14)),
                         ],
@@ -359,11 +360,11 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: const Color(0xFF081136), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: AppC.card, borderRadius: BorderRadius.circular(12)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('How to unlock / अनलॉक कैसे करें', style: TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text('How to unlock / अनलॉक कैसे करें', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(height: 10),
                       _unlockStep('1', 'Tap the UPI ID above to copy it.', 'ऊपर UPI ID पर टैप करके कॉपी करें।'),
                       _unlockStep('2', 'Paste it in your payment app (GPay / PhonePe / Paytm) and pay ₹${widget.batch.price}.', 'अपने पेमेंट ऐप में पेस्ट करके ₹${widget.batch.price} का भुगतान करें।'),
@@ -373,7 +374,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text('Send screenshot via any one / किसी एक से स्क्रीनशॉट भेजें', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 12)),
+                Text('Send screenshot via any one / किसी एक से स्क्रीनशॉट भेजें', textAlign: TextAlign.center, style: TextStyle(color: AppC.text70, fontSize: 12)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -383,7 +384,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                         icon: const Icon(Icons.send, size: 18),
                         label: const Text('Telegram\nTelegram पर भेजें', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2AABEE),
+                          backgroundColor: AppC.telegram,
                           foregroundColor: Colors.white,
                           minimumSize: const Size(0, 52),
                           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
@@ -411,46 +412,46 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                   child: Text(
                     'No Telegram? Email it to / Telegram नहीं है तो ईमेल करें:\n${cfg.paymentEmail}',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    style: TextStyle(color: AppC.muted, fontSize: 11),
                   ),
                 ),
                 const SizedBox(height: 20),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(color: const Color(0xFF081136), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: AppC.card, borderRadius: BorderRadius.circular(10)),
                   child: Row(
                     children: [
-                      const Icon(Icons.person, color: Color(0xFFFFFF29), size: 18),
+                      Icon(Icons.person, color: AppC.accent, size: 18),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_name.isNotEmpty ? _name : 'Student', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                            Text(_email, style: const TextStyle(color: Colors.grey, fontSize: 11.5)),
+                            Text(_name.isNotEmpty ? _name : 'Student', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(_email, style: TextStyle(color: AppC.muted, fontSize: 11.5)),
                           ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 6),
-                  child: Text('Pay with this email — access unlocks on this account automatically. / इसी ईमेल से भुगतान करें — एक्सेस अपने आप इस अकाउंट पर अनलॉक हो जाएगा।', style: TextStyle(color: Colors.grey, fontSize: 11), textAlign: TextAlign.center),
+                  child: Text('Pay with this email — access unlocks on this account automatically. / इसी ईमेल से भुगतान करें — एक्सेस अपने आप इस अकाउंट पर अनलॉक हो जाएगा।', style: TextStyle(color: AppC.muted, fontSize: 11), textAlign: TextAlign.center),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(labelText: 'WhatsApp number (optional)', helperText: 'So admin can send your code', labelStyle: TextStyle(color: Colors.grey)),
+                  style: TextStyle(color: AppC.text),
+                  decoration: InputDecoration(labelText: 'WhatsApp number (optional)', helperText: 'So admin can send your code', labelStyle: TextStyle(color: AppC.muted)),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _codeController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(labelText: 'Access code (optional) / एक्सेस कोड (ज़रूरी नहीं)', labelStyle: TextStyle(color: Colors.grey)),
+                  style: TextStyle(color: AppC.text),
+                  decoration: InputDecoration(labelText: 'Access code (optional) / एक्सेस कोड (ज़रूरी नहीं)', labelStyle: TextStyle(color: AppC.muted)),
                 ),
                 const SizedBox(height: 14),
                 ElevatedButton(
@@ -462,7 +463,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                 if (_checkMsg != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
-                    child: Text(_checkMsg!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+                    child: Text(_checkMsg!, textAlign: TextAlign.center, style: TextStyle(color: AppC.orange, fontSize: 12)),
                   ),
               ],
             ),
@@ -484,7 +485,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
       padding: const EdgeInsets.only(top: 4, left: 21),
       child: Text(
         soon ? 'Valid till $date \u00b7 $left \u2014 contact admin to renew / रिन्यू के लिए एडमिन से बात करें' : 'Valid till $date \u00b7 $left',
-        style: TextStyle(color: soon ? Colors.orangeAccent : Colors.grey, fontSize: 11.5),
+        style: TextStyle(color: soon ? AppC.orange : AppC.muted, fontSize: 11.5),
       ),
     );
   }
@@ -501,16 +502,16 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(children: [Text('✅', style: TextStyle(fontSize: 15)), SizedBox(width: 6), Text('Access granted', style: TextStyle(color: Colors.green))]),
+                  Row(children: [Text('✅', style: TextStyle(fontSize: 15)), SizedBox(width: 6), Text('Access granted', style: TextStyle(color: AppC.greenDeep))]),
                   if (_expiresAt != null) _validityLine(),
                 ],
               ),
             ),
           ),
           TabBar(
-            indicatorColor: Color(0xFFFFFF29),
-            labelColor: Color(0xFFFFFF29),
-            unselectedLabelColor: Colors.grey,
+            indicatorColor: AppC.accent,
+            labelColor: AppC.accent,
+            unselectedLabelColor: AppC.muted,
             tabs: [
               if (!widget.batch.mockOnly) ...[const Tab(text: 'Videos'), const Tab(text: 'PDFs')],
               const Tab(text: 'Mocks'),
@@ -530,24 +531,24 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                     return ListView(
                       children: folders
                           .map((f) => ExpansionTile(
-                                iconColor: const Color(0xFFFFFF29),
-                                collapsedIconColor: Colors.grey,
+                                iconColor: AppC.accent,
+                                collapsedIconColor: AppC.muted,
                                 leading: const Text('📁', style: TextStyle(fontSize: 20)),
-                                title: Text(f.name, style: const TextStyle(color: Colors.white)),
+                                title: Text(f.name, style: TextStyle(color: AppC.text)),
                                 children: [
                                   StreamBuilder<List<VideoModel>>(
                                     stream: _fs.streamVideosInFolder(f.id),
                                     builder: (context, videoSnap) {
-                                      if (videoSnap.hasError) return const Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load videos.", style: TextStyle(color: Colors.grey, fontSize: 12)));
+                                      if (videoSnap.hasError) return Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load videos.", style: TextStyle(color: AppC.muted, fontSize: 12)));
                                       if (!videoSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
                                       final videos = videoSnap.data!;
-                                      if (videos.isEmpty) return const Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: Colors.grey, fontSize: 12)));
+                                      if (videos.isEmpty) return Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: AppC.muted, fontSize: 12)));
                                       return Column(
                                         children: videos
                                             .map((v) => ListTile(
                                                   dense: true,
                                                   leading: NetImage(url: v.thumbUrl, width: 56, height: 34, fallbackIcon: '🎬', radius: 6),
-                                                  title: Text(v.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                                  title: Text(v.title, style: TextStyle(color: AppC.text, fontSize: 13)),
                                                   onTap: () => Navigator.of(context).push(
                                                     MaterialPageRoute(builder: (_) => VideoPlayerScreen(youtubeUrl: v.youtubeLink, title: v.title, allowExternalOpen: false)),
                                                   ),
@@ -572,24 +573,24 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                     return ListView(
                       children: folders
                           .map((f) => ExpansionTile(
-                                iconColor: const Color(0xFFFFFF29),
-                                collapsedIconColor: Colors.grey,
+                                iconColor: AppC.accent,
+                                collapsedIconColor: AppC.muted,
                                 leading: const Text('📁', style: TextStyle(fontSize: 20)),
-                                title: Text(f.name, style: const TextStyle(color: Colors.white)),
+                                title: Text(f.name, style: TextStyle(color: AppC.text)),
                                 children: [
                                   StreamBuilder<List<PdfModel>>(
                                     stream: _fs.streamPdfsInFolder(f.id),
                                     builder: (context, pdfSnap) {
-                                      if (pdfSnap.hasError) return const Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load PDFs.", style: TextStyle(color: Colors.grey, fontSize: 12)));
+                                      if (pdfSnap.hasError) return Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load PDFs.", style: TextStyle(color: AppC.muted, fontSize: 12)));
                                       if (!pdfSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
                                       final pdfs = pdfSnap.data!;
-                                      if (pdfs.isEmpty) return const Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: Colors.grey, fontSize: 12)));
+                                      if (pdfs.isEmpty) return Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: AppC.muted, fontSize: 12)));
                                       return Column(
                                         children: pdfs
                                             .map((p) => ListTile(
                                                   dense: true,
                                                   leading: NetImage(url: p.iconUrl, width: 34, height: 34, fallbackIcon: '📄', radius: 6),
-                                                  title: Text(p.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                                  title: Text(p.title, style: TextStyle(color: AppC.text, fontSize: 13)),
                                                   onTap: () => openPdfInApp(context, link: p.driveLink, title: p.title, allowExternalOpen: false),
                                                 ))
                                             .toList(),
@@ -616,12 +617,12 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
     return ListTile(
       dense: true,
       leading: const Text('📝', style: TextStyle(fontSize: 18)),
-      title: Text(t.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+      title: Text(t.title, style: TextStyle(color: AppC.text, fontSize: 13)),
       subtitle: Text(
         '${t.questions.length} questions \u2022 ${t.durationMinutes > 0 ? '${t.durationMinutes} min' : 'No timer'}',
-        style: const TextStyle(color: Colors.grey, fontSize: 11),
+        style: TextStyle(color: AppC.muted, fontSize: 11),
       ),
-      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      trailing: Icon(Icons.chevron_right, color: AppC.muted),
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestAttemptScreen(test: t))),
     );
   }
@@ -639,29 +640,29 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
         return ListView(
           children: folders
               .map((f) => ExpansionTile(
-                    iconColor: const Color(0xFFFFFF29),
-                    collapsedIconColor: Colors.grey,
+                    iconColor: AppC.accent,
+                    collapsedIconColor: AppC.muted,
                     leading: const Text('📝', style: TextStyle(fontSize: 20)),
-                    title: Text(f.examName, style: const TextStyle(color: Colors.white)),
+                    title: Text(f.examName, style: TextStyle(color: AppC.text)),
                     children: [
                       StreamBuilder<List<MockTestModel>>(
                         stream: _fs.streamMockTests(f.id),
                         builder: (context, testSnap) {
-                          if (testSnap.hasError) return const Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load tests.", style: TextStyle(color: Colors.grey, fontSize: 12)));
+                          if (testSnap.hasError) return Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load tests.", style: TextStyle(color: AppC.muted, fontSize: 12)));
                           if (!testSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
                           final tests = testSnap.data!;
-                          if (tests.isEmpty) return const Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: Colors.grey, fontSize: 12)));
+                          if (tests.isEmpty) return Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: AppC.muted, fontSize: 12)));
                           // Subject folders (if any) first, then tests without a subject.
                           final split = groupMockTestsBySubject(tests);
                           return Column(
                             children: [
                               ...split.groups.map((g) => ExpansionTile(
-                                    iconColor: const Color(0xFFFFFF29),
-                                    collapsedIconColor: Colors.grey,
+                                    iconColor: AppC.accent,
+                                    collapsedIconColor: AppC.muted,
                                     tilePadding: const EdgeInsets.only(left: 28, right: 16),
                                     leading: const Text('📚', style: TextStyle(fontSize: 18)),
-                                    title: Text(g.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                                    subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                    title: Text(g.name, style: TextStyle(color: AppC.text, fontSize: 14)),
+                                    subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: TextStyle(color: AppC.muted, fontSize: 11)),
                                     children: g.tests.map(_mockTestTile).toList(),
                                   )),
                               ...split.ungrouped.map(_mockTestTile),

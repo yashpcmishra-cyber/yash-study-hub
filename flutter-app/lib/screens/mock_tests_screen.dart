@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/state_views.dart';
 import 'mock_test_list_screen.dart';
+import '../app_colors.dart';
 
 class MockTestsScreen extends StatefulWidget {
   const MockTestsScreen({super.key});
@@ -54,12 +55,12 @@ class _MockTestsScreenState extends State<MockTestsScreen> {
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestListScreen(folder: f))),
                   child: ListTile(
                     leading: const Text('📝', style: TextStyle(fontSize: 22)),
-                    title: Text(f.examName, style: const TextStyle(color: Colors.white)),
+                    title: Text(f.examName, style: TextStyle(color: AppC.text)),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         ShareButton(onPressed: () => ShareService.freeMock(context, f.examName, folder: true)),
-                        const Icon(Icons.chevron_right, color: Colors.grey),
+                        Icon(Icons.chevron_right, color: AppC.muted),
                       ],
                     ),
                   ),

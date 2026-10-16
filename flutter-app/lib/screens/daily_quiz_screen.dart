@@ -5,8 +5,7 @@ import '../services/study_store.dart';
 import '../widgets/state_views.dart';
 import 'quiz_session_screen.dart';
 
-const _navy = Color(0xFF081136);
-const _cardBg = Color(0xFF101D57);
+import '../app_colors.dart';
 
 /// Today's Daily Quiz (5 or 10 questions as per the Daily goal, from PIB Current Affairs, Hindi + English).
 /// The quiz is created by a GitHub Action; the app reads it with just 1 read per day.
@@ -116,10 +115,10 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                 const Text('🧠', style: TextStyle(fontSize: 40)),
                 const SizedBox(height: 6),
                 Text(isOld ? 'Yesterday\u2019s Daily Quiz / कल का डेली क्विज़' : 'Today\u2019s Daily Quiz / आज का डेली क्विज़',
-                    style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 20)),
+                    style: const TextStyle(color: AppC.onGold, fontWeight: FontWeight.bold, fontSize: 20)),
                 const SizedBox(height: 4),
                 Text('${qs.length} questions • from PIB Current Affairs • Hindi + English\n${qs.length} सवाल • PIB करेंट अफेयर्स से • हिंदी + अंग्रेज़ी',
-                    textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF101D57), fontSize: 12.5)),
+                    textAlign: TextAlign.center, style: const TextStyle(color: AppC.onGold, fontSize: 12.5)),
               ],
             ),
           ),
@@ -127,23 +126,23 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           if (doneToday)
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(14)),
               child: Row(
                 children: [
                   const Text('✅', style: TextStyle(fontSize: 26)),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text('Done! Your score / पूरा हुआ! आपका स्कोर: ${_done!.score} / ${_done!.total}',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                        style: TextStyle(color: AppC.text, fontWeight: FontWeight.w600, fontSize: 14)),
                   ),
                 ],
               ),
             ),
           if (doneToday)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text('You can play again \u2014 but only the first attempt counts for score and goal.\nआप दोबारा खेल सकते हैं \u2014 पर स्कोर और गोल में केवल पहला प्रयास गिना जाता है।',
-                  textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 11.5)),
+                  textAlign: TextAlign.center, style: TextStyle(color: AppC.muted, fontSize: 11.5)),
             ),
           const SizedBox(height: 14),
           ElevatedButton(
@@ -151,16 +150,16 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
             child: Text(doneToday ? 'Play again / दोबारा खेलें' : 'Start quiz / क्विज़ शुरू करें'),
           ),
           const SizedBox(height: 14),
-          const Text(
+          Text(
             'After every answer you instantly see right/wrong and the explanation. Wrong questions are saved to the Mistake Notebook automatically.\nहर जवाब के बाद सही/गलत और व्याख्या तुरंत दिखती है। गलत सवाल अपने आप Mistake Notebook में सेव हो जाते हैं।',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+            style: TextStyle(color: AppC.muted, fontSize: 12, height: 1.4),
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Quiz length follows your Daily goal (5 or 10) on the Home screen.\nक्विज़ में सवालों की संख्या Home के Daily goal (5 या 10) के अनुसार होती है।',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+            style: TextStyle(color: AppC.muted, fontSize: 12, height: 1.4),
           ),
         ],
       ),

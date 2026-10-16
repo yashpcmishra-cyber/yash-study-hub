@@ -6,6 +6,7 @@ import '../widgets/depth_card.dart';
 import '../widgets/net_image.dart';
 import '../widgets/state_views.dart';
 import 'batch_detail_screen.dart';
+import '../app_colors.dart';
 
 /// "My Course" — only the paid batches this student's account currently has
 /// VALID access to (granted + not expired). Uses the same check as the
@@ -88,10 +89,10 @@ class _MyCourseScreenState extends State<MyCourseScreen> {
                             },
                             child: ListTile(
                               leading: NetImage(url: b.iconUrl, width: 44, height: 44, fallbackIcon: '🎓', radius: 10),
-                              title: Text(b.title, style: const TextStyle(color: Colors.white)),
+                              title: Text(b.title, style: TextStyle(color: AppC.text)),
                               subtitle: Text(
                                 '${b.mockOnly ? 'Mock Test Series' : '${b.videos} videos \u2022 ${b.pdfs} PDFs'}${b.hasValidity ? ' \u2022 ${b.validityLabel}' : ''}',
-                                style: const TextStyle(color: Colors.grey, fontSize: 11),
+                                style: TextStyle(color: AppC.muted, fontSize: 11),
                               ),
                               trailing: const Text('✅', style: TextStyle(fontSize: 16)),
                             ),

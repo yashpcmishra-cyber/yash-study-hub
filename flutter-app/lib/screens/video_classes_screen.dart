@@ -6,6 +6,7 @@ import '../widgets/net_image.dart';
 import '../widgets/state_views.dart';
 import 'video_folder_screen.dart';
 import 'video_player_screen.dart';
+import '../app_colors.dart';
 
 /// Free "Video Classes": folders first (if the admin created any), then the
 /// videos that are not inside a folder (newest first).
@@ -83,21 +84,21 @@ class _VideoClassesScreenState extends State<VideoClassesScreen> {
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => VideoFolderScreen(folder: f))),
                         child: ListTile(
                           leading: const Text('📁', style: TextStyle(fontSize: 22)),
-                          title: Text(f.name, style: const TextStyle(color: Colors.white)),
+                          title: Text(f.name, style: TextStyle(color: AppC.text)),
                           subtitle: FutureBuilder<int>(
                             future: _counts.putIfAbsent(f.id, () => _fs.countVideosInFolder(f.id)),
                             builder: (context, cSnap) => Text(
                               cSnap.hasData ? '${cSnap.data} videos' : '',
-                              style: const TextStyle(color: Colors.grey, fontSize: 11),
+                              style: TextStyle(color: AppC.muted, fontSize: 11),
                             ),
                           ),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                          trailing: Icon(Icons.chevron_right, color: AppC.muted),
                         ),
                       ),
                     if (folders.isNotEmpty && ungrouped.isNotEmpty)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.fromLTRB(2, 10, 2, 8),
-                        child: Text('Videos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: Text('Videos', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     for (final v in ungrouped)
                       DepthCard(
@@ -107,7 +108,7 @@ class _VideoClassesScreenState extends State<VideoClassesScreen> {
                         ),
                         child: ListTile(
                           leading: NetImage(url: v.thumbUrl, width: 64, height: 40, fallbackIcon: '🎬', radius: 6),
-                          title: Text(v.title, style: const TextStyle(color: Colors.white)),
+                          title: Text(v.title, style: TextStyle(color: AppC.text)),
                         ),
                       ),
                   ],

@@ -4,9 +4,7 @@ import '../services/mock_rank_service.dart';
 import '../services/study_store.dart';
 import '../widgets/di_image.dart';
 
-const _navy = Color(0xFF081136);
-const _cardBg = Color(0xFF101D57);
-const _gold = Color(0xFFFFFF29);
+import '../app_colors.dart';
 
 /// Ek-ek sawal ka quiz, har jawab ke turant baad sahi/galat + explanation.
 /// Daily Quiz aur Mistake Notebook ki practice - dono isi screen se chalte hain.
@@ -96,12 +94,12 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
     final r = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: _cardBg,
-        title: const Text('Leave the quiz? / क्विज़ बीच में छोड़ना है?', style: TextStyle(color: Colors.white, fontSize: 16)),
-        content: const Text('Your progress so far will not be saved. / अभी तक का प्रोग्रेस सेव नहीं होगा।', style: TextStyle(color: Colors.white70, fontSize: 13)),
+        backgroundColor: AppC.card2,
+        title: Text('Leave the quiz? / क्विज़ बीच में छोड़ना है?', style: TextStyle(color: AppC.text, fontSize: 16)),
+        content: Text('Your progress so far will not be saved. / अभी तक का प्रोग्रेस सेव नहीं होगा।', style: TextStyle(color: AppC.text70, fontSize: 13)),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Continue')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Exit', style: TextStyle(color: Colors.redAccent))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Exit', style: TextStyle(color: AppC.red))),
         ],
       ),
     );
@@ -145,8 +143,8 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(color: active ? _gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
-        child: Text(label, style: TextStyle(color: active ? _navy : Colors.white70, fontWeight: FontWeight.bold, fontSize: 12)),
+        decoration: BoxDecoration(color: active ? AppC.gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
+        child: Text(label, style: TextStyle(color: active ? AppC.onGold : Colors.white70, fontWeight: FontWeight.bold, fontSize: 12)),
       ),
     );
   }
@@ -163,18 +161,18 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
 
     return Column(
       children: [
-        LinearProgressIndicator(value: (_i + (answered ? 1 : 0)) / total, minHeight: 4, backgroundColor: Colors.white12, color: _gold),
+        LinearProgressIndicator(value: (_i + (answered ? 1 : 0)) / total, minHeight: 4, backgroundColor: AppC.text12, color: AppC.accent),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Row(children: [
-                Text('Question ${_i + 1} / $total', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text('Question ${_i + 1} / $total', style: TextStyle(color: AppC.muted, fontSize: 12)),
                 const Spacer(),
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   tooltip: saved ? 'Saved' : 'Save for later',
-                  icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border, color: saved ? _gold : Colors.white54),
+                  icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border, color: saved ? AppC.accent : AppC.text54),
                   onPressed: _toggleSave,
                 ),
               ]),
@@ -183,19 +181,19 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
+                  decoration: BoxDecoration(color: AppC.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppC.text12)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (passage.isNotEmpty) Text(passage, style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4)),
+                      if (passage.isNotEmpty) Text(passage, style: TextStyle(color: AppC.text70, fontSize: 12.5, height: 1.4)),
                       if (passageImg.isNotEmpty) Padding(padding: EdgeInsets.only(top: passage.isNotEmpty ? 8 : 0), child: DiImage(url: passageImg)),
                     ],
                   ),
                 ),
               Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(14)),
-                child: Text(mockText(q, _hindi), style: const TextStyle(color: Colors.white, fontSize: 15.5, height: 1.4, fontWeight: FontWeight.w600)),
+                decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(14)),
+                child: Text(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 15.5, height: 1.4, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(height: 12),
               for (var oi = 0; oi < opts.length; oi++) _option(oi, opts[oi], q.correctIndex),
@@ -204,13 +202,13 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
                   width: double.infinity,
                   margin: const EdgeInsets.only(top: 4),
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0x22FFFF29), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: AppC.goldWash, borderRadius: BorderRadius.circular(10)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Explanation', style: TextStyle(color: _gold, fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text('Explanation', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 12)),
                       const SizedBox(height: 4),
-                      Text(explanation, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.35)),
+                      Text(explanation, style: TextStyle(color: AppC.text, fontSize: 13, height: 1.35)),
                     ],
                   ),
                 ),
@@ -237,22 +235,22 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
     final answered = _picked != null;
     final isCorrect = oi == correct;
     final isPicked = oi == _picked;
-    var border = Colors.white24;
+    var border = AppC.text24;
     var fill = Colors.transparent;
-    var textColor = Colors.white;
+    var textColor = AppC.text;
     var mark = '';
     if (answered && isCorrect) {
-      border = Colors.greenAccent;
-      fill = const Color(0x2269F0AE);
-      textColor = Colors.greenAccent;
+      border = AppC.green;
+      fill = AppC.greenWash;
+      textColor = AppC.green;
       mark = '  ✓';
     } else if (answered && isPicked) {
-      border = Colors.redAccent;
-      fill = const Color(0x22FF5252);
-      textColor = Colors.redAccent;
+      border = AppC.red;
+      fill = AppC.redWash;
+      textColor = AppC.red;
       mark = '  ✗';
     } else if (answered) {
-      textColor = Colors.white54;
+      textColor = AppC.text54;
     }
     return GestureDetector(
       onTap: () => _pick(oi),
@@ -292,18 +290,18 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
           ),
           child: Column(
             children: [
-              Text('$correct / $total', style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 40)),
-              const Text('Correct answers / सही जवाब', style: TextStyle(color: Color(0xFF101D57), fontSize: 13)),
+              Text('$correct / $total', style: const TextStyle(color: AppC.onGold, fontWeight: FontWeight.bold, fontSize: 40)),
+              const Text('Correct answers / सही जवाब', style: TextStyle(color: AppC.onGold, fontSize: 13)),
               const SizedBox(height: 10),
-              Text(msg, textAlign: TextAlign.center, style: const TextStyle(color: _navy, fontWeight: FontWeight.w600, fontSize: 13)),
+              Text(msg, textAlign: TextAlign.center, style: const TextStyle(color: AppC.onGold, fontWeight: FontWeight.w600, fontSize: 13)),
             ],
           ),
         ),
         const SizedBox(height: 14),
-        const Text(
+        Text(
           'Wrong questions were added to the "Mistake Notebook" automatically. / गलत सवाल अपने आप Mistake Notebook में चले गए हैं।',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+          style: TextStyle(color: AppC.muted, fontSize: 12, height: 1.4),
         ),
         const SizedBox(height: 18),
         ElevatedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),

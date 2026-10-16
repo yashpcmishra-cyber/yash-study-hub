@@ -5,6 +5,7 @@ import '../widgets/depth_card.dart';
 import '../widgets/net_image.dart';
 import '../widgets/state_views.dart';
 import 'video_player_screen.dart';
+import '../app_colors.dart';
 
 /// Videos inside one folder of the free Video Classes section.
 class VideoFolderScreen extends StatefulWidget {
@@ -58,7 +59,7 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                   ),
                   child: ListTile(
                     leading: NetImage(url: v.thumbUrl, width: 64, height: 40, fallbackIcon: '🎬', radius: 6),
-                    title: Text(v.title, style: const TextStyle(color: Colors.white)),
+                    title: Text(v.title, style: TextStyle(color: AppC.text)),
                   ),
                 );
               },

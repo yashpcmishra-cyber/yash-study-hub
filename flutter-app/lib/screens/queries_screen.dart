@@ -10,6 +10,7 @@ import '../services/queries_service.dart';
 import '../services/query_seen_store.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/state_views.dart';
+import '../app_colors.dart';
 
 /// Cuts anything beyond [max] words (typing AND pasting), so the student can
 /// never go over the limit.
@@ -151,7 +152,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Write your doubt / अपना डाउट लिखें', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text('Write your doubt / अपना डाउट लिखें', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _ctrl,
@@ -161,12 +162,12 @@ class _QueriesScreenState extends State<QueriesScreen> {
                         textCapitalization: TextCapitalization.sentences,
                         inputFormatters: [_WordLimitFormatter(kQueryMaxWords)],
                         onChanged: (_) => setState(() {}),
-                        style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                        style: TextStyle(color: AppC.text, fontSize: 13.5),
                         decoration: InputDecoration(
                           hintText: 'Type your question here... / यहाँ अपना सवाल लिखें...',
-                          hintStyle: const TextStyle(color: Colors.white38),
+                          hintStyle: TextStyle(color: AppC.text38),
                           filled: true,
-                          fillColor: const Color(0xFF050B24),
+                          fillColor: AppC.bg,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                         ),
                       ),
@@ -174,7 +175,7 @@ class _QueriesScreenState extends State<QueriesScreen> {
                       Row(
                         children: [
                           Text('$words / $kQueryMaxWords words (शब्द)',
-                              style: TextStyle(color: words >= kQueryMaxWords ? Colors.orangeAccent : Colors.white54, fontSize: 12)),
+                              style: TextStyle(color: words >= kQueryMaxWords ? AppC.orange : AppC.text54, fontSize: 12)),
                           const Spacer(),
                           ElevatedButton(
                             onPressed: (_sending || words == 0) ? null : _send,
@@ -192,12 +193,12 @@ class _QueriesScreenState extends State<QueriesScreen> {
                 padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
                 child: Text(
                   'Doubts are deleted automatically after $kQueryRetentionDays days.\nडाउट $kQueryRetentionDays दिन बाद अपने आप डिलीट हो जाते हैं।',
-                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  style: TextStyle(color: AppC.text38, fontSize: 11),
                 ),
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(2, 6, 2, 8),
-                child: Text('My Queries / मेरे डाउट', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                child: Text('My Queries / मेरे डाउट', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
               ),
 
               // ---- my doubts ----
@@ -227,35 +228,35 @@ class _QueriesScreenState extends State<QueriesScreen> {
             Row(
               children: [
                 Text(q.answered ? '✅ Replied / जवाब आया' : '⏳ Pending / लंबित',
-                    style: TextStyle(color: q.answered ? Colors.greenAccent : Colors.amber, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                    style: TextStyle(color: q.answered ? AppC.green : AppC.amber, fontSize: 11.5, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                Text(date, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                Text(date, style: TextStyle(color: AppC.text38, fontSize: 11)),
               ],
             ),
             const SizedBox(height: 8),
-            Text(q.text, style: const TextStyle(color: Colors.white, fontSize: 13.5)),
+            Text(q.text, style: TextStyle(color: AppC.text, fontSize: 13.5)),
             if (q.answered) ...[
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFF29).withOpacity(0.08),
+                  color: AppC.gold.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFFFF29).withOpacity(0.3)),
+                  border: Border.all(color: AppC.accent.withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Reply / जवाब', style: TextStyle(color: Color(0xFFFFFF29), fontSize: 11, fontWeight: FontWeight.bold)),
+                    Text('Reply / जवाब', style: TextStyle(color: AppC.accent, fontSize: 11, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text(q.reply, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    Text(q.reply, style: TextStyle(color: AppC.text, fontSize: 13)),
                   ],
                 ),
               ),
             ],
             const SizedBox(height: 8),
-            Text('Deletes in ${q.daysLeft} days / ${q.daysLeft} दिन बाद डिलीट', style: const TextStyle(color: Colors.white30, fontSize: 10.5)),
+            Text('Deletes in ${q.daysLeft} days / ${q.daysLeft} दिन बाद डिलीट', style: TextStyle(color: AppC.text30, fontSize: 10.5)),
           ],
         ),
       ),

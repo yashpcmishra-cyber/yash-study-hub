@@ -6,6 +6,7 @@ import 'pdf_viewer_screen.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/net_image.dart';
 import '../widgets/state_views.dart';
+import '../app_colors.dart';
 
 class PdfFolderScreen extends StatefulWidget {
   final PdfFolderModel folder;
@@ -60,15 +61,15 @@ class _PdfFolderScreenState extends State<PdfFolderScreen> {
                   onTap: () => openPdfInApp(context, link: p.driveLink, title: p.title, allowExternalOpen: widget.folder.type != 'batch'),
                   child: ListTile(
                     leading: NetImage(url: p.iconUrl, width: 40, height: 40, fallbackIcon: '📄', radius: 8),
-                    title: Text(p.title, style: const TextStyle(color: Colors.white)),
+                    title: Text(p.title, style: TextStyle(color: AppC.text)),
                     // Share button only for FREE folders (paid-batch PDFs are never shareable).
                     trailing: widget.folder.type == 'batch'
-                        ? const Icon(Icons.chevron_right, color: Colors.grey, size: 20)
+                        ? Icon(Icons.chevron_right, color: AppC.muted, size: 20)
                         : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               ShareButton(onPressed: () => ShareService.freePdf(context, p.title)),
-                              const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                              Icon(Icons.chevron_right, color: AppC.muted, size: 20),
                             ],
                           ),
                   ),

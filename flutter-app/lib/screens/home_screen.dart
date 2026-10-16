@@ -32,6 +32,7 @@ import 'progress_screen.dart';
 import 'notifications_screen.dart';
 import 'admin/admin_login_screen.dart';
 import 'profile/profile_screen.dart';
+import '../app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -219,11 +220,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(title, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
           if (actionLabel != null)
             TextButton(
               onPressed: onAction,
-              child: Text(actionLabel, style: const TextStyle(color: Color(0xFFFFFF29))),
+              child: Text(actionLabel, style: TextStyle(color: AppC.accent)),
             ),
         ],
       ),
@@ -234,7 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Center(
-        child: Text(message, style: const TextStyle(color: Colors.grey, fontSize: 12), textAlign: TextAlign.center),
+        child: Text(message, style: TextStyle(color: AppC.muted, fontSize: 12), textAlign: TextAlign.center),
       ),
     );
   }
@@ -271,16 +272,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 final free = box.maxHeight - headerH - bannerH - socialH - 14 /* grid top gap */ - gap - 8 /* bottom */;
                 final cellH = (free / 3).clamp(72.0, 96.0).toDouble(); // chhote blocks (3 rows)
 
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    setState(_initStreams);
-                    await Future<void>.delayed(const Duration(milliseconds: 600));
-                  },
-                  child: ListView(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    children: [
-                      // Header
-                      Padding(
+                final isLight = AppTheme.isLight;
+                // Header (logo, naam, theme switch, bell). Dark: list ke saath scroll hota hai.
+                // Light: upar navy patti ban kar fixed rehta hai.
+                final Widget header = Padding(
                         padding: const EdgeInsets.all(14),
                         child: Row(
                           children: [
@@ -309,6 +304,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             ),
+                            // Theme switch (Dark <-> Light) - bell ke bagal me.
+                            if (AppTheme.enabled)
+                              IconButton(
+                                tooltip: AppTheme.isLight ? 'Dark theme' : 'Light theme',
+                                visualDensity: VisualDensity.compact,
+                                icon: Icon(
+                                  AppTheme.isLight ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                                  color: const Color(0xFFFFFF29),
+                                  size: 24,
+                                ),
+                                onPressed: () => AppTheme.toggle(),
+                              ),
                             StreamBuilder<DateTime>(
                               stream: _notifTimeStream,
                               builder: (context, nSnap) {
@@ -336,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             decoration: BoxDecoration(
                                               color: Colors.red,
                                               shape: BoxShape.circle,
-                                              border: Border.all(color: const Color(0xFF0A0A0A), width: 2),
+                                              border: Border.all(color: AppTheme.isLight ? AppC.navy : AppC.coal, width: 2),
                                             ),
                                           ),
                                         ),
@@ -347,7 +354,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                         ),
-                      ),
+                      );
+
+                final Widget homeList = RefreshIndicator(
+                  onRefresh: () async {
+                    setState(_initStreams);
+                    await Future<void>.delayed(const Duration(milliseconds: 600));
+                  },
+                  child: ListView(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    children: [
+                      if (!isLight) header,
 
                       // Greeting (between logo/title row and the banner)
                       if (_studentName.isNotEmpty)
@@ -356,8 +373,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text.rich(
                             TextSpan(
                               children: [
-                                const TextSpan(text: 'Hello! Welcome ', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
-                                TextSpan(text: _studentName, style: const TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold)),
+                                TextSpan(text: 'Hello! Welcome ', style: TextStyle(color: AppC.text70, fontWeight: FontWeight.w500)),
+                                TextSpan(text: _studentName, style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold)),
                               ],
                             ),
                             maxLines: 1,
@@ -489,6 +506,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 );
+                if (!isLight) return homeList;
+                return Column(
+                  children: [
+                    Container(width: double.infinity, color: AppC.navy, child: header),
+                    Expanded(child: homeList),
+                  ],
+                );
               },
             );
           },
@@ -520,12 +544,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 78,
                         width: 140,
                         fit: BoxFit.cover,
-                        errorWidget: (context, url, error) => Container(height: 78, color: const Color(0xFF1D3184), alignment: Alignment.center, child: const Text('▶️', style: TextStyle(fontSize: 26))),
+                        errorWidget: (context, url, error) => Container(height: 78, color: AppC.soft, alignment: Alignment.center, child: const Text('▶️', style: TextStyle(fontSize: 26))),
                       )
-                    : Container(height: 78, color: const Color(0xFF1D3184), alignment: Alignment.center, child: const Text('▶️', style: TextStyle(fontSize: 26))),
+                    : Container(height: 78, color: AppC.soft, alignment: Alignment.center, child: const Text('▶️', style: TextStyle(fontSize: 26))),
                 Padding(
                   padding: const EdgeInsets.all(8),
-                  child: Text(v.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 11.5)),
+                  child: Text(v.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppC.text, fontSize: 11.5)),
                 ),
               ],
             ),
@@ -541,7 +565,7 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: EdgeInsets.zero,
       pressScale: 0.93,
       pressBrighten: 0.08,
-      color: const Color(0xFF080E2A), // black + blue mix tile (opaque, grey nahi dikhega)
+      color: AppC.tile, // black + blue mix tile (opaque, grey nahi dikhega)
       glowColor: const Color(0xFFFFE81F), // neon yellow border + glow
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -552,7 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(label, maxLines: 1, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+              child: Text(label, maxLines: 1, style: TextStyle(color: AppC.text, fontSize: 12, fontWeight: FontWeight.w600)),
             ),
           ),
         ],
@@ -572,7 +596,7 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               color: Colors.red,
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF081136), width: 2),
+              border: Border.all(color: AppC.tile, width: 2),
             ),
           ),
         ),
@@ -614,9 +638,9 @@ class _SocialRotatorState extends State<_SocialRotator> {
   Widget build(BuildContext context) {
     final cfg = widget.cfg;
     final socials = <Map<String, dynamic>>[
-      {'title': 'Official Telegram', 'sub': 'Instant updates & PDFs', 'cta': 'Join', 'color': const Color(0xFF2AABEE), 'icon': Icons.send, 'url': cfg.telegramUrl},
-      {'title': 'Official WhatsApp', 'sub': 'Fastest notifications', 'cta': 'Follow', 'color': const Color(0xFF25D366), 'icon': Icons.chat, 'url': cfg.whatsappUrl},
-      {'title': 'Official YouTube', 'sub': 'Free live classes', 'cta': 'Sub', 'color': const Color(0xFFFF0000), 'icon': Icons.play_circle_fill, 'url': cfg.youtubeUrl},
+      {'title': 'Official Telegram', 'sub': 'Instant updates & PDFs', 'cta': 'Join', 'color': AppC.telegram, 'icon': Icons.send, 'url': cfg.telegramUrl},
+      {'title': 'Official WhatsApp', 'sub': 'Fastest notifications', 'cta': 'Follow', 'color': AppC.whatsapp, 'icon': Icons.chat, 'url': cfg.whatsappUrl},
+      {'title': 'Official YouTube', 'sub': 'Free live classes', 'cta': 'Sub', 'color': AppC.youtube, 'icon': Icons.play_circle_fill, 'url': cfg.youtubeUrl},
     ];
     final s = socials[_idx];
     final Color color = s['color'] as Color;
@@ -633,8 +657,8 @@ class _SocialRotatorState extends State<_SocialRotator> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(s['title'] as String, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text(s['sub'] as String, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                  Text(s['title'] as String, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(s['sub'] as String, style: TextStyle(color: AppC.muted, fontSize: 11)),
                 ],
               ),
             ),

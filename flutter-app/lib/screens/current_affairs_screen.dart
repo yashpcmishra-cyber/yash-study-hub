@@ -7,9 +7,7 @@ import '../widgets/depth_card.dart';
 import '../widgets/state_views.dart';
 import 'news_screen.dart';
 
-const Color _gold = Color(0xFFFFFF29);
-const Color _muted = Color(0xFF9AA3C7);
-const Color _navy = Color(0xFF050B24);
+import '../app_colors.dart';
 
 /// C.Affairs tab: upar "Daily One-Liners" aur "News" ke beech badlav.
 class CurrentAffairsScreen extends StatefulWidget {
@@ -31,12 +29,12 @@ class _CurrentAffairsScreenState extends State<CurrentAffairsScreen> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: on ? _gold : const Color(0x99081136),
+            color: on ? AppC.gold : AppC.cardA60,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             label,
-            style: TextStyle(color: on ? _navy : Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(color: on ? AppC.onGold : AppC.text, fontWeight: FontWeight.bold, fontSize: 13),
           ),
         ),
       ),
@@ -181,14 +179,14 @@ class _DailyCaViewState extends State<DailyCaView> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: on ? _gold : const Color(0x99081136),
+            color: on ? AppC.gold : AppC.cardA60,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: on ? _gold : const Color(0x33FFFFFF)),
+            border: Border.all(color: on ? AppC.accent : AppC.glass33),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: on ? _navy : Colors.white,
+              color: on ? AppC.onGold : AppC.text,
               fontSize: 12,
               fontWeight: on ? FontWeight.bold : FontWeight.normal,
             ),
@@ -213,7 +211,7 @@ class _DailyCaViewState extends State<DailyCaView> {
                 Expanded(
                   child: Text(
                     _topicLabel(item.topic),
-                    style: const TextStyle(color: _gold, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.4),
+                    style: TextStyle(color: AppC.accent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.4),
                   ),
                 ),
                 ValueListenableBuilder<bool>(
@@ -221,9 +219,9 @@ class _DailyCaViewState extends State<DailyCaView> {
                   builder: (context, isAdmin, _) => isAdmin
                       ? InkWell(
                           onTap: () => _confirmDelete(item),
-                          child: const Padding(
+                          child: Padding(
                             padding: EdgeInsets.all(4),
-                            child: Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                            child: Icon(Icons.delete_outline, color: AppC.red, size: 20),
                           ),
                         )
                       : const SizedBox.shrink(),
@@ -231,19 +229,19 @@ class _DailyCaViewState extends State<DailyCaView> {
               ],
             ),
             const SizedBox(height: 6),
-            if (showEn) Text(item.en, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4)),
+            if (showEn) Text(item.en, style: TextStyle(color: AppC.text, fontSize: 14, height: 1.4)),
             if (showEn && showHi)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Divider(height: 1, color: Color(0x22FFFFFF)),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Divider(height: 1, color: AppC.glass22),
               ),
-            if (showHi) Text(item.hi, style: const TextStyle(color: Color(0xFFDDE3FF), fontSize: 14, height: 1.5)),
+            if (showHi) Text(item.hi, style: TextStyle(color: AppC.textSoft2, fontSize: 14, height: 1.5)),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: item.link.isEmpty ? null : () => openExternalLink(context, item.link),
               child: Text(
                 'Source: ${item.source}${item.link.isEmpty ? '' : '  \u203A'}',
-                style: const TextStyle(color: _muted, fontSize: 10.5),
+                style: TextStyle(color: AppC.mutedBlue, fontSize: 10.5),
               ),
             ),
           ],
@@ -278,7 +276,7 @@ class _DailyCaViewState extends State<DailyCaView> {
         if (_note != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-            child: Text(_note!, style: const TextStyle(color: _muted, fontSize: 11.5)),
+            child: Text(_note!, style: TextStyle(color: AppC.mutedBlue, fontSize: 11.5)),
           ),
         Expanded(
           child: StreamBuilder<List<DailyCAModel>>(

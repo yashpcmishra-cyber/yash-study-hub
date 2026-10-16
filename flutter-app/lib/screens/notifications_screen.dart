@@ -5,6 +5,7 @@ import '../services/firestore_service.dart';
 import '../models/models.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/state_views.dart';
+import '../app_colors.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -45,9 +46,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: const Text('🔔', style: TextStyle(fontSize: 22)),
-                  title: Text(n.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: Text(n.body, style: const TextStyle(color: Colors.grey)),
-                  trailing: n.sentAt != null ? Text(DateFormat('d MMM').format(n.sentAt!), style: const TextStyle(color: Colors.grey, fontSize: 10)) : null,
+                  title: Text(n.title, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
+                  subtitle: Text(n.body, style: TextStyle(color: AppC.muted)),
+                  trailing: n.sentAt != null ? Text(DateFormat('d MMM').format(n.sentAt!), style: TextStyle(color: AppC.muted, fontSize: 10)) : null,
                 ),
               );
             },

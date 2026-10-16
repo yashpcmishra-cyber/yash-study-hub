@@ -7,6 +7,7 @@ import '../widgets/depth_card.dart';
 import '../widgets/net_image.dart';
 import '../widgets/state_views.dart';
 import 'pdf_folder_screen.dart';
+import '../app_colors.dart';
 
 class PdfLibraryScreen extends StatelessWidget {
   const PdfLibraryScreen({super.key});
@@ -18,9 +19,9 @@ class PdfLibraryScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('PDF Library'),
-          bottom: const TabBar(
-            indicatorColor: Color(0xFFFFFF29),
-            labelColor: Color(0xFFFFFF29),
+          bottom: TabBar(
+            indicatorColor: const Color(0xFFFFFF29),
+            labelColor: const Color(0xFFFFFF29),
             unselectedLabelColor: Colors.grey,
             tabs: [Tab(text: 'Free'), Tab(text: 'Paid Batch')],
           ),
@@ -77,12 +78,12 @@ class _FreeFoldersTabState extends State<_FreeFoldersTab> {
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PdfFolderScreen(folder: f))),
                 child: ListTile(
                   leading: const Text('📁', style: TextStyle(fontSize: 22)),
-                  title: Text(f.name, style: const TextStyle(color: Colors.white)),
+                  title: Text(f.name, style: TextStyle(color: AppC.text)),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ShareButton(onPressed: () => ShareService.freePdf(context, f.name, folder: true)),
-                      const Icon(Icons.chevron_right, color: Colors.grey),
+                      Icon(Icons.chevron_right, color: AppC.muted),
                     ],
                   ),
                 ),
@@ -173,29 +174,29 @@ class _BatchFoldersTabState extends State<_BatchFoldersTab> {
               return DepthCard(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ExpansionTile(
-                  iconColor: const Color(0xFFFFFF29),
-                  collapsedIconColor: Colors.grey,
+                  iconColor: AppC.accent,
+                  collapsedIconColor: AppC.muted,
                   leading: NetImage(url: b.iconUrl, width: 36, height: 36, fallbackIcon: '🎓', radius: 8),
-                  title: Text(b.title, style: const TextStyle(color: Colors.white)),
+                  title: Text(b.title, style: TextStyle(color: AppC.text)),
                   children: [
                     StreamBuilder<List<PdfFolderModel>>(
                       stream: _fs.streamFolders(type: 'batch', batchId: b.id),
                       builder: (context, fsnap) {
                         if (fsnap.hasError) {
-                          return const Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load folders.", style: TextStyle(color: Colors.grey, fontSize: 12)));
+                          return Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load folders.", style: TextStyle(color: AppC.muted, fontSize: 12)));
                         }
                         if (!fsnap.hasData) {
                           return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
                         }
                         final folders = fsnap.data!;
                         if (folders.isEmpty) {
-                          return const Padding(padding: EdgeInsets.all(12), child: Text('No folder in this batch yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
+                          return Padding(padding: EdgeInsets.all(12), child: Text('No folder in this batch yet', style: TextStyle(color: AppC.muted, fontSize: 12)));
                         }
                         return Column(
                           children: folders
                               .map((f) => ListTile(
                                     leading: const Text('📁', style: TextStyle(fontSize: 18)),
-                                    title: Text(f.name, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                    title: Text(f.name, style: TextStyle(color: AppC.text, fontSize: 13)),
                                     onTap: () => _openFolder(b, f),
                                   ))
                               .toList(),

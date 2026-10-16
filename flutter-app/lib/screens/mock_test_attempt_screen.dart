@@ -8,9 +8,7 @@ import 'mock_test_scorecard_screen.dart';
 import '../widgets/space_background.dart';
 import '../widgets/di_image.dart';
 
-const _navy = Color(0xFF081136);
-const _cardBg = Color(0xFF101D57);
-const _gold = Color(0xFFFFFF29);
+import '../app_colors.dart';
 
 /// Exam-style screen: ek screen par ek question, upar countdown timer,
 /// neeche Previous / Clear / Next. Answer submit ke baad hi dikhte hain.
@@ -81,9 +79,9 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     final leave = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: _navy,
-        title: const Text('Leave the test?', style: TextStyle(color: Colors.white)),
-        content: const Text('Your answers will be lost.', style: TextStyle(color: Colors.grey)),
+        backgroundColor: AppC.card,
+        title: Text('Leave the test?', style: TextStyle(color: AppC.text)),
+        content: Text('Your answers will be lost.', style: TextStyle(color: AppC.muted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Stay')),
           ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Leave')),
@@ -99,7 +97,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
   void _openPalette() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: _navy,
+      backgroundColor: AppC.card,
       builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -107,9 +105,9 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Jump to question', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text('Jump to question', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              const Text('Green = answered', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              Text('Green = answered', style: TextStyle(color: AppC.muted, fontSize: 11)),
               const SizedBox(height: 12),
               Flexible(
                 child: SingleChildScrollView(
@@ -129,11 +127,11 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                           height: 42,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: answered ? Colors.green.shade700 : _cardBg,
+                            color: answered ? Colors.green.shade700 : AppC.card2,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: current ? _gold : Colors.white24, width: current ? 2 : 1),
+                            border: Border.all(color: current ? AppC.accent : AppC.text24, width: current ? 2 : 1),
                           ),
-                          child: Text('${i + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          child: Text('${i + 1}', style: TextStyle(color: answered ? Colors.white : AppC.text, fontWeight: FontWeight.bold)),
                         ),
                       );
                     }),
@@ -164,8 +162,8 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
       final proceed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          backgroundColor: _navy,
-          title: const Text('Submit the test?', style: TextStyle(color: Colors.white)),
+          backgroundColor: AppC.card,
+          title: Text('Submit the test?', style: TextStyle(color: AppC.text)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,13 +172,13 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                 unanswered > 0
                     ? '$unanswered questions are still unanswered. You can\u2019t go back after submitting.'
                     : 'You can\u2019t go back after submitting. Please confirm.',
-                style: const TextStyle(color: Colors.grey),
+                style: TextStyle(color: AppC.muted),
               ),
               if (savedIdentity.isEmpty) ...[
                 const SizedBox(height: 14),
                 TextField(
                   controller: _identityController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppC.text),
                   decoration: const InputDecoration(
                     labelText: 'Your name or email (optional)',
                     helperText: 'So your teacher can see your score',
@@ -269,7 +267,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
         if (!didPop) _confirmLeave();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF050B24),
+        backgroundColor: AppC.bg,
         appBar: AppBar(
           // Landscape: slim bar that also carries the timer + language toggle,
           // so the separate header row is not needed and more screen is left.
@@ -280,18 +278,18 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                   children: [
                     Flexible(child: Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16))),
                     const SizedBox(width: 14),
-                    _timerRow(),
+                    _timerRow(onBar: true),
                   ],
                 )
               : Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
-            if (land && total > 0 && _hasHindi) ...[_langToggle(), const SizedBox(width: 4)],
+            if (land && total > 0 && _hasHindi) ...[_langToggle(onBar: true), const SizedBox(width: 4)],
             if (total > 0) IconButton(tooltip: 'Questions', icon: const Icon(Icons.grid_view_rounded), onPressed: _openPalette),
             TextButton(onPressed: _submitting ? null : () => _submit(), child: const Text('Submit')),
           ],
         ),
         body: total == 0
-            ? const Center(child: Text('This test has no questions yet', style: TextStyle(color: Colors.grey)))
+            ? Center(child: Text('This test has no questions yet', style: TextStyle(color: AppC.muted)))
             : (land ? _landscapeBody(total) : _body(total)),
       ),
     );
@@ -310,7 +308,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _passageBox(q),
-                Text(mockText(q, _hindi), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600, height: 1.4)),
+                Text(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 16, fontWeight: FontWeight.w600, height: 1.4)),
                 const SizedBox(height: 16),
                 for (var oi = 0; oi < opts.length; oi++) _optionTile(oi, opts[oi]),
               ],
@@ -332,11 +330,11 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.all(compact ? 8 : 12),
-      decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
+      decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppC.text12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (p.isNotEmpty) Text(p, style: TextStyle(color: Colors.white70, fontSize: compact ? 12.5 : 14, height: 1.4)),
+          if (p.isNotEmpty) Text(p, style: TextStyle(color: AppC.text70, fontSize: compact ? 12.5 : 14, height: 1.4)),
           if (img.isNotEmpty) Padding(padding: EdgeInsets.only(top: p.isNotEmpty ? 8 : 0), child: DiImage(url: img)),
         ],
       ),
@@ -349,30 +347,35 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
         '${t.negativeMarks > 0 ? '  /  \u2212${fmtMarks(t.negativeMarks)}' : ''}';
   }
 
-  Widget _timerRow() {
+  Widget _timerRow({bool onBar = false}) {
     final lowTime = _timed && _secondsShown <= 60;
+    // Top bar (landscape) light theme me navy hoti hai, isliye wahan safed/yellow.
+    final cText = onBar ? Colors.white : AppC.text;
+    final cAccent = onBar ? const Color(0xFFFFFF29) : AppC.accent;
+    final cRed = onBar ? Colors.redAccent : AppC.red;
+    final cMuted = onBar ? Colors.grey : AppC.muted;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.timer_outlined, size: 18, color: lowTime ? Colors.redAccent : _gold),
+        Icon(Icons.timer_outlined, size: 18, color: lowTime ? cRed : cAccent),
         const SizedBox(width: 4),
         Text(
           fmtDuration(_secondsShown),
-          style: TextStyle(color: lowTime ? Colors.redAccent : Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(color: lowTime ? cRed : cText, fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        if (!_timed) const Text('  (no limit)', style: TextStyle(color: Colors.grey, fontSize: 11)),
+        if (!_timed) Text('  (no limit)', style: TextStyle(color: cMuted, fontSize: 11)),
       ],
     );
   }
 
-  Widget _langToggle() {
+  Widget _langToggle({bool onBar = false}) {
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: Colors.white24), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(border: Border.all(color: onBar ? Colors.white24 : AppC.text24), borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _langBtn('EN', !_hindi, () => setState(() => _hindi = false)),
-          _langBtn('\u0939\u093f\u0902', _hindi, () => setState(() => _hindi = true)),
+          _langBtn('EN', !_hindi, () => setState(() => _hindi = false), onBar: onBar),
+          _langBtn('\u0939\u093f\u0902', _hindi, () => setState(() => _hindi = true), onBar: onBar),
         ],
       ),
     );
@@ -400,15 +403,15 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_marksLine(total), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text(_marksLine(total), style: TextStyle(color: AppC.muted, fontSize: 12)),
                         const SizedBox(height: 6),
                         _passageBox(q, compact: true),
-                        Text(mockText(q, _hindi), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
+                        Text(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
                       ],
                     ),
                   ),
                 ),
-                const VerticalDivider(width: 1, thickness: 1, color: Colors.white12),
+                VerticalDivider(width: 1, thickness: 1, color: AppC.text12),
                 Expanded(
                   flex: 10,
                   child: SingleChildScrollView(
@@ -433,7 +436,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     final lowTime = _timed && _secondsShown <= 60;
     final marksLine = _marksLine(total);
     return Container(
-      color: _cardBg,
+      color: AppC.card2,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
         children: [
@@ -442,16 +445,16 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Icon(Icons.timer_outlined, size: 18, color: lowTime ? Colors.redAccent : _gold),
+                  Icon(Icons.timer_outlined, size: 18, color: lowTime ? AppC.red : AppC.accent),
                   const SizedBox(width: 4),
                   Text(
                     fmtDuration(_secondsShown),
-                    style: TextStyle(color: lowTime ? Colors.redAccent : Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+                    style: TextStyle(color: lowTime ? AppC.red : AppC.text, fontWeight: FontWeight.bold, fontSize: 17),
                   ),
-                  if (!_timed) const Text('  (no limit)', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                  if (!_timed) Text('  (no limit)', style: TextStyle(color: AppC.muted, fontSize: 11)),
                 ]),
                 const SizedBox(height: 2),
-                Text(marksLine, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(marksLine, style: TextStyle(color: AppC.muted, fontSize: 12)),
               ],
             ),
           ),
@@ -461,13 +464,13 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     );
   }
 
-  Widget _langBtn(String label, bool active, VoidCallback onTap) {
+  Widget _langBtn(String label, bool active, VoidCallback onTap, {bool onBar = false}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(color: active ? _gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
-        child: Text(label, style: TextStyle(color: active ? _navy : Colors.white70, fontWeight: FontWeight.bold, fontSize: 13)),
+        decoration: BoxDecoration(color: active ? AppC.gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
+        child: Text(label, style: TextStyle(color: active ? AppC.onGold : (onBar ? Colors.white70 : AppC.text70), fontWeight: FontWeight.bold, fontSize: 13)),
       ),
     );
   }
@@ -482,9 +485,9 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
           width: double.infinity,
           padding: EdgeInsets.all(compact ? 8 : 12),
           decoration: BoxDecoration(
-            color: selected ? const Color(0x33FFFF29) : _cardBg,
+            color: selected ? AppC.goldWash2 : AppC.card2,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: selected ? _gold : Colors.white24, width: selected ? 2 : 1),
+            border: Border.all(color: selected ? AppC.accent : AppC.text24, width: selected ? 2 : 1),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,16 +498,16 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: selected ? _gold : Colors.transparent,
-                  border: Border.all(color: selected ? _gold : Colors.white54),
+                  color: selected ? AppC.gold : Colors.transparent,
+                  border: Border.all(color: selected ? AppC.accent : AppC.text54),
                 ),
                 child: Text(
                   String.fromCharCode(65 + oi),
-                  style: TextStyle(color: selected ? _navy : Colors.white70, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: TextStyle(color: selected ? AppC.onGold : AppC.text70, fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.3))),
+              Expanded(child: Text(text, style: TextStyle(color: AppC.text, fontSize: 14, height: 1.3))),
             ],
           ),
         ),
@@ -518,7 +521,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     return SafeArea(
       top: false,
       child: Container(
-        color: _cardBg,
+        color: AppC.card2,
         padding: EdgeInsets.fromLTRB(12, compact ? 4 : 8, 12, compact ? 4 : 8),
         child: Row(
           children: [

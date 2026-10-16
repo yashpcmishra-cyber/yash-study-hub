@@ -3,8 +3,7 @@ import '../services/leaderboard_service.dart';
 import '../services/mock_rank_service.dart' show fmtMarks;
 import '../widgets/state_views.dart';
 
-const _cardBg = Color(0xFF101D57);
-const _gold = Color(0xFFFFFF29);
+import '../app_colors.dart';
 
 /// Ek mock test ki Leaderboard - SIRF marks ke hisaab se rank list.
 /// Kisi student ka naam / email / photo yahan nahi aata.
@@ -71,10 +70,10 @@ class _MockLeaderboardScreenState extends State<MockLeaderboardScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text(widget.testTitle,
-              textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 4),
           Text('${d.total} ${d.total == 1 ? 'student has' : 'students have'} taken this test / ${d.total} छात्रों ने यह टेस्ट दिया',
-              textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              textAlign: TextAlign.center, style: TextStyle(color: AppC.muted, fontSize: 12)),
           const SizedBox(height: 12),
           _myCard(d),
           const SizedBox(height: 14),
@@ -84,17 +83,17 @@ class _MockLeaderboardScreenState extends State<MockLeaderboardScreen> {
               child: EmptyView('No one has taken this test yet.\nBe the first! 🏆\n\nअभी किसी ने यह टेस्ट नहीं दिया।\nपहले आप बनें! 🏆'),
             )
           else ...[
-            const Text('Top ranks', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+            Text('Top ranks', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 8),
             for (final r in d.rows) _row(r),
           ],
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Rank depends only on marks \u2014 no names are shown. Equal marks = equal rank. '
             'The first attempt\u2019s marks are counted. Data is removed after 30 days.\n'
             'रैंक केवल अंकों से तय होती है — नाम नहीं दिखते। बराबर अंक = बराबर रैंक। पहले प्रयास के अंक गिने जाते हैं। डेटा 30 दिन बाद हट जाता है।',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 11.5, height: 1.4),
+            style: TextStyle(color: AppC.muted, fontSize: 11.5, height: 1.4),
           ),
         ],
       ),
@@ -120,15 +119,15 @@ class _MockLeaderboardScreenState extends State<MockLeaderboardScreen> {
           : const Text(
               'You have not taken this test yet. Your rank will appear here after you take it.\nआपने यह टेस्ट अभी नहीं दिया है। टेस्ट देने के बाद आपकी रैंक यहाँ दिखेगी।',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF081136), fontSize: 13, fontWeight: FontWeight.w600),
+              style: TextStyle(color: AppC.onGold, fontSize: 13, fontWeight: FontWeight.w600),
             ),
     );
   }
 
   Widget _big(String value, String label) {
     return Column(children: [
-      Text(value, style: const TextStyle(color: Color(0xFF081136), fontWeight: FontWeight.bold, fontSize: 26)),
-      Text(label, style: const TextStyle(color: Color(0xFF101D57), fontSize: 12)),
+      Text(value, style: const TextStyle(color: AppC.onGold, fontWeight: FontWeight.bold, fontSize: 26)),
+      Text(label, style: const TextStyle(color: AppC.onGold, fontSize: 12)),
     ]);
   }
 
@@ -138,21 +137,21 @@ class _MockLeaderboardScreenState extends State<MockLeaderboardScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: r.isMe ? const Color(0x33FFFF29) : _cardBg,
+        color: r.isMe ? AppC.goldWash2 : AppC.card2,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: r.isMe ? _gold : Colors.transparent),
+        border: Border.all(color: r.isMe ? AppC.accent : Colors.transparent),
       ),
       child: Row(
         children: [
           SizedBox(
             width: 56,
             child: Text(medal.isEmpty ? '#${r.rank}' : '$medal  #${r.rank}',
-                style: TextStyle(color: r.rank <= 3 ? _gold : Colors.white70, fontWeight: FontWeight.bold, fontSize: 14)),
+                style: TextStyle(color: r.rank <= 3 ? AppC.accent : AppC.text70, fontWeight: FontWeight.bold, fontSize: 14)),
           ),
           Expanded(
-            child: Text(r.isMe ? 'You' : '', style: TextStyle(color: r.isMe ? _gold : Colors.white38, fontSize: 13, fontWeight: r.isMe ? FontWeight.bold : FontWeight.normal)),
+            child: Text(r.isMe ? 'You' : '', style: TextStyle(color: r.isMe ? AppC.accent : AppC.text38, fontSize: 13, fontWeight: r.isMe ? FontWeight.bold : FontWeight.normal)),
           ),
-          Text('${fmtMarks(r.marks)} marks', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+          Text('${fmtMarks(r.marks)} marks', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14)),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import '../utils/open_link.dart';
 import '../widgets/space_background.dart';
+import '../app_colors.dart';
 
 /// Opens a PDF INSIDE the app (instead of sending the student to Drive / the
 /// browser).
@@ -285,7 +286,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
-    return IconButton(tooltip: 'Download PDF', icon: const Icon(Icons.download), onPressed: _download);
+    return IconButton(tooltip: 'Download PDF', icon: const Icon(Icons.download, color: Colors.white), onPressed: _download);
   }
 
   // Small floating controls shown in landscape (the top bar is hidden there).
@@ -340,7 +341,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     final landscape = MediaQuery.of(context).orientation == Orientation.landscape;
     _applyOrientation(landscape);
     return Scaffold(
-      backgroundColor: const Color(0xFF050B24),
+      backgroundColor: AppC.bg,
       appBar: landscape
           ? null
           : AppBar(
@@ -361,25 +362,25 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           Positioned.fill(child: WebViewWidget(controller: _controller)),
           if (landscape) _landscapeControls(),
           if (_progress < 100 && !_failed)
-            const Align(
+            Align(
               alignment: Alignment.topCenter,
-              child: LinearProgressIndicator(minHeight: 3, color: Color(0xFFFFFF29), backgroundColor: Colors.transparent),
+              child: LinearProgressIndicator(minHeight: 3, color: AppC.accent, backgroundColor: Colors.transparent),
             ),
           if (_failed)
             Positioned.fill(
               child: Container(
-                color: const Color(0xFF050B24),
+                color: AppC.bg,
                 alignment: Alignment.center,
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.picture_as_pdf, color: Colors.white38, size: 40),
+                    Icon(Icons.picture_as_pdf, color: AppC.text38, size: 40),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Could not load this PDF. Check your internet connection and try again. / PDF लोड नहीं हुई। इंटरनेट जाँचकर दोबारा कोशिश करें।',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white54),
+                      style: TextStyle(color: AppC.text54),
                     ),
                     const SizedBox(height: 14),
                     ElevatedButton(onPressed: _reload, child: const Text('Try again')),

@@ -5,6 +5,7 @@ import 'package:chewie/chewie.dart';
 import '../utils/open_link.dart';
 import '../widgets/landscape_frame.dart';
 import '../widgets/space_background.dart';
+import '../app_colors.dart';
 
 /// In-built video player: playback speed, fullscreen with auto-rotate, and
 /// proper stop when the user presses back — handled by disposing the
@@ -98,7 +99,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Widget _errorScaffold(String message) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050B24),
+      backgroundColor: AppC.bg,
       appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
       body: Center(
         child: Padding(
@@ -106,7 +107,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(message, style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
+              Text(message, style: TextStyle(color: AppC.text70), textAlign: TextAlign.center),
               if (widget.allowExternalOpen) ...[
                 const SizedBox(height: 14),
                 TextButton.icon(
@@ -142,7 +143,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ],
         ),
         builder: (context, player) => Scaffold(
-          backgroundColor: const Color(0xFF050B24),
+          backgroundColor: AppC.bg,
           appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
           body: Column(
             children: [
@@ -167,7 +168,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final chewie = _chewieController;
     final vpc = _vpController;
     return Scaffold(
-      backgroundColor: const Color(0xFF050B24),
+      backgroundColor: AppC.bg,
       appBar: AppBar(title: Text(widget.title, overflow: TextOverflow.ellipsis)),
       body: Center(
         child: chewie != null && vpc != null

@@ -7,6 +7,7 @@ import 'auth/login_screen.dart';
 import 'profile/profile_screen.dart';
 import 'home_screen.dart';
 import '../services/update_checker.dart';
+import '../app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -91,8 +92,8 @@ class _SplashScreenState extends State<SplashScreen> {
                     child: Image.asset('assets/logo.png', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Text('🎓', style: TextStyle(fontSize: 60)))),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Yash Study Hub', style: TextStyle(color: Color(0xFFFFFF29), fontSize: 24, fontWeight: FontWeight.bold)),
-                  const Text('COMPETITIVE EXAM PREP', style: TextStyle(color: Colors.grey, fontSize: 12, letterSpacing: 1)),
+                  Text('Yash Study Hub', style: TextStyle(color: AppC.accent, fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text('COMPETITIVE EXAM PREP', style: TextStyle(color: AppC.muted, fontSize: 12, letterSpacing: 1)),
                 ],
               ),
             ),
@@ -117,19 +118,19 @@ class _SplashScreenState extends State<SplashScreen> {
                     width: 36,
                     height: 2,
                     decoration: BoxDecoration(
-                      color: const Color(0xCCFFFF29),
+                      color: AppC.gold.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text.rich(
+                  Text.rich(
                     TextSpan(
-                      style: TextStyle(color: Color(0xFFD7DCF2), fontSize: 15, letterSpacing: 0.6),
+                      style: TextStyle(color: AppC.textSoft, fontSize: 15, letterSpacing: 0.6),
                       children: [
                         TextSpan(text: 'Welcome to the '),
                         TextSpan(
                           text: 'Yash Study Hub',
-                          style: TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold),
+                          style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
