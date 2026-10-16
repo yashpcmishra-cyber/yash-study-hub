@@ -7,7 +7,7 @@ import 'quiz_session_screen.dart';
 
 import '../app_colors.dart';
 
-/// Today's Daily Quiz (5 or 10 questions as per the Daily goal, from PIB Current Affairs, Hindi + English).
+/// Today's Daily Quiz (up to 10 questions/day, capped by the Daily goal, from PIB Current Affairs, Hindi + English).
 /// The quiz is created by a GitHub Action; the app reads it with just 1 read per day.
 class DailyQuizScreen extends StatefulWidget {
   const DailyQuizScreen({super.key});
@@ -22,7 +22,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
   QuizDone? _done;
   Object? _error;
   bool _loading = true;
-  int _count = StudyStore.defaultGoal; // number of questions = Daily goal (5 or 10)
+  int _count = StudyStore.defaultGoal; // quiz shows min(Daily goal, questions available) - quiz has at most 10
 
   @override
   void initState() {
@@ -157,7 +157,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Quiz length follows your Daily goal (5 or 10) on the Home screen.\nक्विज़ में सवालों की संख्या Home के Daily goal (5 या 10) के अनुसार होती है।',
+            'Daily Quiz has up to 10 questions a day. Complete the rest of your Daily goal with Mock Tests.\nडेली क्विज़ में रोज़ अधिकतम 10 सवाल होते हैं। बाकी Daily goal Mock Tests से पूरा करें।',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppC.muted, fontSize: 12, height: 1.4),
           ),
