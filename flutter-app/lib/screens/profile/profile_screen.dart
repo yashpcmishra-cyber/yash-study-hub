@@ -8,6 +8,7 @@ import '../../services/firestore_service.dart';
 import '../../utils/open_link.dart';
 import '../auth/login_screen.dart';
 import '../home_screen.dart';
+import '../../app_colors.dart';
 
 // Fixed, stable list — doesn't need a backend/admin update ever.
 const List<String> kIndianStatesAndUTs = [
@@ -156,8 +157,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   InputDecoration _dec(String label, IconData icon) => InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.grey),
-        prefixIcon: Icon(icon, color: Colors.grey),
+        labelStyle: TextStyle(color: AppC.muted),
+        prefixIcon: Icon(icon, color: AppC.muted),
       );
 
   Widget _contactSection() {
@@ -171,16 +172,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       children: [
         Row(
-          children: const [
-            Expanded(child: Divider(color: Color(0xFF2A2D3A), height: 1)),
+          children: [
+            Expanded(child: Divider(color: AppC.divider2, height: 1)),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 10),
               child: Text(
                 'Contact and Join Us',
-                style: TextStyle(color: Color(0xFFFFFF2E), fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(color: AppC.softYellowText, fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
-            Expanded(child: Divider(color: Color(0xFF2A2D3A), height: 1)),
+            Expanded(child: Divider(color: AppC.divider2, height: 1)),
           ],
         ),
         const SizedBox(height: 14),
@@ -204,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 6),
                       FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(l.label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        child: Text(l.label, style: TextStyle(color: AppC.text, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -230,14 +231,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             InkWell(
               borderRadius: BorderRadius.circular(8),
               onTap: _deleteAccount,
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.delete_forever_outlined, color: Color(0xFFFF5252), size: 24),
-                    Text('Delete Account', style: TextStyle(color: Color(0xFFFF5252), fontSize: 9.5, fontWeight: FontWeight.w600)),
+                    Icon(Icons.delete_forever_outlined, color: const Color(0xFFFF5252), size: 24),
+                    Text('Delete Account', style: TextStyle(color: const Color(0xFFFF5252), fontSize: 9.5, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -254,32 +255,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (widget.isSetup) ...[
-                        const Text(
+                        Text(
                           'One last step — tell us a bit about yourself.\nएक आखिरी स्टेप — अपने बारे में थोड़ा बताइए।',
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                          style: TextStyle(color: AppC.text70, fontSize: 13),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 20),
                       ],
-                      Text(_email, style: const TextStyle(color: Colors.grey, fontSize: 12.5), textAlign: TextAlign.center),
+                      Text(_email, style: TextStyle(color: AppC.muted, fontSize: 12.5), textAlign: TextAlign.center),
                       const SizedBox(height: 18),
-                      TextField(controller: _name, style: const TextStyle(color: Colors.white), decoration: _dec('Full Name *', Icons.person_outline)),
+                      TextField(controller: _name, style: TextStyle(color: AppC.text), decoration: _dec('Full Name *', Icons.person_outline)),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
                         value: _state,
-                        dropdownColor: const Color(0xFF081136),
-                        style: const TextStyle(color: Colors.white),
+                        dropdownColor: AppC.card,
+                        style: TextStyle(color: AppC.text),
                         decoration: _dec('State *', Icons.map_outlined),
                         items: kIndianStatesAndUTs.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) => setState(() => _state = v),
                       ),
                       const SizedBox(height: 14),
-                      TextField(controller: _district, style: const TextStyle(color: Colors.white), decoration: _dec('District *', Icons.location_city_outlined)),
+                      TextField(controller: _district, style: TextStyle(color: AppC.text), decoration: _dec('District *', Icons.location_city_outlined)),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
                         value: _gender,
-                        dropdownColor: const Color(0xFF081136),
-                        style: const TextStyle(color: Colors.white),
+                        dropdownColor: AppC.card,
+                        style: TextStyle(color: AppC.text),
                         decoration: _dec('Gender *', Icons.wc_outlined),
                         items: kGenders.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
                         onChanged: (v) => setState(() => _gender = v),
@@ -287,20 +288,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
                         value: _qualification,
-                        dropdownColor: const Color(0xFF081136),
-                        style: const TextStyle(color: Colors.white),
+                        dropdownColor: AppC.card,
+                        style: TextStyle(color: AppC.text),
                         decoration: _dec('Qualification *', Icons.school_outlined),
                         items: kQualifications.map((q) => DropdownMenuItem(value: q, child: Text(q))).toList(),
                         onChanged: (v) => setState(() => _qualification = v),
                       ),
                       if (_qualification == 'Other') ...[
                         const SizedBox(height: 14),
-                        TextField(controller: _qualOther, style: const TextStyle(color: Colors.white), decoration: _dec('Please specify', Icons.edit_outlined)),
+                        TextField(controller: _qualOther, style: TextStyle(color: AppC.text), decoration: _dec('Please specify', Icons.edit_outlined)),
                       ],
                       if (_error != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 16),
-                          child: Text(_error!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12.5), textAlign: TextAlign.center),
+                          child: Text(_error!, style: TextStyle(color: AppC.orange, fontSize: 12.5), textAlign: TextAlign.center),
                         ),
                       const SizedBox(height: 22),
                       ElevatedButton(
@@ -362,9 +363,9 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     }
   }
 
-  Widget _line(String text, {Color color = Colors.white70}) => Padding(
+  Widget _line(String text, {Color? color}) => Padding(
         padding: const EdgeInsets.only(bottom: 4),
-        child: Text(text, style: TextStyle(color: color, fontSize: 13)),
+        child: Text(text, style: TextStyle(color: color ?? AppC.text70, fontSize: 13)),
       );
 
   @override
@@ -372,12 +373,12 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     return PopScope(
       canPop: !_busy,
       child: AlertDialog(
-        backgroundColor: const Color(0xFF081136),
-        title: const Row(
+        backgroundColor: AppC.card,
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5252)),
+            Icon(Icons.warning_amber_rounded, color: AppC.redText),
             SizedBox(width: 8),
-            Expanded(child: Text('Delete Account?', style: TextStyle(color: Colors.white))),
+            Expanded(child: Text('Delete Account?', style: TextStyle(color: AppC.text))),
           ],
         ),
         content: SingleChildScrollView(
@@ -385,8 +386,8 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _line('This will permanently delete your login and your data. This cannot be undone.', color: Colors.white),
-              _line('यह आपका लॉगिन और डेटा हमेशा के लिए हटा देगा। वापस नहीं आ सकता।', color: Colors.white),
+              _line('This will permanently delete your login and your data. This cannot be undone.', color: AppC.text),
+              _line('यह आपका लॉगिन और डेटा हमेशा के लिए हटा देगा। वापस नहीं आ सकता।', color: AppC.text),
               const SizedBox(height: 8),
               _line('\u2022 Your profile (name, state, district, gender, qualification)'),
               _line('\u2022 Your doubts / queries and the replies'),
@@ -394,19 +395,19 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
               const SizedBox(height: 6),
               _line(
                 'Note: the admin\u2019s paid-batch access / payment record is not removed.',
-                color: Colors.grey,
+                color: AppC.muted,
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _password,
                 enabled: !_busy,
                 obscureText: _obscure,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: AppC.text),
                 decoration: InputDecoration(
                   labelText: 'Enter password to confirm',
-                  labelStyle: const TextStyle(color: Colors.grey),
+                  labelStyle: TextStyle(color: AppC.muted),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                    icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: AppC.muted),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
@@ -414,7 +415,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Text(_error!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12.5)),
+                  child: Text(_error!, style: TextStyle(color: AppC.orange, fontSize: 12.5)),
                 ),
             ],
           ),
@@ -428,7 +429,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD32F2F), foregroundColor: Colors.white),
             onPressed: _busy ? null : _confirm,
             child: _busy
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppC.text))
                 : const Text('Delete Forever'),
           ),
         ],
