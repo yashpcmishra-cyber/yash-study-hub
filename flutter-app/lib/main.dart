@@ -2,7 +2,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'app_colors.dart';
 import 'app_globals.dart';
 import 'firebase_options.dart';
 import 'screens/notifications_screen.dart';
@@ -104,6 +106,9 @@ Future<void> _recordInstallOnce() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Student ki pichhli Dark/Light choice (saved hai) pehle hi padh lete hain,
+  // taaki app pehle frame se sahi theme me khule.
+  await AppTheme.load();
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (e) {
@@ -150,8 +155,38 @@ class YashStudyHubApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Theme badalte hi (Dark <-> Light) MaterialApp naye ThemeData ke saath
+    // dobara banta hai. Baaki widgets AppTheme.toggle() khud redraw karwata hai.
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppTheme.light,
+      builder: (context, isLight, _) => _buildApp(isLight),
+    );
+  }
+
+  Widget _buildApp(bool isLight) {
     const gold = Color(0xFFFFFF29);
     const bg = Color(0xFF050B24);
+    // Status bar ke icons dono theme me safed (Dark me gehra bg, Light me navy patti).
+    final overlay = SystemUiOverlayStyle(
+      statusBarColor: isLight ? AppC.navy : Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+    );
+    final ColorScheme scheme = isLight
+        ? ColorScheme.fromSeed(
+            seedColor: const Color(0xFF1A3BCC),
+            brightness: Brightness.light,
+            primary: const Color(0xFF1A3BCC),
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: const Color(0xFF0B1240),
+          )
+        : ColorScheme.fromSeed(
+            seedColor: gold,
+            brightness: Brightness.dark,
+            primary: gold,
+            surface: const Color(0xFF081136),
+          );
     return MaterialApp(
       title: 'Yash Study Hub',
       debugShowCheckedModeBanner: false,
@@ -159,28 +194,33 @@ class YashStudyHubApp extends StatelessWidget {
       scaffoldMessengerKey: appMessengerKey,
       // Space background poori app ke peeche (taare, chaand, asteroids).
       // Screens ka background transparent hai, isliye ye sab par dikhta hai.
-      builder: (context, child) => LandscapeFrame(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            const SpaceBackground(),
-            child ?? const SizedBox.shrink(),
-          ],
+      // Light theme me ye saaf safed background ban jaata hai.
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: overlay,
+        child: LandscapeFrame(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const SpaceBackground(),
+              child ?? const SizedBox.shrink(),
+              // Light theme: status bar wali jagah bhi navy (top patti ka hissa).
+              const _TopBarStrip(),
+            ],
+          ),
         ),
       ),
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.transparent,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: gold,
-          brightness: Brightness.dark,
-          primary: gold,
-          surface: const Color(0xFF081136),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
+        colorScheme: scheme,
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppC.appBar,
+          foregroundColor: isLight ? Colors.white : null,
+          iconTheme: isLight ? const IconThemeData(color: Colors.white) : null,
+          actionsIconTheme: isLight ? const IconThemeData(color: Colors.white) : null,
           elevation: 0,
           scrolledUnderElevation: 0,
+          systemOverlayStyle: overlay,
         ),
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: <TargetPlatform, PageTransitionsBuilder>{
@@ -197,11 +237,11 @@ class YashStudyHubApp extends StatelessWidget {
         // that visibly sinks when pressed, then springs back on release.
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: gold,
+            backgroundColor: AppC.gold,
             foregroundColor: bg,
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            shadowColor: Colors.black.withOpacity(0.6),
+            shadowColor: Colors.black.withOpacity(isLight ? 0.35 : 0.6),
           ).copyWith(
             elevation: WidgetStateProperty.resolveWith<double>((states) {
               if (states.contains(WidgetState.pressed)) return 2;
@@ -212,6 +252,25 @@ class YashStudyHubApp extends StatelessWidget {
         ),
       ),
       home: const SplashScreen(),
+    );
+  }
+}
+
+/// Light theme me status bar (phone ki top patti) wali jagah navy rakhta hai,
+/// taaki top patti upar tak ek hi rang me dikhe. Dark theme me kuch nahi karta.
+class _TopBarStrip extends StatelessWidget {
+  const _TopBarStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    if (!AppTheme.isLight || top <= 0) return const SizedBox.shrink();
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: top,
+      child: IgnorePointer(child: ColoredBox(color: AppC.navy)),
     );
   }
 }
