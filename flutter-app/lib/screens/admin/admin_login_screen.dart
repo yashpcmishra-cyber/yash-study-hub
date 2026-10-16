@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import 'admin_panel_screen.dart';
+import '../../app_colors.dart';
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -143,12 +144,12 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.mark_email_unread, color: Color(0xFFFFFF29), size: 40),
+                Icon(Icons.mark_email_unread, color: AppC.accent, size: 40),
                 const SizedBox(height: 16),
                 Text(
                   'Your admin email (${_auth.currentUser?.email ?? ''}) is not verified yet.\nYou must verify it once before you can use the Admin Panel.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppC.text),
                 ),
                 const SizedBox(height: 20),
                 _resendBusy
@@ -160,7 +161,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 if (_resendMsg != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 14),
-                    child: Text(_resendMsg!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
+                    child: Text(_resendMsg!, textAlign: TextAlign.center, style: TextStyle(color: AppC.muted)),
                   ),
               ],
             ),
@@ -176,25 +177,25 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.admin_panel_settings, color: Color(0xFFFFFF29), size: 40),
+              Icon(Icons.admin_panel_settings, color: AppC.accent, size: 40),
               const SizedBox(height: 16),
               TextField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Admin email', labelStyle: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppC.text),
+                decoration: InputDecoration(labelText: 'Admin email', labelStyle: TextStyle(color: AppC.muted)),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _pass,
                 obscureText: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Password', labelStyle: TextStyle(color: Colors.grey)),
+                style: TextStyle(color: AppC.text),
+                decoration: InputDecoration(labelText: 'Password', labelStyle: TextStyle(color: AppC.muted)),
               ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                  child: Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: AppC.redDeep)),
                 ),
               const SizedBox(height: 16),
               _loading ? const CircularProgressIndicator() : ElevatedButton(onPressed: _login, child: const Text('Login')),

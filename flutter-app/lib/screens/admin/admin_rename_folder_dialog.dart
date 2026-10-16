@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../app_colors.dart';
 
 /// Small dialog used by the Admin Panel (Mock Tests / PDFs / Videos tabs) to
 /// rename a folder. Returns the new trimmed name, or null if the admin
@@ -41,20 +42,20 @@ class _RenameFolderDialogState extends State<_RenameFolderDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF081136),
-      title: Text(widget.title, style: const TextStyle(color: Colors.white)),
+      backgroundColor: AppC.card,
+      title: Text(widget.title, style: TextStyle(color: AppC.text)),
       content: TextField(
         controller: _c,
         autofocus: true,
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(color: AppC.text),
         textInputAction: TextInputAction.done,
         onSubmitted: (_) => _save(),
-        decoration: const InputDecoration(hintText: 'New folder name', hintStyle: TextStyle(color: Colors.grey)),
+        decoration: InputDecoration(hintText: 'New folder name', hintStyle: TextStyle(color: AppC.muted)),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, null), child: const Text('Cancel')),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFFF29), foregroundColor: Colors.black),
+          style: ElevatedButton.styleFrom(backgroundColor: AppC.gold, foregroundColor: Colors.black),
           onPressed: _save,
           child: const Text('Save'),
         ),

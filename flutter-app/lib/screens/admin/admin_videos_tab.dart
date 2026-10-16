@@ -9,6 +9,7 @@ import '../../models/models.dart';
 import '../../widgets/net_image.dart';
 import 'admin_rename_folder_dialog.dart';
 import 'admin_reorder_list.dart';
+import '../../app_colors.dart';
 
 class AdminVideosTab extends StatefulWidget {
   const AdminVideosTab({super.key});
@@ -54,9 +55,9 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF081136),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.grey)),
+        backgroundColor: AppC.card,
+        title: Text(title, style: TextStyle(color: AppC.text)),
+        content: Text(message, style: TextStyle(color: AppC.muted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), onPressed: () => Navigator.pop(dialogContext, true), child: Text(action)),
@@ -215,20 +216,20 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('1. Which section? (first choice = free Video Classes)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+        Text('1. Which section? (first choice = free Video Classes)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 12)),
         const SizedBox(height: 8),
         StreamBuilder<List<BatchModel>>(
           stream: _batchesStream,
           builder: (context, snap) {
             final batches = snap.data ?? <BatchModel>[];
             return DropdownButton<String?>(
-              hint: const Text('Free Video Classes', style: TextStyle(color: Colors.grey)),
+              hint: Text('Free Video Classes', style: TextStyle(color: AppC.muted)),
               value: _validId(_selectedBatchId, batches.map((b) => b.id)),
-              dropdownColor: const Color(0xFF081136),
+              dropdownColor: AppC.card,
               isExpanded: true,
               items: [
-                const DropdownMenuItem<String?>(value: null, child: Text('Free Video Classes', style: TextStyle(color: Colors.white))),
-                ...batches.map((b) => DropdownMenuItem<String?>(value: b.id, child: Text(b.title, style: const TextStyle(color: Colors.white)))),
+                DropdownMenuItem<String?>(value: null, child: Text('Free Video Classes', style: TextStyle(color: AppC.text))),
+                ...batches.map((b) => DropdownMenuItem<String?>(value: b.id, child: Text(b.title, style: TextStyle(color: AppC.text)))),
               ],
               onChanged: (v) => setState(() {
                 _selectedBatchId = v;
@@ -237,10 +238,10 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
             );
           },
         ),
-        const Divider(color: Colors.grey),
+        Divider(color: AppC.divider),
         Text(
           isFree ? '2. Folder (optional for free videos) \u2014 choose or create new' : '2. Choose a folder or create new',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         StreamBuilder<List<VideoFolderModel>>(
@@ -251,20 +252,20 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
             final folderRow = Row(children: [
               Expanded(
                 child: DropdownButton<String?>(
-                  hint: Text(isFree ? 'No folder (loose videos)' : 'Choose folder', style: const TextStyle(color: Colors.grey)),
+                  hint: Text(isFree ? 'No folder (loose videos)' : 'Choose folder', style: TextStyle(color: AppC.muted)),
                   value: _validId(_selectedFolderId, folders.map((f) => f.id)),
-                  dropdownColor: const Color(0xFF081136),
+                  dropdownColor: AppC.card,
                   isExpanded: true,
                   items: [
-                    if (isFree) const DropdownMenuItem<String?>(value: null, child: Text('No folder (loose videos)', style: TextStyle(color: Colors.white))),
-                    ...folders.map((f) => DropdownMenuItem<String?>(value: f.id, child: Text(f.name, style: const TextStyle(color: Colors.white)))),
+                    if (isFree) DropdownMenuItem<String?>(value: null, child: Text('No folder (loose videos)', style: TextStyle(color: AppC.text))),
+                    ...folders.map((f) => DropdownMenuItem<String?>(value: f.id, child: Text(f.name, style: TextStyle(color: AppC.text)))),
                   ],
                   onChanged: (v) => setState(() => _selectedFolderId = v),
                 ),
               ),
               if (_selectedFolderId != null && selected.isNotEmpty) ...[
-                IconButton(tooltip: 'Rename this folder', icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.name)),
-                IconButton(tooltip: 'Delete this folder', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.name)),
+                IconButton(tooltip: 'Rename this folder', icon: Icon(Icons.edit, color: AppC.accent, size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.name)),
+                IconButton(tooltip: 'Delete this folder', icon: Icon(Icons.delete, color: AppC.red, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.name)),
               ],
             ]);
             return Column(
@@ -284,11 +285,11 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
         ),
         const SizedBox(height: 8),
         Row(children: [
-          Expanded(child: TextField(controller: _newFolderName, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'New folder name', hintStyle: TextStyle(color: Colors.grey)))),
-          IconButton(icon: const Icon(Icons.add_circle, color: Color(0xFFFFFF29)), onPressed: _createFolder),
+          Expanded(child: TextField(controller: _newFolderName, style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'New folder name', hintStyle: TextStyle(color: AppC.muted)))),
+          IconButton(icon: Icon(Icons.add_circle, color: AppC.accent), onPressed: _createFolder),
         ]),
-        const Divider(color: Colors.grey),
-        const Text('3. Add video', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Divider(color: AppC.divider),
+        Text('3. Add video', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Row(children: [
           GestureDetector(
@@ -296,34 +297,34 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
             child: Container(
               width: 46,
               height: 46,
-              decoration: BoxDecoration(color: const Color(0xFF050B24), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade800)),
-              child: _thumbFile != null ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_thumbFile!, fit: BoxFit.cover)) : const Icon(Icons.image, color: Colors.grey),
+              decoration: BoxDecoration(color: AppC.bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppC.line2)),
+              child: _thumbFile != null ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_thumbFile!, fit: BoxFit.cover)) : Icon(Icons.image, color: AppC.muted),
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(child: TextField(controller: _title, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'Video title', hintStyle: TextStyle(color: Colors.grey)))),
+          Expanded(child: TextField(controller: _title, style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'Video title', hintStyle: TextStyle(color: AppC.muted)))),
         ]),
         const SizedBox(height: 10),
-        TextField(controller: _link, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'YouTube link (or upload from phone below)', labelStyle: TextStyle(color: Colors.grey))),
+        TextField(controller: _link, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'YouTube link (or upload from phone below)', labelStyle: TextStyle(color: AppC.muted))),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: _uploading ? null : _uploadVideoFromPhone,
           icon: _uploading ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file),
           label: Text(_uploading ? 'Uploading...' : 'Upload video directly from phone'),
         ),
-        if (_statusMsg != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_statusMsg!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
+        if (_statusMsg != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_statusMsg!, style: TextStyle(color: AppC.orange, fontSize: 12))),
         const SizedBox(height: 12),
         ElevatedButton(
           onPressed: _adding ? null : _addVideo,
           child: _adding ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Add video'),
         ),
         if (isFree || _selectedFolderId != null) ...[
-          const Divider(color: Colors.grey, height: 30),
+          Divider(color: AppC.divider, height: 30),
           Text(
             isFree
                 ? (_selectedFolderId == null ? 'Existing free videos (not in a folder)' : 'Existing videos in this folder')
                 : 'Existing videos in this folder',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           StreamBuilder<List<VideoModel>>(
@@ -331,18 +332,18 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
             // screen uses, so the order shown here is the order students see.
             stream: loose ? _fs.streamFreeVideos() : _fs.streamVideosInFolder(_selectedFolderId!),
             builder: (context, snap) {
-              if (snap.hasError) return Text('Could not load: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12));
+              if (snap.hasError) return Text('Could not load: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 12));
               if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Center(child: CircularProgressIndicator()));
               final all = snap.data!;
               final videos = loose ? all.where((v) => v.folderId == null || v.folderId!.isEmpty).toList() : all;
-              if (videos.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('There is no video here yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
+              if (videos.isEmpty) return Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('There is no video here yet', style: TextStyle(color: AppC.muted, fontSize: 12)));
               if (loose) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(bottom: 6),
-                      child: Text('These stay newest-first. To arrange videos by hand, put them in a folder.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                      child: Text('These stay newest-first. To arrange videos by hand, put them in a folder.', style: TextStyle(color: AppC.muted, fontSize: 11)),
                     ),
                     ...videos.map(_videoTile),
                   ],
@@ -366,13 +367,13 @@ class _AdminVideosTabState extends State<AdminVideosTab> with AutomaticKeepAlive
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
       leading: NetImage(url: v.thumbUrl, width: 56, height: 34, fallbackIcon: '🎬', radius: 6),
-      title: Text(v.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-      subtitle: v.source == 'youtube_auto' ? const Text('Auto-fetched from YouTube', style: TextStyle(color: Colors.grey, fontSize: 10.5)) : null,
+      title: Text(v.title, style: TextStyle(color: AppC.text, fontSize: 13)),
+      subtitle: v.source == 'youtube_auto' ? Text('Auto-fetched from YouTube', style: TextStyle(color: AppC.muted, fontSize: 10.5)) : null,
       trailing: IconButton(
         padding: const EdgeInsets.all(6),
         constraints: const BoxConstraints(),
         tooltip: v.source == 'youtube_auto' ? 'Hide' : 'Delete',
-        icon: Icon(v.source == 'youtube_auto' ? Icons.visibility_off : Icons.delete, color: Colors.redAccent, size: 18),
+        icon: Icon(v.source == 'youtube_auto' ? Icons.visibility_off : Icons.delete, color: AppC.red, size: 18),
         onPressed: () => _deleteVideoConfirm(v),
       ),
     );

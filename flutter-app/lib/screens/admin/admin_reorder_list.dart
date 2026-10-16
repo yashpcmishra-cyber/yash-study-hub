@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../widgets/depth_card.dart';
+import '../../app_colors.dart';
 
 /// Admin-only list that can be arranged by hand: press and drag the handle on
 /// the left, or tap the small up / down arrows on the right.
@@ -103,7 +104,7 @@ class _AdminReorderListState<T> extends State<AdminReorderList<T>> {
         iconSize: 20,
         splashRadius: 14,
         constraints: const BoxConstraints.tightFor(width: 30, height: 22),
-        icon: Icon(icon, color: onTap == null ? Colors.white24 : Colors.white70),
+        icon: Icon(icon, color: onTap == null ? AppC.text24 : AppC.text70),
         onPressed: onTap,
       ),
     );
@@ -122,7 +123,7 @@ class _AdminReorderListState<T> extends State<AdminReorderList<T>> {
         _move(oldIndex, newIndex);
       },
       proxyDecorator: (child, index, animation) => Material(
-        color: const Color(0xFF0D1A4D),
+        color: AppC.panel,
         elevation: 6,
         borderRadius: BorderRadius.circular(12),
         child: child,
@@ -133,14 +134,14 @@ class _AdminReorderListState<T> extends State<AdminReorderList<T>> {
           children: [
             ReorderableDragStartListener(
               index: i,
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.fromLTRB(8, 12, 4, 12),
-                child: Icon(Icons.drag_indicator, color: Colors.grey, size: 22),
+                child: Icon(Icons.drag_indicator, color: AppC.muted, size: 22),
               ),
             ),
             SizedBox(
               width: 18,
-              child: Text('${i + 1}', textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+              child: Text('${i + 1}', textAlign: TextAlign.center, style: TextStyle(color: AppC.muted, fontSize: 11)),
             ),
             Expanded(child: widget.contentBuilder(context, item)),
             Column(
@@ -186,11 +187,11 @@ class AdminFolderOrderSection<T> extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: EdgeInsets.zero,
-        iconColor: const Color(0xFFFFFF29),
-        collapsedIconColor: Colors.grey,
-        leading: const Icon(Icons.swap_vert, color: Color(0xFFFFFF29), size: 20),
-        title: const Text('Change folder order', style: TextStyle(color: Colors.white, fontSize: 13)),
-        subtitle: const Text('Drag the handle or tap the arrows. Students see the same order.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+        iconColor: AppC.accent,
+        collapsedIconColor: AppC.muted,
+        leading: Icon(Icons.swap_vert, color: AppC.accent, size: 20),
+        title: Text('Change folder order', style: TextStyle(color: AppC.text, fontSize: 13)),
+        subtitle: Text('Drag the handle or tap the arrows. Students see the same order.', style: TextStyle(color: AppC.muted, fontSize: 11)),
         children: [
           AdminReorderList<T>(
             items: items,
@@ -198,7 +199,7 @@ class AdminFolderOrderSection<T> extends StatelessWidget {
             onSave: onSave,
             contentBuilder: (context, f) => ListTile(
               dense: true,
-              title: Text(labelOf(f), style: const TextStyle(color: Colors.white, fontSize: 13)),
+              title: Text(labelOf(f), style: TextStyle(color: AppC.text, fontSize: 13)),
             ),
           ),
         ],

@@ -9,6 +9,7 @@ import '../../models/models.dart';
 import '../../widgets/net_image.dart';
 import 'admin_rename_folder_dialog.dart';
 import 'admin_reorder_list.dart';
+import '../../app_colors.dart';
 
 class AdminPdfsTab extends StatefulWidget {
   const AdminPdfsTab({super.key});
@@ -53,9 +54,9 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF081136),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.grey)),
+        backgroundColor: AppC.card,
+        title: Text(title, style: TextStyle(color: AppC.text)),
+        content: Text(message, style: TextStyle(color: AppC.muted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete')),
@@ -203,7 +204,7 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('1. Choose section', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Text('1. Choose section', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Row(children: [
           ChoiceChip(label: const Text('Free PDFs'), selected: _type == 'free', onSelected: (_) => setState(() {
@@ -223,11 +224,11 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
             builder: (context, snap) {
               final batches = snap.data ?? <BatchModel>[];
               return DropdownButton<String>(
-                hint: const Text('Choose batch', style: TextStyle(color: Colors.grey)),
+                hint: Text('Choose batch', style: TextStyle(color: AppC.muted)),
                 value: _validId(_selectedBatchId, batches.map((b) => b.id)),
-                dropdownColor: const Color(0xFF081136),
+                dropdownColor: AppC.card,
                 isExpanded: true,
-                items: batches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.title, style: const TextStyle(color: Colors.white)))).toList(),
+                items: batches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.title, style: TextStyle(color: AppC.text)))).toList(),
                 onChanged: (v) => setState(() {
                   _selectedBatchId = v;
                   _selectedFolderId = null;
@@ -236,8 +237,8 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
             },
           ),
         ],
-        const Divider(color: Colors.grey),
-        const Text('2. Choose a folder or create new', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Divider(color: AppC.divider),
+        Text('2. Choose a folder or create new', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         if (_type == 'free' || _selectedBatchId != null)
           StreamBuilder<List<PdfFolderModel>>(
@@ -248,17 +249,17 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
               final folderRow = Row(children: [
                 Expanded(
                   child: DropdownButton<String>(
-                    hint: const Text('Choose folder', style: TextStyle(color: Colors.grey)),
+                    hint: Text('Choose folder', style: TextStyle(color: AppC.muted)),
                     value: _validId(_selectedFolderId, folders.map((f) => f.id)),
-                    dropdownColor: const Color(0xFF081136),
+                    dropdownColor: AppC.card,
                     isExpanded: true,
-                    items: folders.map((f) => DropdownMenuItem(value: f.id, child: Text(f.name, style: const TextStyle(color: Colors.white)))).toList(),
+                    items: folders.map((f) => DropdownMenuItem(value: f.id, child: Text(f.name, style: TextStyle(color: AppC.text)))).toList(),
                     onChanged: (v) => setState(() => _selectedFolderId = v),
                   ),
                 ),
                 if (_selectedFolderId != null && selected.isNotEmpty) ...[
-                  IconButton(tooltip: 'Rename this folder', icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.name)),
-                  IconButton(tooltip: 'Delete this folder', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.name)),
+                  IconButton(tooltip: 'Rename this folder', icon: Icon(Icons.edit, color: AppC.accent, size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.name)),
+                  IconButton(tooltip: 'Delete this folder', icon: Icon(Icons.delete, color: AppC.red, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.name)),
                 ],
               ]);
               return Column(
@@ -277,11 +278,11 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
             },
           ),
         Row(children: [
-          Expanded(child: TextField(controller: _newFolderName, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'New folder name', hintStyle: TextStyle(color: Colors.grey)))),
-          IconButton(icon: const Icon(Icons.add_circle, color: Color(0xFFFFFF29)), onPressed: _createFolder),
+          Expanded(child: TextField(controller: _newFolderName, style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'New folder name', hintStyle: TextStyle(color: AppC.muted)))),
+          IconButton(icon: Icon(Icons.add_circle, color: AppC.accent), onPressed: _createFolder),
         ]),
-        const Divider(color: Colors.grey),
-        const Text('3. Add PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Divider(color: AppC.divider),
+        Text('3. Add PDF', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Row(children: [
           GestureDetector(
@@ -289,38 +290,38 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
             child: Container(
               width: 46,
               height: 46,
-              decoration: BoxDecoration(color: const Color(0xFF050B24), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade800)),
-              child: _iconFile != null ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_iconFile!, fit: BoxFit.cover)) : const Icon(Icons.image, color: Colors.grey),
+              decoration: BoxDecoration(color: AppC.bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppC.line2)),
+              child: _iconFile != null ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_iconFile!, fit: BoxFit.cover)) : Icon(Icons.image, color: AppC.muted),
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(child: TextField(controller: _pdfTitle, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'PDF title', hintStyle: TextStyle(color: Colors.grey)))),
+          Expanded(child: TextField(controller: _pdfTitle, style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'PDF title', hintStyle: TextStyle(color: AppC.muted)))),
         ]),
         const SizedBox(height: 10),
-        TextField(controller: _driveLink, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Google Drive link (or upload from phone below)', labelStyle: TextStyle(color: Colors.grey))),
+        TextField(controller: _driveLink, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Google Drive link (or upload from phone below)', labelStyle: TextStyle(color: AppC.muted))),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: _uploading ? null : _uploadPdfFromPhone,
           icon: _uploading ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file),
           label: Text(_uploading ? 'Uploading...' : 'Upload PDF directly from phone'),
         ),
-        if (_statusMsg != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_statusMsg!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
+        if (_statusMsg != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_statusMsg!, style: TextStyle(color: AppC.orange, fontSize: 12))),
         const SizedBox(height: 12),
         ElevatedButton(
           onPressed: _adding ? null : _addPdf,
           child: _adding ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Add PDF'),
         ),
         if (_selectedFolderId != null) ...[
-          const Divider(color: Colors.grey, height: 30),
-          const Text('Existing PDFs in this folder', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Divider(color: AppC.divider, height: 30),
+          Text('Existing PDFs in this folder', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           StreamBuilder<List<PdfModel>>(
             stream: _fs.streamPdfsInFolder(_selectedFolderId!),
             builder: (context, snap) {
-              if (snap.hasError) return Text('Could not load: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12));
+              if (snap.hasError) return Text('Could not load: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 12));
               if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Center(child: CircularProgressIndicator()));
               final pdfs = snap.data!;
-              if (pdfs.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('There is no PDF in this folder yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
+              if (pdfs.isEmpty) return Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('There is no PDF in this folder yet', style: TextStyle(color: AppC.muted, fontSize: 12)));
               return AdminReorderList<PdfModel>(
                 items: pdfs,
                 idOf: (p) => p.id,
@@ -329,8 +330,8 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
                   dense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                   leading: NetImage(url: p.iconUrl, width: 34, height: 34, fallbackIcon: '📄', radius: 6),
-                  title: Text(p.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                  trailing: IconButton(padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deletePdfConfirm(p)),
+                  title: Text(p.title, style: TextStyle(color: AppC.text, fontSize: 13)),
+                  trailing: IconButton(padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: Icon(Icons.delete, color: AppC.red, size: 18), onPressed: () => _deletePdfConfirm(p)),
                 ),
               );
             },

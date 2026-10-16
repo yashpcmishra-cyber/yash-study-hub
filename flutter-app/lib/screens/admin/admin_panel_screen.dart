@@ -18,6 +18,7 @@ import 'admin_videos_tab.dart';
 import 'admin_mocktests_tab.dart';
 import 'admin_queries_tab.dart';
 import 'admin_reorder_list.dart';
+import '../../app_colors.dart';
 
 /// What the "Edit batch" dialog returns.
 class _BatchEditResult {
@@ -68,27 +69,27 @@ class _ExtendAccessDialogState extends State<_ExtendAccessDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF081136),
-      title: const Text('Change validity', style: TextStyle(color: Colors.white)),
+      backgroundColor: AppC.card,
+      title: Text('Change validity', style: TextStyle(color: AppC.text)),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${widget.grant.studentEmail}\n${widget.batchTitle}', style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
+            Text('${widget.grant.studentEmail}\n${widget.batchTitle}', style: TextStyle(color: AppC.text70, fontSize: 12.5)),
             const SizedBox(height: 8),
-            Text(_currentStatus(), style: const TextStyle(color: Color(0xFFFFFF29), fontSize: 12.5)),
+            Text(_currentStatus(), style: TextStyle(color: AppC.accent, fontSize: 12.5)),
             const SizedBox(height: 10),
             TextField(
               controller: _months,
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppC.text),
               decoration: InputDecoration(
                 labelText: 'Add months',
                 helperText: 'Counted from today, or from the current end date if it is still in the future.',
                 helperMaxLines: 3,
                 errorText: _error,
-                labelStyle: const TextStyle(color: Colors.grey),
+                labelStyle: TextStyle(color: AppC.muted),
               ),
             ),
           ],
@@ -149,8 +150,8 @@ class _EditBatchDialogState extends State<_EditBatchDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF081136),
-      title: const Text('Edit batch', style: TextStyle(color: Colors.white)),
+      backgroundColor: AppC.card,
+      title: Text('Edit batch', style: TextStyle(color: AppC.text)),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -172,18 +173,18 @@ class _EditBatchDialogState extends State<_EditBatchDialog> {
               ),
             ]),
             const SizedBox(height: 8),
-            TextField(controller: _title, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Title', labelStyle: TextStyle(color: Colors.grey))),
-            TextField(controller: _price, keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Price', labelStyle: TextStyle(color: Colors.grey))),
+            TextField(controller: _title, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Title', labelStyle: TextStyle(color: AppC.muted))),
+            TextField(controller: _price, keyboardType: TextInputType.number, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Price', labelStyle: TextStyle(color: AppC.muted))),
             TextField(
               controller: _validity,
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppC.text),
               decoration: InputDecoration(
                 labelText: 'Validity in months (empty = lifetime)',
                 helperText: 'Applies only to students who get access AFTER you save. Students who already have access keep their own end date.',
                 helperMaxLines: 4,
                 errorText: _validityError,
-                labelStyle: const TextStyle(color: Colors.grey),
+                labelStyle: TextStyle(color: AppC.muted),
               ),
             ),
           ],
@@ -319,9 +320,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF081136),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.grey)),
+        backgroundColor: AppC.card,
+        title: Text(title, style: TextStyle(color: AppC.text)),
+        content: Text(message, style: TextStyle(color: AppC.muted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           ElevatedButton(
@@ -362,7 +363,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Panel'),
-        actions: [IconButton(icon: const Icon(Icons.logout, color: Colors.red), onPressed: _logout)],
+        actions: [IconButton(icon: Icon(Icons.logout, color: Colors.red), onPressed: _logout)],
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,
@@ -416,8 +417,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     return showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF081136),
-        title: const Text('Access granted', style: TextStyle(color: Colors.white)),
+        backgroundColor: AppC.card,
+        title: Text('Access granted', style: TextStyle(color: AppC.text)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,26 +427,26 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               hasPhone
                   ? 'The student gave a WhatsApp/phone number \u2014 send the code with the button below (they need the email AND this code to unlock):'
                   : 'The student did not give a phone/WhatsApp number \u2014 you can send the code by email (from your own email app), or any other way you can reach this student:',
-              style: const TextStyle(color: Colors.grey, fontSize: 12.5),
+              style: TextStyle(color: AppC.muted, fontSize: 12.5),
             ),
             const SizedBox(height: 12),
             Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(color: const Color(0xFF050B24), borderRadius: BorderRadius.circular(10)),
-                child: Text(code, style: const TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold, fontSize: 22, letterSpacing: 4)),
+                decoration: BoxDecoration(color: AppC.bg, borderRadius: BorderRadius.circular(10)),
+                child: Text(code, style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 22, letterSpacing: 4)),
               ),
             ),
             const SizedBox(height: 10),
             Center(
               child: Text(
                 expiresAt != null ? 'Valid till ${DateFormat('d MMM yyyy').format(expiresAt)}' : 'Lifetime access (no time limit)',
-                style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                style: TextStyle(color: AppC.text70, fontSize: 12.5),
               ),
             ),
             if (hasPhone) ...[
               const SizedBox(height: 12),
-              Text('Number: $phone', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text('Number: $phone', style: TextStyle(color: AppC.muted, fontSize: 12)),
             ],
           ],
         ),
@@ -497,9 +498,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   Widget _statsTab() {
     Widget statColumn(String value, String label) => Expanded(
           child: Column(children: [
-            Text(value, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(value, style: TextStyle(color: AppC.text, fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(color: AppC.muted, fontSize: 12)),
           ]),
         );
     void refresh() => setState(() {
@@ -522,20 +523,20 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                   children: [
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Icon(Icons.people, color: Color(0xFFFFFF29)),
+                        Icon(Icons.people, color: AppC.accent),
                         const SizedBox(height: 6),
-                        Text(countText, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                        const Text('App installs (only counting)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text(countText, style: TextStyle(color: AppC.text, fontSize: 24, fontWeight: FontWeight.bold)),
+                        Text('App installs (only counting)', style: TextStyle(color: AppC.muted, fontSize: 12)),
                         if (snap.hasError)
                           Padding(
                             padding: const EdgeInsets.only(top: 6),
-                            child: Text('Could not load the count: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)),
+                            child: Text('Could not load the count: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 11)),
                           ),
                       ]),
                     ),
                     IconButton(
                       tooltip: 'Refresh',
-                      icon: const Icon(Icons.refresh, color: Colors.grey),
+                      icon: Icon(Icons.refresh, color: AppC.muted),
                       onPressed: refresh,
                     ),
                   ],
@@ -554,11 +555,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 final loading = snap.connectionState != ConnectionState.done;
                 String v(int i) => loading ? '...' : ((snap.hasError || snap.data == null) ? '?' : '${snap.data![i]}');
                 return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Row(children: [
-                    Icon(Icons.bolt, color: Color(0xFFFFFF29)),
+                  Row(children: [
+                    Icon(Icons.bolt, color: AppC.accent),
                     SizedBox(width: 8),
                     Expanded(
-                      child: Text('Active students (phones that opened the app)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      child: Text('Active students (phones that opened the app)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ]),
                   const SizedBox(height: 14),
@@ -570,12 +571,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                   if (snap.hasError)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: Text('Could not load the count: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)),
+                      child: Text('Could not load the count: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 11)),
                     ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     'Only phones that have opened the updated app are counted. Reinstall = counted again. / केवल अपडेटेड ऐप खोलने वाले फ़ोन गिने जाते हैं।',
-                    style: TextStyle(color: Colors.grey, fontSize: 11),
+                    style: TextStyle(color: AppC.muted, fontSize: 11),
                   ),
                 ]);
               },
@@ -646,8 +647,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text('Pending requests', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-            const Text('The student entered their email in the app but doesn\u2019t have access yet \u2014 grant it here in one tap.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+            Text('Pending requests', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
+            Text('The student entered their email in the app but doesn\u2019t have access yet \u2014 grant it here in one tap.', style: TextStyle(color: AppC.muted, fontSize: 11)),
             const SizedBox(height: 10),
             StreamBuilder<List<AccessRequestModel>>(
               stream: _requestsStream,
@@ -655,14 +656,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 if (reqSnap.hasError) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Text('Could not load requests: ${reqSnap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+                    child: Text('Could not load requests: ${reqSnap.error}', style: TextStyle(color: AppC.orange, fontSize: 12)),
                   );
                 }
                 final requests = reqSnap.data ?? <AccessRequestModel>[];
                 if (requests.isEmpty) {
-                  return const Padding(
+                  return Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Text('No pending requests', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    child: Text('No pending requests', style: TextStyle(color: AppC.muted, fontSize: 12)),
                   );
                 }
                 return Column(
@@ -672,23 +673,23 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                             child: ListTile(
                               title: Text(
                                 r.studentName.isNotEmpty ? '${r.studentName} (${r.studentEmail})' : r.studentEmail,
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
+                                style: TextStyle(color: AppC.text, fontSize: 13),
                               ),
                               subtitle: Text(
                                 r.studentPhone.isNotEmpty ? '${r.batchTitle} \u2022 \u{1F4F1} ${r.studentPhone}' : '${r.batchTitle} \u2022 (no phone/WhatsApp number given)',
-                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                style: TextStyle(color: AppC.muted, fontSize: 12),
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
                                     tooltip: 'Grant access',
-                                    icon: const Icon(Icons.check_circle, color: Colors.green),
+                                    icon: Icon(Icons.check_circle, color: AppC.greenDeep),
                                     onPressed: () => _grant(r.studentEmail, r.batchId, phone: r.studentPhone, months: _batchValidityFor(batches, r.batchId)),
                                   ),
                                   IconButton(
                                     tooltip: 'Dismiss (payment not received)',
-                                    icon: const Icon(Icons.close, color: Colors.redAccent),
+                                    icon: Icon(Icons.close, color: AppC.red),
                                     onPressed: () async {
                                       try {
                                         await _fs.dismissAccessRequest(r.id);
@@ -705,30 +706,30 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 );
               },
             ),
-            const Divider(color: Colors.grey, height: 30),
-            const Text('Manual grant', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+            Divider(color: AppC.divider, height: 30),
+            Text('Manual grant', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 8),
-            TextField(controller: _grantEmailCtrl, keyboardType: TextInputType.emailAddress, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Student email', labelStyle: TextStyle(color: Colors.grey))),
+            TextField(controller: _grantEmailCtrl, keyboardType: TextInputType.emailAddress, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Student email', labelStyle: TextStyle(color: AppC.muted))),
             const SizedBox(height: 10),
-            TextField(controller: _grantPhoneCtrl, keyboardType: TextInputType.phone, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'WhatsApp/phone (optional, if you have it)', labelStyle: TextStyle(color: Colors.grey))),
+            TextField(controller: _grantPhoneCtrl, keyboardType: TextInputType.phone, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'WhatsApp/phone (optional, if you have it)', labelStyle: TextStyle(color: AppC.muted))),
             const SizedBox(height: 10),
             DropdownButton<String>(
               value: _selectedGrantBatch,
-              dropdownColor: const Color(0xFF081136),
+              dropdownColor: AppC.card,
               isExpanded: true,
-              hint: const Text('Choose a batch', style: TextStyle(color: Colors.grey)),
-              items: batches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.title, style: const TextStyle(color: Colors.white)))).toList(),
+              hint: Text('Choose a batch', style: TextStyle(color: AppC.muted)),
+              items: batches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.title, style: TextStyle(color: AppC.text)))).toList(),
               onChanged: (v) => setState(() => _selectedGrantBatch = v),
             ),
             const SizedBox(height: 4),
             TextField(
               controller: _grantMonthsCtrl,
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppC.text),
               decoration: InputDecoration(
                 labelText: 'Validity in months (empty = batch default: ${_batchValidityFor(batches, _selectedGrantBatch) > 0 ? monthsText(_batchValidityFor(batches, _selectedGrantBatch)) : 'lifetime'})',
                 helperText: 'Type 0 for lifetime access.',
-                labelStyle: const TextStyle(color: Colors.grey),
+                labelStyle: TextStyle(color: AppC.muted),
               ),
             ),
             const SizedBox(height: 10),
@@ -758,9 +759,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               },
               child: const Text('Grant access'),
             ),
-            const Divider(color: Colors.grey, height: 34),
-            const Text('Students who have access', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-            const Text('Tap the red button to take access back (the student is locked out the next time they open the batch).', style: TextStyle(color: Colors.grey, fontSize: 11)),
+            Divider(color: AppC.divider, height: 34),
+            Text('Students who have access', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
+            Text('Tap the red button to take access back (the student is locked out the next time they open the batch).', style: TextStyle(color: AppC.muted, fontSize: 11)),
             const SizedBox(height: 10),
             StreamBuilder<List<AccessGrantModel>>(
               stream: _grantsStream,
@@ -768,15 +769,15 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 if (gSnap.hasError) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Text('Could not load the list: ${gSnap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+                    child: Text('Could not load the list: ${gSnap.error}', style: TextStyle(color: AppC.orange, fontSize: 12)),
                   );
                 }
                 if (!gSnap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator()));
                 final grants = gSnap.data!;
                 if (grants.isEmpty) {
-                  return const Padding(
+                  return Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Text('Nobody has access yet.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    child: Text('Nobody has access yet.', style: TextStyle(color: AppC.muted, fontSize: 12)),
                   );
                 }
                 return Column(
@@ -784,16 +785,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                       .map((g) => DepthCard(
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
-                              title: Text(g.studentEmail, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                              title: Text(g.studentEmail, style: TextStyle(color: AppC.text, fontSize: 13)),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(_batchTitleFor(batches, g.batchId), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                  Text(_batchTitleFor(batches, g.batchId), style: TextStyle(color: AppC.muted, fontSize: 12)),
                                   Text(
                                     g.expiresAt == null
                                         ? 'Lifetime'
                                         : (g.isExpired ? 'Expired on ${DateFormat('d MMM yyyy').format(g.expiresAt!)}' : 'Valid till ${DateFormat('d MMM yyyy').format(g.expiresAt!)}'),
-                                    style: TextStyle(color: g.isExpired ? Colors.redAccent : Colors.greenAccent, fontSize: 11.5, fontWeight: FontWeight.w600),
+                                    style: TextStyle(color: g.isExpired ? AppC.red : AppC.green, fontSize: 11.5, fontWeight: FontWeight.w600),
                                   ),
                                 ],
                               ),
@@ -802,12 +803,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                                 children: [
                                   IconButton(
                                     tooltip: 'Change validity / renew',
-                                    icon: const Icon(Icons.event_repeat, color: Color(0xFFFFFF29), size: 20),
+                                    icon: Icon(Icons.event_repeat, color: AppC.accent, size: 20),
                                     onPressed: () => _changeValidity(g, _batchTitleFor(batches, g.batchId), _batchValidityFor(batches, g.batchId)),
                                   ),
                                   IconButton(
                                     tooltip: 'Take access back',
-                                    icon: const Icon(Icons.block, color: Colors.redAccent, size: 20),
+                                    icon: Icon(Icons.block, color: AppC.red, size: 20),
                                     onPressed: () async {
                                       final ok = await _confirm('Take access back?', '${g.studentEmail} will no longer be able to open "${_batchTitleFor(batches, g.batchId)}".', action: 'Take back');
                                       if (!ok) return;
@@ -930,9 +931,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Add new batch', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+        Text('Add new batch', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 10),
-        const Text('Batch icon/picture', style: TextStyle(color: Colors.grey, fontSize: 11)),
+        Text('Batch icon/picture', style: TextStyle(color: AppC.muted, fontSize: 11)),
         const SizedBox(height: 6),
         Row(children: [
           GestureDetector(
@@ -940,32 +941,32 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             child: Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(color: const Color(0xFF050B24), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade800)),
-              child: _batchIconFile != null ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_batchIconFile!, fit: BoxFit.cover)) : const Icon(Icons.image, color: Colors.grey),
+              decoration: BoxDecoration(color: AppC.bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppC.line2)),
+              child: _batchIconFile != null ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_batchIconFile!, fit: BoxFit.cover)) : Icon(Icons.image, color: AppC.muted),
             ),
           ),
           const SizedBox(width: 10),
           OutlinedButton.icon(onPressed: pickIcon, icon: const Icon(Icons.upload, size: 16), label: const Text('Upload from phone')),
         ]),
-        if (_batchIconStatus != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(_batchIconStatus!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11))),
+        if (_batchIconStatus != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(_batchIconStatus!, style: TextStyle(color: AppC.orange, fontSize: 11))),
         const SizedBox(height: 14),
-        TextField(controller: _batchTitleCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Batch title', labelStyle: TextStyle(color: Colors.grey))),
-        TextField(controller: _batchPriceCtrl, keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Price (number only)', labelStyle: TextStyle(color: Colors.grey))),
+        TextField(controller: _batchTitleCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Batch title', labelStyle: TextStyle(color: AppC.muted))),
+        TextField(controller: _batchPriceCtrl, keyboardType: TextInputType.number, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Price (number only)', labelStyle: TextStyle(color: AppC.muted))),
         TextField(
           controller: _batchValidityCtrl,
           keyboardType: TextInputType.number,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
+          style: TextStyle(color: AppC.text),
+          decoration: InputDecoration(
             labelText: 'Validity in months (empty = lifetime)',
             helperText: 'How long a student keeps access after you grant it, e.g. 6.',
-            labelStyle: TextStyle(color: Colors.grey),
+            labelStyle: TextStyle(color: AppC.muted),
           ),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          activeColor: const Color(0xFFFFFF29),
-          title: const Text('Mock Test Series only', style: TextStyle(color: Colors.white, fontSize: 14)),
-          subtitle: const Text('No videos / PDFs - only mock tests. Add its folders from the Mock Tests tab.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          activeColor: AppC.accent,
+          title: Text('Mock Test Series only', style: TextStyle(color: AppC.text, fontSize: 14)),
+          subtitle: Text('No videos / PDFs - only mock tests. Add its folders from the Mock Tests tab.', style: TextStyle(color: AppC.muted, fontSize: 11)),
           value: _batchMockOnly,
           onChanged: (v) => setState(() => _batchMockOnly = v),
         ),
@@ -974,16 +975,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           onPressed: _busy ? null : _addBatch,
           child: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Add batch'),
         ),
-        const Divider(color: Colors.grey, height: 34),
-        const Text('Existing batches', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+        Divider(color: AppC.divider, height: 34),
+        Text('Existing batches', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 8),
         StreamBuilder<List<BatchModel>>(
           stream: _batchesStream,
           builder: (context, snap) {
-            if (snap.hasError) return Text('Could not load batches: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12));
+            if (snap.hasError) return Text('Could not load batches: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 12));
             if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator()));
             final batches = snap.data!;
-            if (batches.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('No batch yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
+            if (batches.isEmpty) return Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('No batch yet', style: TextStyle(color: AppC.muted, fontSize: 12)));
             return AdminReorderList<BatchModel>(
               items: batches,
               inCard: true,
@@ -992,13 +993,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               contentBuilder: (context, b) => ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                           leading: NetImage(url: b.iconUrl, width: 40, height: 40, fallbackIcon: '📁', radius: 8),
-                          title: Text(b.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                          subtitle: Text('\u20b9${b.price} \u00b7 ${b.mockOnly ? 'Mock Test Series' : '${b.videos} videos \u00b7 ${b.pdfs} PDFs'} \u00b7 ${b.hasValidity ? monthsText(b.validityMonths) : 'Lifetime'}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                          title: Text(b.title, style: TextStyle(color: AppC.text, fontSize: 13)),
+                          subtitle: Text('\u20b9${b.price} \u00b7 ${b.mockOnly ? 'Mock Test Series' : '${b.videos} videos \u00b7 ${b.pdfs} PDFs'} \u00b7 ${b.hasValidity ? monthsText(b.validityMonths) : 'Lifetime'}', style: TextStyle(color: AppC.muted, fontSize: 11)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(tooltip: 'Edit', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.edit, color: Colors.grey, size: 18), onPressed: () => _editBatch(b)),
-                              IconButton(tooltip: 'Delete', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteBatchConfirm(b)),
+                              IconButton(tooltip: 'Edit', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: Icon(Icons.edit, color: AppC.muted, size: 18), onPressed: () => _editBatch(b)),
+                              IconButton(tooltip: 'Delete', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: Icon(Icons.delete, color: AppC.red, size: 18), onPressed: () => _deleteBatchConfirm(b)),
                             ],
                           ),
                         ),
@@ -1024,7 +1025,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Could not load attempts: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+                Text('Could not load attempts: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 12)),
                 TextButton(onPressed: _refreshAttempts, child: const Text('Retry')),
               ],
             ),
@@ -1039,7 +1040,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('No mock test attempts yet.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                Text('No mock test attempts yet.', style: TextStyle(color: AppC.muted, fontSize: 12)),
                 TextButton.icon(onPressed: _refreshAttempts, icon: const Icon(Icons.refresh, size: 16), label: const Text('Refresh')),
               ],
             ),
@@ -1054,12 +1055,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               Row(
                 children: [
                   Expanded(
-                    child: Text('Latest ${attempts.length} attempts \u2022 auto-deleted after 30 days', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                    child: Text('Latest ${attempts.length} attempts \u2022 auto-deleted after 30 days', style: TextStyle(color: AppC.muted, fontSize: 11)),
                   ),
                   IconButton(
                     tooltip: 'Refresh',
                     visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.refresh, color: Colors.grey, size: 18),
+                    icon: Icon(Icons.refresh, color: AppC.muted, size: 18),
                     onPressed: _refreshAttempts,
                   ),
                 ],
@@ -1068,12 +1069,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               ...attempts.map((a) => DepthCard(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      title: Text(a.mockTestTitle.isEmpty ? '(test id: ${a.mockTestId})' : a.mockTestTitle, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                      title: Text(a.mockTestTitle.isEmpty ? '(test id: ${a.mockTestId})' : a.mockTestTitle, style: TextStyle(color: AppC.text, fontSize: 13)),
                       subtitle: Text(
                         a.submittedAt != null ? '${a.studentEmail} \u2022 ${DateFormat('d MMM, h:mm a').format(a.submittedAt!)}' : a.studentEmail,
-                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                        style: TextStyle(color: AppC.muted, fontSize: 11),
                       ),
-                      trailing: Text('${a.score}/${a.total}', style: TextStyle(color: a.total > 0 && a.score >= a.total / 2 ? Colors.greenAccent : Colors.orangeAccent, fontWeight: FontWeight.bold)),
+                      trailing: Text('${a.score}/${a.total}', style: TextStyle(color: a.total > 0 && a.score >= a.total / 2 ? AppC.green : AppC.orange, fontWeight: FontWeight.bold)),
                     ),
                   )),
             ],
@@ -1156,7 +1157,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text('App logo (shown on splash screen + home header)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Text('App logo (shown on splash screen + home header)', style: TextStyle(color: AppC.muted, fontSize: 12)),
             const SizedBox(height: 12),
             Row(children: [
               Container(
@@ -1172,21 +1173,21 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               const SizedBox(width: 14),
               Expanded(child: OutlinedButton.icon(onPressed: _pickLogo, icon: const Icon(Icons.upload, size: 16), label: const Text('Choose new logo'))),
             ]),
-            if (_brandingStatus != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_brandingStatus!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
+            if (_brandingStatus != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_brandingStatus!, style: TextStyle(color: AppC.orange, fontSize: 12))),
             const SizedBox(height: 10),
             ElevatedButton(onPressed: (_appLogoFile == null || _busy) ? null : _uploadLogo, child: const Text('Save logo')),
-            const Divider(color: Colors.grey, height: 34),
-            const Text('App name, tagline, UPI ID & social links', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-            const Text('Changes show up in the whole app right away \u2014 no rebuild needed. Double-check the UPI ID: students pay to it.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+            Divider(color: AppC.divider, height: 34),
+            Text('App name, tagline, UPI ID & social links', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14)),
+            Text('Changes show up in the whole app right away \u2014 no rebuild needed. Double-check the UPI ID: students pay to it.', style: TextStyle(color: AppC.muted, fontSize: 11)),
             const SizedBox(height: 10),
-            TextField(controller: _brandAppNameCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'App name', labelStyle: TextStyle(color: Colors.grey))),
-            TextField(controller: _brandTaglineCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Tagline', labelStyle: TextStyle(color: Colors.grey))),
-            TextField(controller: _brandUpiCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'UPI ID', labelStyle: TextStyle(color: Colors.grey))),
-            TextField(controller: _brandTelegramCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Telegram URL', helperText: 'Official channel — shown on Home', labelStyle: TextStyle(color: Colors.grey), helperStyle: TextStyle(color: Colors.grey, fontSize: 11))),
-            TextField(controller: _brandPaymentTelegramCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Payment Telegram URL', helperText: 'Where students send their payment screenshot (can be different from above)', labelStyle: TextStyle(color: Colors.grey), helperStyle: TextStyle(color: Colors.grey, fontSize: 11))),
-            TextField(controller: _brandPaymentEmailCtrl, keyboardType: TextInputType.emailAddress, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Payment Gmail', helperText: 'Students without Telegram email their payment screenshot here', labelStyle: TextStyle(color: Colors.grey), helperStyle: TextStyle(color: Colors.grey, fontSize: 11))),
-            TextField(controller: _brandWhatsappCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'WhatsApp URL', labelStyle: TextStyle(color: Colors.grey))),
-            TextField(controller: _brandYoutubeCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'YouTube URL', labelStyle: TextStyle(color: Colors.grey))),
+            TextField(controller: _brandAppNameCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'App name', labelStyle: TextStyle(color: AppC.muted))),
+            TextField(controller: _brandTaglineCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Tagline', labelStyle: TextStyle(color: AppC.muted))),
+            TextField(controller: _brandUpiCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'UPI ID', labelStyle: TextStyle(color: AppC.muted))),
+            TextField(controller: _brandTelegramCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Telegram URL', helperText: 'Official channel — shown on Home', labelStyle: TextStyle(color: AppC.muted), helperStyle: TextStyle(color: AppC.muted, fontSize: 11))),
+            TextField(controller: _brandPaymentTelegramCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Payment Telegram URL', helperText: 'Where students send their payment screenshot (can be different from above)', labelStyle: TextStyle(color: AppC.muted), helperStyle: TextStyle(color: AppC.muted, fontSize: 11))),
+            TextField(controller: _brandPaymentEmailCtrl, keyboardType: TextInputType.emailAddress, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Payment Gmail', helperText: 'Students without Telegram email their payment screenshot here', labelStyle: TextStyle(color: AppC.muted), helperStyle: TextStyle(color: AppC.muted, fontSize: 11))),
+            TextField(controller: _brandWhatsappCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'WhatsApp URL', labelStyle: TextStyle(color: AppC.muted))),
+            TextField(controller: _brandYoutubeCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'YouTube URL', labelStyle: TextStyle(color: AppC.muted))),
             const SizedBox(height: 10),
             ElevatedButton(onPressed: () => _saveBrandingText(cfg), child: const Text('Save')),
           ],
@@ -1247,11 +1248,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Home Screen \u2014 auto-scroll banner slider', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+        Text('Home Screen \u2014 auto-scroll banner slider', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           '16:9 landscape images look best (for example 1280\u00d7720). A new banner shows on the Home screen right away, no rebuild needed.',
-          style: TextStyle(color: Colors.grey, fontSize: 11),
+          style: TextStyle(color: AppC.muted, fontSize: 11),
         ),
         const SizedBox(height: 14),
         GestureDetector(
@@ -1259,10 +1260,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           child: AspectRatio(
             aspectRatio: 16 / 9,
             child: Container(
-              decoration: BoxDecoration(color: const Color(0xFF050B24), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade800)),
+              decoration: BoxDecoration(color: AppC.bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppC.line2)),
               child: _bannerImageFile != null
                   ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(_bannerImageFile!, fit: BoxFit.cover))
-                  : const Center(child: Icon(Icons.add_photo_alternate, color: Colors.grey, size: 32)),
+                  : Center(child: Icon(Icons.add_photo_alternate, color: AppC.muted, size: 32)),
             ),
           ),
         ),
@@ -1277,12 +1278,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             final value = batches.any((b) => b.id == _selectedBannerBatch) ? _selectedBannerBatch : null;
             return DropdownButton<String?>(
               value: value,
-              dropdownColor: const Color(0xFF081136),
+              dropdownColor: AppC.card,
               isExpanded: true,
-              hint: const Text('Link to a paid batch (optional) \u2014 shows "Pay & Get"', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              hint: Text('Link to a paid batch (optional) \u2014 shows "Pay & Get"', style: TextStyle(color: AppC.muted, fontSize: 13)),
               items: [
-                const DropdownMenuItem<String?>(value: null, child: Text('No batch (use link below)', style: TextStyle(color: Colors.white))),
-                ...batches.map((b) => DropdownMenuItem<String?>(value: b.id, child: Text(b.title, style: const TextStyle(color: Colors.white)))),
+                DropdownMenuItem<String?>(value: null, child: Text('No batch (use link below)', style: TextStyle(color: AppC.text))),
+                ...batches.map((b) => DropdownMenuItem<String?>(value: b.id, child: Text(b.title, style: TextStyle(color: AppC.text)))),
               ],
               onChanged: (v) => setState(() => _selectedBannerBatch = v),
             );
@@ -1291,19 +1292,19 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         if (_selectedBannerBatch == null)
           TextField(
             controller: _bannerLinkCtrl,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(labelText: 'Link (optional \u2014 opens when the banner is tapped)', labelStyle: TextStyle(color: Colors.grey)),
+            style: TextStyle(color: AppC.text),
+            decoration: InputDecoration(labelText: 'Link (optional \u2014 opens when the banner is tapped)', labelStyle: TextStyle(color: AppC.muted)),
           )
         else
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 4),
-            child: Text('Tapping this banner opens the batch\u2019s payment page ("Pay & Get").', style: TextStyle(color: Colors.grey, fontSize: 11)),
+            child: Text('Tapping this banner opens the batch\u2019s payment page ("Pay & Get").', style: TextStyle(color: AppC.muted, fontSize: 11)),
           ),
-        if (_bannerStatus != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_bannerStatus!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
+        if (_bannerStatus != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_bannerStatus!, style: TextStyle(color: AppC.orange, fontSize: 12))),
         const SizedBox(height: 10),
         ElevatedButton(onPressed: (_bannerImageFile == null || _busy) ? null : _uploadBanner, child: const Text('Add banner')),
-        const Divider(color: Colors.grey, height: 34),
-        const Text('Current banners', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+        Divider(color: AppC.divider, height: 34),
+        Text('Current banners', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 8),
         StreamBuilder<List<BatchModel>>(
           stream: _batchesStream,
@@ -1311,13 +1312,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           stream: _bannersStream,
           builder: (context, snap) {
             final batchTitles = {for (final b in bSnap.data ?? <BatchModel>[]) b.id: b.title};
-            if (snap.hasError) return Text('Could not load banners: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12));
+            if (snap.hasError) return Text('Could not load banners: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 12));
             if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator()));
             final banners = snap.data!;
             if (banners.isEmpty) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.symmetric(vertical: 10),
-                child: Text('No banner yet \u2014 add one above.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                child: Text('No banner yet \u2014 add one above.', style: TextStyle(color: AppC.muted, fontSize: 12)),
               );
             }
             return AdminReorderList<BannerModel>(
@@ -1330,11 +1331,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                           leading: NetImage(url: b.imageUrl, width: 64, height: 36, fallbackIcon: '🖼️', radius: 6),
                           title: Text(
                             b.batchId != null ? 'Pay & Get \u2192 ${batchTitles[b.batchId] ?? 'batch (deleted?)'}' : (b.linkUrl ?? '(no link)'),
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            style: TextStyle(color: AppC.text, fontSize: 12),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          trailing: IconButton(tooltip: 'Delete', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteBannerConfirm(b)),
+                          trailing: IconButton(tooltip: 'Delete', padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: Icon(Icons.delete, color: AppC.red, size: 18), onPressed: () => _deleteBannerConfirm(b)),
                         ),
             );
           },
@@ -1368,16 +1369,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Send a notification to all students\u2019 phones', style: TextStyle(color: Colors.grey, fontSize: 12)),
+        Text('Send a notification to all students\u2019 phones', style: TextStyle(color: AppC.muted, fontSize: 12)),
         const SizedBox(height: 10),
-        TextField(controller: _notifyTitleCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Notification title', labelStyle: TextStyle(color: Colors.grey))),
-        TextField(controller: _notifyBodyCtrl, maxLines: 3, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Message', labelStyle: TextStyle(color: Colors.grey))),
+        TextField(controller: _notifyTitleCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Notification title', labelStyle: TextStyle(color: AppC.muted))),
+        TextField(controller: _notifyBodyCtrl, maxLines: 3, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Message', labelStyle: TextStyle(color: AppC.muted))),
         const SizedBox(height: 10),
         ElevatedButton(onPressed: _sendNotification, child: const Text('Send to all students')),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'It appears in the app\u2019s Notifications list straight away. The push to phones is sent automatically by the free GitHub automation. / फ़ोन पर पुश नोटिफ़िकेशन फ्री GitHub ऑटोमेशन अपने आप भेजता है।',
-          style: TextStyle(color: Colors.grey, fontSize: 11),
+          style: TextStyle(color: AppC.muted, fontSize: 11),
         ),
       ],
     );

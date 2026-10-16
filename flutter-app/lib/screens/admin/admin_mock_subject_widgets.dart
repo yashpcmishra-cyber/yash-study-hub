@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/firestore_service.dart';
 
-const _navy = Color(0xFF081136);
-const _gold = Color(0xFFFFFF29);
+import '../../app_colors.dart';
 
 /// Subject text box (optional) + tap-to-fill chips of the subjects that are
 /// already used inside [folderId]. Leave it empty and the test shows directly
@@ -44,18 +43,18 @@ class _MockSubjectFieldState extends State<MockSubjectField> {
         TextField(
           controller: widget.controller,
           onChanged: widget.onChanged,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
+          style: TextStyle(color: AppC.text),
+          decoration: InputDecoration(
             labelText: 'Subject folder (optional)',
-            labelStyle: TextStyle(color: Colors.grey),
+            labelStyle: TextStyle(color: AppC.muted),
             hintText: 'e.g. Maths, Reasoning, English',
-            hintStyle: TextStyle(color: Colors.grey),
+            hintStyle: TextStyle(color: AppC.muted),
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Students will see Exam folder > Subject folder > Tests. Leave empty to show the test directly inside the exam folder.',
-          style: TextStyle(color: Colors.grey, fontSize: 11),
+          style: TextStyle(color: AppC.muted, fontSize: 11),
         ),
         if (_stream != null)
           StreamBuilder<List<MockTestModel>>(
@@ -75,10 +74,10 @@ class _MockSubjectFieldState extends State<MockSubjectField> {
                       children: groups.map((g) {
                         final on = mockSubjectKey(g.name) == cur;
                         return ChoiceChip(
-                          label: Text(g.name, style: TextStyle(color: on ? _navy : Colors.white, fontSize: 12)),
+                          label: Text(g.name, style: TextStyle(color: on ? AppC.onGold : AppC.text, fontSize: 12)),
                           selected: on,
-                          selectedColor: _gold,
-                          backgroundColor: const Color(0xFF101D57),
+                          selectedColor: AppC.gold,
+                          backgroundColor: AppC.card2,
                           onSelected: (_) {
                             widget.controller.text = g.name;
                             widget.onChanged?.call(g.name);
@@ -153,8 +152,8 @@ class _MoveMockTestDialogState extends State<_MoveMockTestDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: _navy,
-      title: const Text('Move mock test', style: TextStyle(color: Colors.white)),
+      backgroundColor: AppC.card,
+      title: Text('Move mock test', style: TextStyle(color: AppC.text)),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -172,18 +171,18 @@ class _MoveMockTestDialogState extends State<_MoveMockTestDialog> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.test.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _gold, fontWeight: FontWeight.bold)),
+                      Text(widget.test.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 10),
-                      const Text('Exam folder', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      Text('Exam folder', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
                       DropdownButton<String>(
                         isExpanded: true,
                         value: valid,
-                        hint: const Text('Choose exam folder', style: TextStyle(color: Colors.grey)),
-                        dropdownColor: _navy,
+                        hint: Text('Choose exam folder', style: TextStyle(color: AppC.muted)),
+                        dropdownColor: AppC.card,
                         items: folders
                             .map((f) => DropdownMenuItem(
                                   value: f.id,
-                                  child: Text(_label(f, names), style: const TextStyle(color: Colors.white, fontSize: 13), overflow: TextOverflow.ellipsis),
+                                  child: Text(_label(f, names), style: TextStyle(color: AppC.text, fontSize: 13), overflow: TextOverflow.ellipsis),
                                 ))
                             .toList(),
                         onChanged: (v) {
@@ -197,12 +196,12 @@ class _MoveMockTestDialogState extends State<_MoveMockTestDialog> {
                             cur.first.batchIds.isEmpty
                                 ? 'After moving, this test will be FREE for all students.'
                                 : 'After moving, only students of the batch(es) shown above can open this test.',
-                            style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
+                            style: TextStyle(color: AppC.orange, fontSize: 12),
                           ),
                         ),
                       const SizedBox(height: 6),
                       MockSubjectField(controller: _subject, folderId: _folderId.isEmpty ? null : _folderId),
-                      if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
+                      if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: AppC.orange, fontSize: 12))),
                     ],
                   );
                 },

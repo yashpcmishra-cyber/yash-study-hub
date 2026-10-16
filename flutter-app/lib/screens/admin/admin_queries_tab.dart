@@ -4,6 +4,7 @@ import '../../models/query_model.dart';
 import '../../services/queries_service.dart';
 import '../../widgets/depth_card.dart';
 import '../../widgets/state_views.dart';
+import '../../app_colors.dart';
 
 /// Admin Panel -> "Queries" tab: see student doubts and reply.
 class AdminQueriesTab extends StatefulWidget {
@@ -47,10 +48,10 @@ class _AdminQueriesTabState extends State<AdminQueriesTab> with AutomaticKeepAli
               ],
             ),
             const SizedBox(height: 4),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Text('Doubts are deleted from Firebase automatically after $kQueryRetentionDays days.\nडाउट $kQueryRetentionDays दिन बाद Firebase से अपने आप डिलीट हो जाते हैं।',
-                  style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  style: TextStyle(color: AppC.text38, fontSize: 11)),
             ),
             if (shown.isEmpty)
               const SizedBox(height: 160, child: EmptyView('No doubts.\nकोई डाउट नहीं।'))
@@ -122,7 +123,7 @@ class _QueryCardState extends State<_QueryCard> {
         content: const Text('This doubt and its reply will be removed permanently.\nयह डाउट और उसका जवाब हमेशा के लिए हट जाएगा।'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel / रद्द करें')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete / डिलीट', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text('Delete / डिलीट', style: TextStyle(color: AppC.redDeep))),
         ],
       ),
     );
@@ -151,17 +152,17 @@ class _QueryCardState extends State<_QueryCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(who, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      Text(who, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13.5)),
                       Text('${q.studentEmail} \u2022 ${DateFormat('d MMM, h:mm a').format(q.when)}',
-                          style: const TextStyle(color: Colors.white38, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          style: TextStyle(color: AppC.text38, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
-                IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20), onPressed: _delete),
+                IconButton(icon: Icon(Icons.delete_outline, color: AppC.red, size: 20), onPressed: _delete),
               ],
             ),
             const SizedBox(height: 6),
-            Text(q.text, style: const TextStyle(color: Colors.white, fontSize: 13.5)),
+            Text(q.text, style: TextStyle(color: AppC.text, fontSize: 13.5)),
             const SizedBox(height: 10),
             if (showBox) ...[
               TextField(
@@ -170,12 +171,12 @@ class _QueryCardState extends State<_QueryCard> {
                 maxLines: 5,
                 maxLength: 1000,
                 enabled: !_busy,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+                style: TextStyle(color: AppC.text, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'Type reply... / जवाब लिखें...',
-                  hintStyle: const TextStyle(color: Colors.white38),
+                  hintStyle: TextStyle(color: AppC.text38),
                   filled: true,
-                  fillColor: const Color(0xFF050B24),
+                  fillColor: AppC.bg,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                 ),
               ),
@@ -206,10 +207,10 @@ class _QueryCardState extends State<_QueryCard> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFF29).withOpacity(0.08),
+                  color: AppC.gold.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(q.reply, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                child: Text(q.reply, style: TextStyle(color: AppC.text, fontSize: 13)),
               ),
               Align(
                 alignment: Alignment.centerRight,

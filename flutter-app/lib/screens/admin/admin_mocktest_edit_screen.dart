@@ -9,9 +9,7 @@ import '../../services/image_upload_service.dart';
 import '../../services/mcq_bulk_parser.dart';
 import 'admin_mock_subject_widgets.dart';
 
-const _navy = Color(0xFF081136);
-const _cardBg = Color(0xFF101D57);
-const _gold = Color(0xFFFFFF29);
+import '../../app_colors.dart';
 
 /// Admin: edit any published mock test (title, time, marks, every question)
 /// and move it to another folder. A folder decides who can see the test
@@ -80,7 +78,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  InputDecoration _dec(String label) => InputDecoration(labelText: label, labelStyle: const TextStyle(color: Colors.grey));
+  InputDecoration _dec(String label) => InputDecoration(labelText: label, labelStyle: TextStyle(color: AppC.muted));
 
   // ---- questions ----
 
@@ -221,9 +219,9 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
     final leave = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        backgroundColor: _navy,
-        title: const Text('Discard changes?', style: TextStyle(color: Colors.white)),
-        content: const Text('You have unsaved changes.', style: TextStyle(color: Colors.grey)),
+        backgroundColor: AppC.card,
+        title: Text('Discard changes?', style: TextStyle(color: AppC.text)),
+        content: Text('You have unsaved changes.', style: TextStyle(color: AppC.muted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Keep editing')),
           ElevatedButton(onPressed: () => Navigator.pop(c, true), child: const Text('Discard')),
@@ -255,13 +253,13 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Folder (who can see this test)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text('Folder (who can see this test)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
                 DropdownButton<String>(
                   isExpanded: true,
                   value: valid,
-                  hint: const Text('Choose folder', style: TextStyle(color: Colors.grey)),
-                  dropdownColor: _navy,
-                  items: folders.map((f) => DropdownMenuItem(value: f.id, child: Text(_folderLabel(f, names), style: const TextStyle(color: Colors.white, fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
+                  hint: Text('Choose folder', style: TextStyle(color: AppC.muted)),
+                  dropdownColor: AppC.card,
+                  items: folders.map((f) => DropdownMenuItem(value: f.id, child: Text(_folderLabel(f, names), style: TextStyle(color: AppC.text, fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (v) {
                     if (v == null) return;
                     setState(() {
@@ -275,9 +273,9 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
                     cur.first.batchIds.isEmpty
                         ? 'After Save, this test will be FREE for all students.'
                         : 'After Save, only students of the batch(es) shown above can open this test.',
-                    style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
+                    style: TextStyle(color: AppC.orange, fontSize: 12),
                   ),
-                const Text('To put a test in another batch: move it to a folder that is added to that batch (set this in the Mock Tests tab).', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                Text('To put a test in another batch: move it to a folder that is added to that batch (set this in the Mock Tests tab).', style: TextStyle(color: AppC.muted, fontSize: 11)),
               ],
             );
           },
@@ -301,14 +299,14 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextField(controller: _title, onChanged: (_) => _dirty = true, style: const TextStyle(color: Colors.white), decoration: _dec('Test title')),
+            TextField(controller: _title, onChanged: (_) => _dirty = true, style: TextStyle(color: AppC.text), decoration: _dec('Test title')),
             const SizedBox(height: 10),
             Row(children: [
-              Expanded(child: TextField(controller: _minutes, onChanged: (_) => _dirty = true, keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white), decoration: _dec('Time (minutes)'))),
+              Expanded(child: TextField(controller: _minutes, onChanged: (_) => _dirty = true, keyboardType: TextInputType.number, style: TextStyle(color: AppC.text), decoration: _dec('Time (minutes)'))),
               const SizedBox(width: 10),
-              Expanded(child: TextField(controller: _marks, onChanged: (_) => _dirty = true, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(color: Colors.white), decoration: _dec('Marks / question'))),
+              Expanded(child: TextField(controller: _marks, onChanged: (_) => _dirty = true, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: TextStyle(color: AppC.text), decoration: _dec('Marks / question'))),
               const SizedBox(width: 10),
-              Expanded(child: TextField(controller: _neg, onChanged: (_) => _dirty = true, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(color: Colors.white), decoration: _dec('Negative marks'))),
+              Expanded(child: TextField(controller: _neg, onChanged: (_) => _dirty = true, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: TextStyle(color: AppC.text), decoration: _dec('Negative marks'))),
             ]),
             const SizedBox(height: 12),
             _folderPicker(),
@@ -317,40 +315,40 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(10)),
-              child: const Text(
+              decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(10)),
+              child: Text(
                 'Note: if students have already taken this test, changing answers, marks or the number of questions will not change their old scores and ranks. Only new attempts use the new version.',
-                style: TextStyle(color: Colors.grey, fontSize: 11),
+                style: TextStyle(color: AppC.muted, fontSize: 11),
               ),
             ),
-            const Divider(color: Colors.grey, height: 28),
+            Divider(color: AppC.divider, height: 28),
             Row(children: [
-              Expanded(child: Text('Questions (${_qs.length})', style: const TextStyle(color: _gold, fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Questions (${_qs.length})', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold))),
               OutlinedButton.icon(onPressed: () => _editQuestion(null), icon: const Icon(Icons.add, size: 18), label: const Text('Add')),
             ]),
             for (var i = 0; i < _qs.length; i++)
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                leading: Text('${i + 1}', style: const TextStyle(color: Colors.grey)),
-                title: Text(_qs[i].text, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                leading: Text('${i + 1}', style: TextStyle(color: AppC.muted)),
+                title: Text(_qs[i].text, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppC.text, fontSize: 13)),
                 subtitle: Text(
                   'Answer ${String.fromCharCode(65 + (_qs[i].correctIndex.clamp(0, 3) as int))}  \u2022  ${_qs[i].textHi.isNotEmpty ? 'Hindi \u2713' : 'English only'}  \u2022  ${_qs[i].explanation.isNotEmpty ? 'Explanation \u2713' : 'No explanation'}${(_qs[i].passage.isNotEmpty || _qs[i].passageImage.isNotEmpty) ? '  \u2022  Directions \u2713' : ''}${_qs[i].passageImage.isNotEmpty ? '  \u2022  Image \u2713' : ''}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 10),
+                  style: TextStyle(color: AppC.muted, fontSize: 10),
                 ),
                 onTap: () => _editQuestion(i),
-                trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteQuestion(i)),
+                trailing: IconButton(icon: Icon(Icons.delete, color: AppC.red, size: 18), onPressed: () => _deleteQuestion(i)),
               ),
-            const Divider(color: Colors.grey, height: 28),
-            const Text('Add many questions at once (10 to 100)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Divider(color: AppC.divider, height: 28),
+            Text('Add many questions at once (10 to 100)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              activeColor: _gold,
-              title: Text(_reasoningMode ? 'Format in use: DIRECTIONS / DI' : 'Format in use: Standard', style: TextStyle(color: _reasoningMode ? _gold : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              activeColor: AppC.accent,
+              title: Text(_reasoningMode ? 'Format in use: DIRECTIONS / DI' : 'Format in use: Standard', style: TextStyle(color: _reasoningMode ? AppC.accent : AppC.text, fontSize: 13, fontWeight: FontWeight.w600)),
               subtitle: Text(
                 isDirectionsSubject(_subject.text) ? 'Switched on automatically because the subject is Reasoning or Quant.' : 'Turns on automatically when the subject is Reasoning or Quant. Or switch it on by hand.',
-                style: const TextStyle(color: Colors.grey, fontSize: 11),
+                style: TextStyle(color: AppC.muted, fontSize: 11),
               ),
               value: _reasoningMode,
               onChanged: isDirectionsSubject(_subject.text) ? null : (v) => setState(() => _forceReasoning = v),
@@ -359,7 +357,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
               _reasoningMode
                   ? 'Directions format (Reasoning / Quant DI): Directions first, then an optional IMG: picture line (use the Upload DI image button), then its questions (Q: A: B: C: D: ANS: EXP:), then a ------ line. Same as in the Mock Tests tab.'
                   : 'Same Q: A: B: C: D: ANS: EXP: format as in the Mock Tests tab.',
-              style: const TextStyle(color: Colors.grey, fontSize: 11),
+              style: TextStyle(color: AppC.muted, fontSize: 11),
             ),
             Align(
               alignment: Alignment.centerLeft,
@@ -383,10 +381,10 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
                 ),
               ),
             const SizedBox(height: 6),
-            TextField(controller: _bulkCtrl, minLines: 4, maxLines: 12, style: const TextStyle(color: Colors.white, fontSize: 13), decoration: const InputDecoration(hintText: 'Paste questions here', hintStyle: TextStyle(color: Colors.grey), border: OutlineInputBorder())),
+            TextField(controller: _bulkCtrl, minLines: 4, maxLines: 12, style: TextStyle(color: AppC.text, fontSize: 13), decoration: InputDecoration(hintText: 'Paste questions here', hintStyle: TextStyle(color: AppC.muted), border: OutlineInputBorder())),
             const SizedBox(height: 8),
             OutlinedButton.icon(onPressed: _bulkAdd, icon: const Icon(Icons.playlist_add), label: const Text('Check and add')),
-            for (final e in _bulkErrors.take(10)) Padding(padding: const EdgeInsets.only(top: 3), child: Text('\u2022 $e', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
+            for (final e in _bulkErrors.take(10)) Padding(padding: const EdgeInsets.only(top: 3), child: Text('\u2022 $e', style: TextStyle(color: AppC.orange, fontSize: 12))),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _saving ? null : _save,
@@ -486,15 +484,15 @@ class _QuestionDialogState extends State<_QuestionDialog> {
 
   Widget _field(TextEditingController c, String label, {int lines = 1}) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: TextField(controller: c, minLines: 1, maxLines: lines, style: const TextStyle(color: Colors.white, fontSize: 13), decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(color: Colors.grey), isDense: true)),
+        child: TextField(controller: c, minLines: 1, maxLines: lines, style: TextStyle(color: AppC.text, fontSize: 13), decoration: InputDecoration(labelText: label, labelStyle: TextStyle(color: AppC.muted), isDense: true)),
       );
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: _navy,
+      backgroundColor: AppC.card,
       insetPadding: const EdgeInsets.all(12),
-      title: Text(widget.initial == null ? 'Add question' : 'Edit question', style: const TextStyle(color: Colors.white)),
+      title: Text(widget.initial == null ? 'Add question' : 'Edit question', style: TextStyle(color: AppC.text)),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -506,20 +504,20 @@ class _QuestionDialogState extends State<_QuestionDialog> {
               _field(_q, 'Question (English)', lines: 4),
               for (var i = 0; i < 4; i++)
                 Row(children: [
-                  Radio<int>(value: i, groupValue: _correct, activeColor: _gold, onChanged: (v) => setState(() => _correct = v ?? 0)),
+                  Radio<int>(value: i, groupValue: _correct, activeColor: AppC.accent, onChanged: (v) => setState(() => _correct = v ?? 0)),
                   Expanded(child: _field(_o[i], 'Option ${String.fromCharCode(65 + i)}')),
                 ]),
-              const Text('Radio = correct answer', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              Text('Radio = correct answer', style: TextStyle(color: AppC.muted, fontSize: 11)),
               const SizedBox(height: 8),
               _field(_exp, 'Explanation (English, optional)', lines: 4),
-              const Divider(color: Colors.grey),
-              const Text('Hindi (optional)', style: TextStyle(color: _gold, fontWeight: FontWeight.bold, fontSize: 13)),
+              Divider(color: AppC.divider),
+              Text('Hindi (optional)', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 6),
               _field(_passHi, 'Directions / information (Hindi)', lines: 6),
               _field(_qHi, 'Question (Hindi)', lines: 4),
               for (var i = 0; i < 4; i++) _field(_oHi[i], 'Option ${String.fromCharCode(65 + i)} (Hindi)'),
               _field(_expHi, 'Explanation (Hindi)', lines: 4),
-              if (_error != null) Text(_error!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+              if (_error != null) Text(_error!, style: TextStyle(color: AppC.orange, fontSize: 12)),
             ],
           ),
         ),

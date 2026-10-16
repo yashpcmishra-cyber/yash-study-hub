@@ -11,6 +11,7 @@ import 'admin_mock_subject_widgets.dart';
 import 'admin_mocktest_edit_screen.dart';
 import 'admin_rename_folder_dialog.dart';
 import 'admin_reorder_list.dart';
+import '../../app_colors.dart';
 
 class AdminMockTestsTab extends StatefulWidget {
   const AdminMockTestsTab({super.key});
@@ -95,9 +96,9 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF081136),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.grey)),
+        backgroundColor: AppC.card,
+        title: Text(title, style: TextStyle(color: AppC.text)),
+        content: Text(message, style: TextStyle(color: AppC.muted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete')),
@@ -287,23 +288,23 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
             children: [
               Text(
                 chosen.isEmpty ? 'Shown in: FREE Mock Tests (all students)' : 'Shown ONLY inside the paid batch(es) selected below',
-                style: TextStyle(color: chosen.isEmpty ? Colors.greenAccent : Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                style: TextStyle(color: chosen.isEmpty ? AppC.green : AppC.orange, fontSize: 12, fontWeight: FontWeight.w600),
               ),
-              const Text('Tap a batch to add / remove it (max 2). No batch = free.', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              Text('Tap a batch to add / remove it (max 2). No batch = free.', style: TextStyle(color: AppC.muted, fontSize: 11)),
               const SizedBox(height: 4),
               if (batches.isEmpty)
-                const Text('No paid batch created yet', style: TextStyle(color: Colors.grey, fontSize: 12))
+                Text('No paid batch created yet', style: TextStyle(color: AppC.muted, fontSize: 12))
               else
                 Wrap(
                   spacing: 6,
                   children: batches.map((b) {
                     final on = chosen.contains(b.id);
                     return FilterChip(
-                      label: Text(b.mockOnly ? '📝 ${b.title}' : b.title, style: TextStyle(color: on ? const Color(0xFF081136) : Colors.white, fontSize: 12)),
+                      label: Text(b.mockOnly ? '📝 ${b.title}' : b.title, style: TextStyle(color: on ? AppC.onGold : AppC.text, fontSize: 12)),
                       selected: on,
-                      selectedColor: const Color(0xFFFFFF29),
-                      checkmarkColor: const Color(0xFF081136),
-                      backgroundColor: const Color(0xFF101D57),
+                      selectedColor: AppC.gold,
+                      checkmarkColor: AppC.onGold,
+                      backgroundColor: AppC.card2,
                       onSelected: (v) => _toggleBatch(f, b.id, v, existing),
                     );
                   }).toList(),
@@ -345,7 +346,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('1. Choose an exam folder or create a new one', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Text('1. Choose an exam folder or create a new one', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         StreamBuilder<List<MockTestFolderModel>>(
           stream: _foldersStream,
@@ -355,17 +356,17 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
             final folderRow = Row(children: [
               Expanded(
                 child: DropdownButton<String>(
-                  hint: const Text('Choose folder', style: TextStyle(color: Colors.grey)),
+                  hint: Text('Choose folder', style: TextStyle(color: AppC.muted)),
                   value: _validId(_selectedFolderId, folders.map((f) => f.id)),
-                  dropdownColor: const Color(0xFF081136),
+                  dropdownColor: AppC.card,
                   isExpanded: true,
-                  items: folders.map((f) => DropdownMenuItem(value: f.id, child: Text(f.examName, style: const TextStyle(color: Colors.white)))).toList(),
+                  items: folders.map((f) => DropdownMenuItem(value: f.id, child: Text(f.examName, style: TextStyle(color: AppC.text)))).toList(),
                   onChanged: (v) => setState(() => _selectedFolderId = v),
                 ),
               ),
               if (_selectedFolderId != null && selected.isNotEmpty) ...[
-                IconButton(tooltip: 'Rename this folder', icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.examName)),
-                IconButton(tooltip: 'Delete this folder', icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.examName)),
+                IconButton(tooltip: 'Rename this folder', icon: Icon(Icons.edit, color: AppC.accent, size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.examName)),
+                IconButton(tooltip: 'Delete this folder', icon: Icon(Icons.delete, color: AppC.red, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.examName)),
               ],
             ]);
             return Column(
@@ -385,53 +386,53 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
           },
         ),
         Row(children: [
-          Expanded(child: TextField(controller: _newFolderName, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'New exam folder (e.g. SSC CGL)', hintStyle: TextStyle(color: Colors.grey)))),
-          IconButton(icon: const Icon(Icons.add_circle, color: Color(0xFFFFFF29)), onPressed: _createFolder),
+          Expanded(child: TextField(controller: _newFolderName, style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'New exam folder (e.g. SSC CGL)', hintStyle: TextStyle(color: AppC.muted)))),
+          IconButton(icon: Icon(Icons.add_circle, color: AppC.accent), onPressed: _createFolder),
         ]),
-        const Divider(color: Colors.grey),
-        const Text('2. Test title and subject', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        TextField(controller: _testTitle, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'e.g. SSC CGL Full Mock 1', hintStyle: TextStyle(color: Colors.grey))),
+        Divider(color: AppC.divider),
+        Text('2. Test title and subject', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
+        TextField(controller: _testTitle, style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'e.g. SSC CGL Full Mock 1', hintStyle: TextStyle(color: AppC.muted))),
         const SizedBox(height: 10),
         MockSubjectField(controller: _subject, folderId: _selectedFolderId),
-        const Text('The subject stays filled for your next test (clear it if the next test has no subject).', style: TextStyle(color: Colors.grey, fontSize: 11)),
-        const Divider(color: Colors.grey),
-        const Text('3. Exam settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Text('The subject stays filled for your next test (clear it if the next test has no subject).', style: TextStyle(color: AppC.muted, fontSize: 11)),
+        Divider(color: AppC.divider),
+        Text('3. Exam settings', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Row(children: [
-          Expanded(child: TextField(controller: _durationCtrl, keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Time (minutes)', labelStyle: TextStyle(color: Colors.grey)))),
+          Expanded(child: TextField(controller: _durationCtrl, keyboardType: TextInputType.number, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Time (minutes)', labelStyle: TextStyle(color: AppC.muted)))),
           const SizedBox(width: 10),
-          Expanded(child: TextField(controller: _marksCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Marks / question', labelStyle: TextStyle(color: Colors.grey)))),
+          Expanded(child: TextField(controller: _marksCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Marks / question', labelStyle: TextStyle(color: AppC.muted)))),
           const SizedBox(width: 10),
-          Expanded(child: TextField(controller: _negCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Negative marks', labelStyle: TextStyle(color: Colors.grey)))),
+          Expanded(child: TextField(controller: _negCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Negative marks', labelStyle: TextStyle(color: AppC.muted)))),
         ]),
         const SizedBox(height: 4),
-        const Text('Negative marks = cut for each wrong answer (0 means no negative marking). These settings stay filled for your next test.', style: TextStyle(color: Colors.grey, fontSize: 11)),
-        const Divider(color: Colors.grey),
-        const Text('4a. Add questions (one at a time)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Text('Negative marks = cut for each wrong answer (0 means no negative marking). These settings stay filled for your next test.', style: TextStyle(color: AppC.muted, fontSize: 11)),
+        Divider(color: AppC.divider),
+        Text('4a. Add questions (one at a time)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
-        TextField(controller: _qText, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'Write the question', hintStyle: TextStyle(color: Colors.grey))),
+        TextField(controller: _qText, style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'Write the question', hintStyle: TextStyle(color: AppC.muted))),
         const SizedBox(height: 8),
         ...List.generate(
           4,
           (i) => Row(children: [
-            Radio<int>(value: i, groupValue: _correctIndex, activeColor: const Color(0xFFFFFF29), onChanged: (v) => setState(() => _correctIndex = v ?? 0)),
-            Expanded(child: TextField(controller: _optionCtrls[i], style: const TextStyle(color: Colors.white), decoration: InputDecoration(hintText: 'Option ${i + 1}', hintStyle: const TextStyle(color: Colors.grey)))),
+            Radio<int>(value: i, groupValue: _correctIndex, activeColor: AppC.accent, onChanged: (v) => setState(() => _correctIndex = v ?? 0)),
+            Expanded(child: TextField(controller: _optionCtrls[i], style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'Option ${i + 1}', hintStyle: TextStyle(color: AppC.muted)))),
           ]),
         ),
-        const Text('(Tap the radio button next to the correct option)', style: TextStyle(color: Colors.grey, fontSize: 11)),
+        Text('(Tap the radio button next to the correct option)', style: TextStyle(color: AppC.muted, fontSize: 11)),
         const SizedBox(height: 8),
         OutlinedButton.icon(onPressed: _addQuestionToDraft, icon: const Icon(Icons.add), label: const Text('Add question to this test')),
-        const Divider(color: Colors.grey, height: 30),
-        const Text('4b. Bulk paste (10 to 100 questions at once)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Divider(color: AppC.divider, height: 30),
+        Text('4b. Bulk paste (10 to 100 questions at once)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
         SwitchListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
-          activeColor: const Color(0xFFFFFF29),
-          title: Text(_reasoningMode ? 'Format in use: DIRECTIONS / DI' : 'Format in use: Standard', style: TextStyle(color: _reasoningMode ? const Color(0xFFFFFF29) : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+          activeColor: AppC.accent,
+          title: Text(_reasoningMode ? 'Format in use: DIRECTIONS / DI' : 'Format in use: Standard', style: TextStyle(color: _reasoningMode ? AppC.accent : AppC.text, fontSize: 13, fontWeight: FontWeight.w600)),
           subtitle: Text(
             isDirectionsSubject(_subject.text) ? 'Switched on automatically because the subject is Reasoning or Quant.' : 'Turns on automatically when the subject is Reasoning or Quant. Or switch it on by hand.',
-            style: const TextStyle(color: Colors.grey, fontSize: 11),
+            style: TextStyle(color: AppC.muted, fontSize: 11),
           ),
           value: _reasoningMode,
           onChanged: isDirectionsSubject(_subject.text) ? null : (v) => setState(() => _forceReasoning = v),
@@ -440,7 +441,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
           _reasoningMode
               ? 'Directions format (Reasoning / Quant DI): write the Directions / information first (English line, then its Hindi line, or English || Hindi on one line; start a bullet with *). For a DI graph, tap Upload DI image: an IMG: line is added at the cursor, keep it under the Directions. Then the questions of that group, each with Q: A: B: C: D: ANS: and optional EXP:. Put a line of dashes (------) after the group; the next group starts with its own Directions. The directions are shown above every question of the group in the test. Questions with no directions are fine too.'
               : 'Every question starts with Q: then options A: B: C: D:, then ANS: (A/B/C/D). EXP: (explanation) is optional. Write English || Hindi on one line for a bilingual test. Without || the text is a single language.',
-          style: const TextStyle(color: Colors.grey, fontSize: 11),
+          style: TextStyle(color: AppC.muted, fontSize: 11),
         ),
         Align(
           alignment: Alignment.centerLeft,
@@ -467,8 +468,8 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
           controller: _bulkCtrl,
           minLines: 6,
           maxLines: 14,
-          style: const TextStyle(color: Colors.white, fontSize: 13),
-          decoration: const InputDecoration(hintText: 'Paste your questions here', hintStyle: TextStyle(color: Colors.grey), border: OutlineInputBorder()),
+          style: TextStyle(color: AppC.text, fontSize: 13),
+          decoration: InputDecoration(hintText: 'Paste your questions here', hintStyle: TextStyle(color: AppC.muted), border: OutlineInputBorder()),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(onPressed: _bulkAdd, icon: const Icon(Icons.playlist_add), label: const Text('Check and add to this test')),
@@ -476,22 +477,22 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
           const SizedBox(height: 8),
           ..._bulkErrors.take(12).map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 3),
-                child: Text('• $e', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+                child: Text('• $e', style: TextStyle(color: AppC.orange, fontSize: 12)),
               )),
-          if (_bulkErrors.length > 12) Text('...and ${_bulkErrors.length - 12} more problems', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)),
+          if (_bulkErrors.length > 12) Text('...and ${_bulkErrors.length - 12} more problems', style: TextStyle(color: AppC.orange, fontSize: 12)),
         ],
-        const Divider(color: Colors.grey, height: 30),
-        Text('Questions added so far: ${_draftQuestions.length}', style: const TextStyle(color: Color(0xFFFFFF29), fontWeight: FontWeight.bold)),
+        Divider(color: AppC.divider, height: 30),
+        Text('Questions added so far: ${_draftQuestions.length}', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold)),
         ..._draftQuestions.asMap().entries.map((e) => ListTile(
               dense: true,
-              leading: Text('${e.key + 1}', style: const TextStyle(color: Colors.grey)),
-              title: Text(e.value.text, style: const TextStyle(color: Colors.white, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+              leading: Text('${e.key + 1}', style: TextStyle(color: AppC.muted)),
+              title: Text(e.value.text, style: TextStyle(color: AppC.text, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(
                 '${e.value.textHi.isNotEmpty ? 'Hindi ✓' : 'English only'}  •  ${e.value.explanation.isNotEmpty ? 'Explanation ✓' : 'No explanation'}${(e.value.passage.isNotEmpty || e.value.passageImage.isNotEmpty) ? '  •  Directions ✓' : ''}${e.value.passageImage.isNotEmpty ? '  •  Image ✓' : ''}',
-                style: const TextStyle(color: Colors.grey, fontSize: 10),
+                style: TextStyle(color: AppC.muted, fontSize: 10),
               ),
               trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
+                icon: Icon(Icons.delete, color: AppC.red, size: 18),
                 onPressed: () => setState(() {
                   _draftQuestions.removeAt(e.key);
                 }),
@@ -504,16 +505,16 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
           child: _publishing ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Publish Mock Test'),
         ),
         if (_selectedFolderId != null) ...[
-          const Divider(color: Colors.grey, height: 30),
-          const Text('Published tests in this folder', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Divider(color: AppC.divider, height: 30),
+          Text('Published tests in this folder', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           StreamBuilder<List<MockTestModel>>(
             stream: _fs.streamMockTests(_selectedFolderId!),
             builder: (context, snap) {
-              if (snap.hasError) return Text('Could not load: ${snap.error}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12));
+              if (snap.hasError) return Text('Could not load: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 12));
               if (!snap.hasData) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Center(child: CircularProgressIndicator()));
               final tests = snap.data!;
-              if (tests.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('No test is published in this folder yet', style: TextStyle(color: Colors.grey, fontSize: 12)));
+              if (tests.isEmpty) return Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('No test is published in this folder yet', style: TextStyle(color: AppC.muted, fontSize: 12)));
               return AdminReorderList<MockTestModel>(
                 items: tests,
                 idOf: (t) => t.id,
@@ -521,19 +522,19 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                 contentBuilder: (context, t) => ListTile(
                           dense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                          leading: const Icon(Icons.quiz, color: Color(0xFFFFFF29), size: 20),
-                          title: Text(t.title, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                          leading: Icon(Icons.quiz, color: AppC.accent, size: 20),
+                          title: Text(t.title, style: TextStyle(color: AppC.text, fontSize: 13)),
                           subtitle: Text(
                               '${t.subject.isNotEmpty ? '📚 ${t.subject} • ' : ''}'
                               '${t.durationMinutes > 0 ? '${t.questions.length} questions • ${t.durationMinutes} min • +${t.marksPerQuestion} / -${t.negativeMarks}' : '${t.questions.length} questions'}',
-                              style: const TextStyle(color: Colors.grey, fontSize: 11),
+                              style: TextStyle(color: AppC.muted, fontSize: 11),
                             ),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                             IconButton(
                               tooltip: 'Move to another exam folder / subject',
                               padding: const EdgeInsets.all(6),
                               constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.drive_file_move, color: Colors.lightBlueAccent, size: 18),
+                              icon: Icon(Icons.drive_file_move, color: AppC.sky, size: 18),
                               onPressed: () async {
                                 final moved = await showMoveMockTestDialog(context, t);
                                 if (moved) _snack('Test moved.');
@@ -543,10 +544,10 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                               tooltip: 'Edit / move',
                               padding: const EdgeInsets.all(6),
                               constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.edit, color: Color(0xFFFFFF29), size: 18),
+                              icon: Icon(Icons.edit, color: AppC.accent, size: 18),
                               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminMockTestEditScreen(test: t))),
                             ),
-                            IconButton(padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteTestConfirm(t)),
+                            IconButton(padding: const EdgeInsets.all(6), constraints: const BoxConstraints(), icon: Icon(Icons.delete, color: AppC.red, size: 18), onPressed: () => _deleteTestConfirm(t)),
                           ]),
                 ),
               );
