@@ -3,6 +3,7 @@ import '../../models/models.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../profile/profile_screen.dart';
+import '../../app_colors.dart';
 
 /// Step 1 of the mandatory first-run flow: create an account with an email
 /// + a password the student chooses. Step 2 (State/District/Gender/
@@ -89,31 +90,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Create your student account\nअपना स्टूडेंट अकाउंट बनाएँ', style: TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center),
+              Text('Create your student account\nअपना स्टूडेंट अकाउंट बनाएँ', style: TextStyle(color: AppC.text70, fontSize: 13), textAlign: TextAlign.center),
               const SizedBox(height: 24),
               TextField(
                 controller: _name,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Full Name *', labelStyle: TextStyle(color: Colors.grey), prefixIcon: Icon(Icons.person_outline, color: Colors.grey)),
+                style: TextStyle(color: AppC.text),
+                decoration: InputDecoration(labelText: 'Full Name *', labelStyle: TextStyle(color: AppC.muted), prefixIcon: Icon(Icons.person_outline, color: AppC.muted)),
               ),
               const SizedBox(height: 14),
               TextField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Email *', labelStyle: TextStyle(color: Colors.grey), prefixIcon: Icon(Icons.email_outlined, color: Colors.grey)),
+                style: TextStyle(color: AppC.text),
+                decoration: InputDecoration(labelText: 'Email *', labelStyle: TextStyle(color: AppC.muted), prefixIcon: Icon(Icons.email_outlined, color: AppC.muted)),
               ),
               const SizedBox(height: 14),
               TextField(
                 controller: _password,
                 obscureText: _obscure,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: AppC.text),
                 decoration: InputDecoration(
                   labelText: 'Password (min 6 characters) *',
-                  labelStyle: const TextStyle(color: Colors.grey),
-                  prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                  labelStyle: TextStyle(color: AppC.muted),
+                  prefixIcon: Icon(Icons.lock_outline, color: AppC.muted),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                    icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: AppC.muted),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
@@ -122,13 +123,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextField(
                 controller: _confirm,
                 obscureText: _obscure,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Confirm Password *', labelStyle: TextStyle(color: Colors.grey), prefixIcon: Icon(Icons.lock_outline, color: Colors.grey)),
+                style: TextStyle(color: AppC.text),
+                decoration: InputDecoration(labelText: 'Confirm Password *', labelStyle: TextStyle(color: AppC.muted), prefixIcon: Icon(Icons.lock_outline, color: AppC.muted)),
               ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 14),
-                  child: Text(_error!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12.5), textAlign: TextAlign.center),
+                  child: Text(_error!, style: TextStyle(color: AppC.orange, fontSize: 12.5), textAlign: TextAlign.center),
                 ),
               const SizedBox(height: 20),
               ElevatedButton(

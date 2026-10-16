@@ -5,6 +5,7 @@ import '../../services/firestore_service.dart';
 import '../home_screen.dart';
 import '../profile/profile_screen.dart';
 import 'signup_screen.dart';
+import '../../app_colors.dart';
 
 /// The very first screen a student sees if they are not logged in yet.
 /// Splash screen decides whether to show this (see splash_screen.dart).
@@ -86,8 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const gold = Color(0xFFFFFF29);
-    return Scaffold(
+        return Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -107,27 +107,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Image.asset('assets/logo.png', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Text('🎓', style: TextStyle(fontSize: 40))),
                   ),
                 ),
-                const Text('Welcome back', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                Text('Welcome back', style: TextStyle(color: AppC.text, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                 const SizedBox(height: 4),
-                const Text('Login to continue / जारी रखने के लिए लॉगिन करें', style: TextStyle(color: Colors.grey, fontSize: 12.5), textAlign: TextAlign.center),
+                Text('Login to continue / जारी रखने के लिए लॉगिन करें', style: TextStyle(color: AppC.muted, fontSize: 12.5), textAlign: TextAlign.center),
                 const SizedBox(height: 28),
                 TextField(
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(labelText: 'Email', labelStyle: TextStyle(color: Colors.grey), prefixIcon: Icon(Icons.email_outlined, color: Colors.grey)),
+                  style: TextStyle(color: AppC.text),
+                  decoration: InputDecoration(labelText: 'Email', labelStyle: TextStyle(color: AppC.muted), prefixIcon: Icon(Icons.email_outlined, color: AppC.muted)),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _password,
                   obscureText: _obscure,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppC.text),
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    labelStyle: const TextStyle(color: Colors.grey),
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                    labelStyle: TextStyle(color: AppC.muted),
+                    prefixIcon: Icon(Icons.lock_outline, color: AppC.muted),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                      icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: AppC.muted),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
@@ -136,13 +136,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: _forgotPassword,
-                    child: const Text('Forgot password?', style: TextStyle(color: gold, fontSize: 12.5)),
+                    child: Text('Forgot password?', style: TextStyle(color: AppC.accent, fontSize: 12.5)),
                   ),
                 ),
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: Text(_error!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 12.5), textAlign: TextAlign.center),
+                    child: Text(_error!, style: TextStyle(color: AppC.orange, fontSize: 12.5), textAlign: TextAlign.center),
                   ),
                 const SizedBox(height: 6),
                 ElevatedButton(
@@ -155,10 +155,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("New here? ", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    Text("New here? ", style: TextStyle(color: AppC.muted, fontSize: 13)),
                     GestureDetector(
                       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SignUpScreen())),
-                      child: const Text('Create Profile', style: TextStyle(color: gold, fontSize: 13, fontWeight: FontWeight.bold)),
+                      child: Text('Create Profile', style: TextStyle(color: AppC.accent, fontSize: 13, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
