@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -23,7 +24,10 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
   final _fs = FirestoreService();
   final _storage = StorageService();
   final _imageUpload = ImageUploadService();
-  late final Stream<List<BatchModel>> _batchesStream = _fs.streamBatches();
+  // The batch list is listened to ONCE here and shared by the batch dropdown
+  // and the batch chips (two listeners on one stream would miss its first data).
+  List<BatchModel> _batches = <BatchModel>[];
+  StreamSubscription<List<BatchModel>>? _batchesSub;
   String _type = 'free'; // 'free' | 'batch'
   String? _selectedBatchId;
   String? _selectedFolderId;
@@ -42,7 +46,19 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
   bool get wantKeepAlive => true;
 
   @override
+  void initState() {
+    super.initState();
+    _batchesSub = _fs.streamBatches().listen(
+      (list) {
+        if (mounted) setState(() => _batches = list);
+      },
+      onError: (_) {},
+    );
+  }
+
+  @override
   void dispose() {
+    _batchesSub?.cancel();
     _newFolderName.dispose();
     _pdfTitle.dispose();
     _driveLink.dispose();
@@ -220,41 +236,36 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
   // Paid batches for the chosen folder: tap a batch to add / remove it.
   // A folder can be in at most 3 batches and always stays in at least 1.
   Widget _batchPicker(PdfFolderModel f) {
-    return StreamBuilder<List<BatchModel>>(
-      stream: _batchesStream,
-      builder: (context, snap) {
-        final batches = snap.data ?? <BatchModel>[];
-        final existing = batches.map((b) => b.id).toSet();
-        final chosen = f.batchIds;
-        return Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Shown ONLY inside the paid batch(es) selected below', style: TextStyle(color: AppC.orange, fontSize: 12, fontWeight: FontWeight.w600)),
-              Text('Tap a batch to add / remove it (max 3). At least 1 batch must stay.', style: TextStyle(color: AppC.muted, fontSize: 11)),
-              const SizedBox(height: 4),
-              if (batches.isEmpty)
-                Text('No paid batch created yet', style: TextStyle(color: AppC.muted, fontSize: 12))
-              else
-                Wrap(
-                  spacing: 6,
-                  children: batches.map((b) {
-                    final on = chosen.contains(b.id);
-                    return FilterChip(
-                      label: Text(b.title, style: TextStyle(color: on ? AppC.onGold : AppC.text, fontSize: 12)),
-                      selected: on,
-                      selectedColor: AppC.gold,
-                      checkmarkColor: AppC.onGold,
-                      backgroundColor: AppC.card2,
-                      onSelected: (v) => _toggleBatch(f, b.id, v, existing),
-                    );
-                  }).toList(),
-                ),
-            ],
-          ),
-        );
-      },
+    final batches = _batches;
+    final existing = batches.map((b) => b.id).toSet();
+    final chosen = f.batchIds;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Shown ONLY inside the paid batch(es) selected below', style: TextStyle(color: AppC.orange, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text('Tap a batch to add / remove it (max 3). At least 1 batch must stay.', style: TextStyle(color: AppC.muted, fontSize: 11)),
+          const SizedBox(height: 4),
+          if (batches.isEmpty)
+            Text('No paid batch created yet', style: TextStyle(color: AppC.muted, fontSize: 12))
+          else
+            Wrap(
+              spacing: 6,
+              children: batches.map((b) {
+                final on = chosen.contains(b.id);
+                return FilterChip(
+                  label: Text(b.title, style: TextStyle(color: on ? AppC.onGold : AppC.text, fontSize: 12)),
+                  selected: on,
+                  selectedColor: AppC.gold,
+                  checkmarkColor: AppC.onGold,
+                  backgroundColor: AppC.card2,
+                  onSelected: (v) => _toggleBatch(f, b.id, v, existing),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
     );
   }
 
@@ -311,22 +322,16 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
         ]),
         if (_type == 'batch') ...[
           const SizedBox(height: 12),
-          StreamBuilder<List<BatchModel>>(
-            stream: _batchesStream,
-            builder: (context, snap) {
-              final batches = snap.data ?? <BatchModel>[];
-              return DropdownButton<String>(
-                hint: Text('Choose batch', style: TextStyle(color: AppC.muted)),
-                value: _validId(_selectedBatchId, batches.map((b) => b.id)),
-                dropdownColor: AppC.card,
-                isExpanded: true,
-                items: batches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.title, style: TextStyle(color: AppC.text)))).toList(),
-                onChanged: (v) => setState(() {
-                  _selectedBatchId = v;
-                  _selectedFolderId = null;
-                }),
-              );
-            },
+          DropdownButton<String>(
+            hint: Text('Choose batch', style: TextStyle(color: AppC.muted)),
+            value: _validId(_selectedBatchId, _batches.map((b) => b.id)),
+            dropdownColor: AppC.card,
+            isExpanded: true,
+            items: _batches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.title, style: TextStyle(color: AppC.text)))).toList(),
+            onChanged: (v) => setState(() {
+              _selectedBatchId = v;
+              _selectedFolderId = null;
+            }),
           ),
         ],
         Divider(color: AppC.divider),
