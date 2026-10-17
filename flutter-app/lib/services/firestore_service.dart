@@ -67,6 +67,13 @@ class FirestoreService {
     }
   }
 
+  // Same as _bumpBatchCount, for every batch a (multi-batch) folder is in.
+  Future<void> _bumpBatchCounts(Iterable<String?> batchIds, String field, int delta) async {
+    for (final id in batchIds.toSet()) {
+      await _bumpBatchCount(id, field, delta);
+    }
+  }
+
   // ---- "New content" red dots on the Home grid ----
   // Every time the admin adds something NEW, one timestamp field is written
   // (merge) into the existing doc appConfig/main. Students already read that
@@ -149,10 +156,53 @@ class FirestoreService {
   // Deletes the batch AND everything that belonged to it (PDFs, videos,
   // folders, pending requests and student access records), so nothing is
   // left behind as invisible "orphan" data.
+  //
+  // A PDF folder that is ALSO in another paid batch is NOT deleted - the
+  // deleted batch is only taken out of its list, so the other batches keep
+  // their PDFs.
   Future<void> deleteBatch(String id) async {
-    await _deleteAll(_db.collection('pdfs').where('batchId', isEqualTo: id));
+    final keepFolderIds = <String>{};
+    final seen = <String>{};
+    final folderDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+    for (final q in [
+      _db.collection('pdfFolders').where('batchIds', arrayContains: id),
+      _db.collection('pdfFolders').where('batchId', isEqualTo: id),
+    ]) {
+      final snap = await q.get();
+      for (final d in snap.docs) {
+        if (seen.add(d.id)) folderDocs.add(d);
+      }
+    }
+    for (final d in folderDocs) {
+      final f = PdfFolderModel.fromMap(d.id, d.data());
+      final others = f.batchIds.where((b) => b != id).toList();
+      if (others.isNotEmpty) {
+        keepFolderIds.add(d.id);
+        await d.reference.update({'batchIds': others, 'batchId': others.first});
+      }
+    }
+    // PDFs of folders that survive are kept (they still belong to the other batches).
+    final pdfSnap = await _db.collection('pdfs').where('batchId', isEqualTo: id).get();
+    var batch = _db.batch();
+    var pending = 0;
+    for (final d in pdfSnap.docs) {
+      if (keepFolderIds.contains(d.data()['folderId'])) continue;
+      batch.delete(d.reference);
+      pending++;
+      if (pending >= 400) {
+        await batch.commit();
+        batch = _db.batch();
+        pending = 0;
+      }
+    }
+    if (pending > 0) await batch.commit();
+    // PDFs inside a folder that is being deleted (they may carry another batch id).
+    for (final d in folderDocs) {
+      if (keepFolderIds.contains(d.id)) continue;
+      await _deleteAll(_db.collection('pdfs').where('folderId', isEqualTo: d.id));
+      await d.reference.delete();
+    }
     await _deleteAll(_db.collection('videos').where('batchId', isEqualTo: id));
-    await _deleteAll(_db.collection('pdfFolders').where('batchId', isEqualTo: id));
     await _deleteAll(_db.collection('videoFolders').where('batchId', isEqualTo: id));
     await _deleteAll(_db.collection('accessRequests').where('batchId', isEqualTo: id));
     await _deleteAll(_db.collection('batchAccess').where('batchId', isEqualTo: id));
@@ -160,15 +210,18 @@ class FirestoreService {
   }
 
   // ---- PDFs ----
-  Future<void> addPdf(PdfModel p) async {
+  // batchIds = every paid batch the folder is in (so each batch's "N PDFs"
+  // number goes up). Left empty, the PDF's own batchId is used.
+  Future<void> addPdf(PdfModel p, {List<String> batchIds = const []}) async {
     await _db.collection('pdfs').add({...p.toMap(), 'createdAt': FieldValue.serverTimestamp()});
-    await _bumpBatchCount(p.batchId, 'pdfs', 1);
-    await _markUpdated(_isPaidBatchId(p.batchId) ? 'newBatchesAt' : 'newPdfsAt');
+    final ids = batchIds.isNotEmpty ? batchIds : <String>[if (p.batchId != null) p.batchId!];
+    await _bumpBatchCounts(ids, 'pdfs', 1);
+    await _markUpdated(ids.any(_isPaidBatchId) ? 'newBatchesAt' : 'newPdfsAt');
   }
 
-  Future<void> deletePdf(String id, {String? batchId}) async {
+  Future<void> deletePdf(String id, {String? batchId, List<String> batchIds = const []}) async {
     await _db.collection('pdfs').doc(id).delete();
-    await _bumpBatchCount(batchId, 'pdfs', -1);
+    await _bumpBatchCounts(batchIds.isNotEmpty ? batchIds : <String?>[batchId], 'pdfs', -1);
   }
 
   // Rename a PDF folder (only the name field changes; PDFs stay linked by id).
@@ -176,10 +229,36 @@ class FirestoreService {
       _db.collection('pdfFolders').doc(id).update({'name': newName.trim()});
 
   // Deletes the folder together with all PDFs inside it.
-  Future<void> deletePdfFolder(String id, {String? batchId}) async {
+  Future<void> deletePdfFolder(String id, {String? batchId, List<String> batchIds = const []}) async {
     final removed = await _deleteAll(_db.collection('pdfs').where('folderId', isEqualTo: id));
     await _db.collection('pdfFolders').doc(id).delete();
-    await _bumpBatchCount(batchId, 'pdfs', -removed);
+    await _bumpBatchCounts(batchIds.isNotEmpty ? batchIds : <String?>[batchId], 'pdfs', -removed);
+  }
+
+  // Admin: which paid batches a PDF folder belongs to (1 to 3, never empty).
+  // The folder's PDFs are NOT copied - they are simply shown in every batch
+  // of the list. Each batch's "N PDFs" number is fixed up too.
+  Future<void> setPdfFolderBatches(String folderId, List<String> newIds, {required List<String> oldIds}) async {
+    if (newIds.isEmpty) throw ArgumentError('A paid PDF folder needs at least one batch');
+    await _db.collection('pdfFolders').doc(folderId).update({
+      'type': 'batch',
+      'batchIds': newIds,
+      'batchId': newIds.first, // keeps older app versions working
+    });
+    var count = 0;
+    try {
+      final agg = await _db.collection('pdfs').where('folderId', isEqualTo: folderId).count().get();
+      count = agg.count ?? 0;
+    } catch (_) {
+      // the numbers on the batch cards are not critical
+    }
+    final added = newIds.where((b) => !oldIds.contains(b)).toList();
+    final removed = oldIds.where((b) => !newIds.contains(b)).toList();
+    if (count > 0) {
+      await _bumpBatchCounts(added, 'pdfs', count);
+      await _bumpBatchCounts(removed, 'pdfs', -count);
+    }
+    if (added.isNotEmpty) await _markUpdated('newBatchesAt');
   }
 
   // ---- Videos ----
@@ -583,9 +662,16 @@ class FirestoreService {
   }
 
   // ---- PDF folders (Free PDFs vs Paid Batch PDFs) ----
+  // batchId given = the folders shown inside that paid batch. A folder can
+  // be in up to 3 batches (field `batchIds`); folders made before that only
+  // have the single `batchId`, so both are matched (OR query).
   Stream<List<PdfFolderModel>> streamFolders({required String type, String? batchId}) {
-    Query<Map<String, dynamic>> q = _db.collection('pdfFolders').where('type', isEqualTo: type);
-    if (batchId != null) q = q.where('batchId', isEqualTo: batchId);
+    final Query<Map<String, dynamic>> q = batchId != null
+        ? _db.collection('pdfFolders').where(Filter.or(
+              Filter('batchIds', arrayContains: batchId),
+              Filter('batchId', isEqualTo: batchId),
+            ))
+        : _db.collection('pdfFolders').where('type', isEqualTo: type);
     return q.snapshots().map((snap) {
       final list = snap.docs.map((d) => PdfFolderModel.fromMap(d.id, d.data())).toList();
       list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.name, b.name));
