@@ -100,7 +100,7 @@ class _DailyCaViewState extends State<DailyCaView> {
     super.initState();
     // India ki date (IST = UTC+5:30), taaki script ki date se hamesha mile.
     final ist = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
-    _days = List<DateTime>.generate(10, (i) => ist.subtract(Duration(days: i)));
+    _days = List<DateTime>.generate(7, (i) => ist.subtract(Duration(days: i)));
     _stream = _fs.streamDailyCA(_keyOf(_days[0]));
   }
 
