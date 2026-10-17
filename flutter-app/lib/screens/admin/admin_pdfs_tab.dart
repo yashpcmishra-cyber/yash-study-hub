@@ -27,6 +27,9 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
   String _type = 'free'; // 'free' | 'batch'
   String? _selectedBatchId;
   String? _selectedFolderId;
+  // The folders the dropdown is showing right now (kept up to date by the
+  // stream below) - used to know which batches the chosen folder is in.
+  List<PdfFolderModel> _shownFolders = <PdfFolderModel>[];
   final _newFolderName = TextEditingController();
   final _pdfTitle = TextEditingController();
   final _driveLink = TextEditingController();
@@ -49,6 +52,16 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
   // A dropdown crashes (in debug) if its value is not in its list, so
   // anything that is no longer in the list is treated as "nothing chosen".
   String? _validId(String? id, Iterable<String> ids) => (id != null && ids.contains(id)) ? id : null;
+
+  PdfFolderModel? get _selectedFolder {
+    for (final f in _shownFolders) {
+      if (f.id == _selectedFolderId) return f;
+    }
+    return null;
+  }
+
+  // Every paid batch the chosen folder is in ([] for a free folder).
+  List<String> get _selectedFolderBatchIds => _type == 'batch' ? (_selectedFolder?.batchIds ?? <String>[]) : <String>[];
 
   Future<bool> _confirm(String title, String message) async {
     final ok = await showDialog<bool>(
@@ -73,7 +86,13 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
       return;
     }
     try {
-      await _fs.addFolder(PdfFolderModel(id: '', name: _newFolderName.text.trim(), type: _type, batchId: _type == 'batch' ? _selectedBatchId : null));
+      await _fs.addFolder(PdfFolderModel(
+        id: '',
+        name: _newFolderName.text.trim(),
+        type: _type,
+        batchId: _type == 'batch' ? _selectedBatchId : null,
+        batchIds: _type == 'batch' ? <String>[_selectedBatchId!] : <String>[],
+      ));
       _newFolderName.clear();
       if (mounted) setState(() => _statusMsg = 'Folder created.');
     } catch (e) {
@@ -143,9 +162,9 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
         title: _pdfTitle.text.trim(),
         iconUrl: iconUrl,
         driveLink: _driveLink.text.trim(),
-        batchId: _type == 'batch' ? _selectedBatchId : null,
+        batchId: _type == 'batch' ? (_selectedFolder?.batchId ?? _selectedBatchId) : null,
         folderId: _selectedFolderId,
-      ));
+      ), batchIds: _selectedFolderBatchIds);
       _pdfTitle.clear();
       _driveLink.clear();
       if (mounted) {
@@ -164,7 +183,7 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
     final ok = await _confirm('Delete PDF?', 'Delete "${p.title}"?');
     if (!ok) return;
     try {
-      await _fs.deletePdf(p.id, batchId: p.batchId);
+      await _fs.deletePdf(p.id, batchId: p.batchId, batchIds: _selectedFolderBatchIds);
       if (mounted) setState(() => _statusMsg = 'PDF deleted.');
     } catch (e) {
       if (mounted) setState(() => _statusMsg = 'Delete failed: $e');
@@ -186,7 +205,7 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
     final ok = await _confirm('Delete folder?', 'Delete the folder "$folderName"? All PDFs inside it will be deleted too. This cannot be undone.');
     if (!ok) return;
     try {
-      await _fs.deletePdfFolder(folderId, batchId: _type == 'batch' ? _selectedBatchId : null);
+      await _fs.deletePdfFolder(folderId, batchId: _type == 'batch' ? _selectedBatchId : null, batchIds: _selectedFolderBatchIds);
       if (mounted) {
         setState(() {
           _selectedFolderId = null;
@@ -195,6 +214,79 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
       }
     } catch (e) {
       if (mounted) setState(() => _statusMsg = 'Delete failed: $e');
+    }
+  }
+
+  // Paid batches for the chosen folder: tap a batch to add / remove it.
+  // A folder can be in at most 3 batches and always stays in at least 1.
+  Widget _batchPicker(PdfFolderModel f) {
+    return StreamBuilder<List<BatchModel>>(
+      stream: _batchesStream,
+      builder: (context, snap) {
+        final batches = snap.data ?? <BatchModel>[];
+        final existing = batches.map((b) => b.id).toSet();
+        final chosen = f.batchIds;
+        return Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Shown ONLY inside the paid batch(es) selected below', style: TextStyle(color: AppC.orange, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('Tap a batch to add / remove it (max 3). At least 1 batch must stay.', style: TextStyle(color: AppC.muted, fontSize: 11)),
+              const SizedBox(height: 4),
+              if (batches.isEmpty)
+                Text('No paid batch created yet', style: TextStyle(color: AppC.muted, fontSize: 12))
+              else
+                Wrap(
+                  spacing: 6,
+                  children: batches.map((b) {
+                    final on = chosen.contains(b.id);
+                    return FilterChip(
+                      label: Text(b.title, style: TextStyle(color: on ? AppC.onGold : AppC.text, fontSize: 12)),
+                      selected: on,
+                      selectedColor: AppC.gold,
+                      checkmarkColor: AppC.onGold,
+                      backgroundColor: AppC.card2,
+                      onSelected: (v) => _toggleBatch(f, b.id, v, existing),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleBatch(PdfFolderModel f, String batchId, bool on, Set<String> existing) async {
+    // Batches that were deleted meanwhile are dropped from the list.
+    final next = f.batchIds.where(existing.contains).toList();
+    if (on) {
+      if (next.contains(batchId)) return;
+      if (next.length >= 3) {
+        setState(() => _statusMsg = 'A folder can be in at most 3 batches. Remove one first.');
+        return;
+      }
+      next.add(batchId);
+    } else {
+      next.remove(batchId);
+      if (next.isEmpty) {
+        setState(() => _statusMsg = 'A folder must stay in at least 1 batch. First add the new batch, then remove this one. (To remove the folder completely, use the delete icon.)');
+        return;
+      }
+    }
+    try {
+      await _fs.setPdfFolderBatches(f.id, next, oldIds: f.batchIds);
+      if (!mounted) return;
+      // The folder just left the batch that is being viewed -> it is no
+      // longer in this list, so nothing stays selected.
+      final leftThisView = _type == 'batch' && _selectedBatchId != null && !next.contains(_selectedBatchId);
+      setState(() {
+        if (leftThisView) _selectedFolderId = null;
+        _statusMsg = leftThisView ? 'Folder moved out of this batch. Pick the other batch above to see it.' : 'Batches updated.';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _statusMsg = 'Could not update: $e');
     }
   }
 
@@ -245,6 +337,7 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
             stream: _fs.streamFolders(type: _type, batchId: _type == 'batch' ? _selectedBatchId : null),
             builder: (context, snap) {
               final folders = snap.data ?? <PdfFolderModel>[];
+              _shownFolders = folders;
               final selected = folders.where((f) => f.id == _selectedFolderId).toList();
               final folderRow = Row(children: [
                 Expanded(
@@ -266,6 +359,7 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   folderRow,
+                  if (_type == 'batch' && selected.isNotEmpty) _batchPicker(selected.first),
                   if (folders.length >= 2)
                     AdminFolderOrderSection<PdfFolderModel>(
                       items: folders,

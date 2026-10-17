@@ -911,7 +911,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   Future<void> _deleteBatchConfirm(BatchModel b) async {
     final ok = await _confirm(
       'Delete batch?',
-      'Delete "${b.title}"? All its PDFs, videos, folders and the students\u2019 access records will be deleted too. This cannot be undone.',
+      'Delete "${b.title}"? All its PDFs, videos, folders and the students\u2019 access records will be deleted too. (A PDF folder that is also in another batch stays in that other batch.) This cannot be undone.',
     );
     if (!ok) return;
     try {

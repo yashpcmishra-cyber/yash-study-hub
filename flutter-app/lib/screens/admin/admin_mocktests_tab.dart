@@ -272,7 +272,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
   }
 
   // Paid batches for the chosen folder: tap a batch to add / remove it.
-  // No batch chosen = FREE folder. At most 2 batches (keeps the Firestore
+  // No batch chosen = FREE folder. At most 3 batches (keeps the Firestore
   // rule simple and fast).
   Widget _batchPicker(MockTestFolderModel f) {
     return StreamBuilder<List<BatchModel>>(
@@ -290,7 +290,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                 chosen.isEmpty ? 'Shown in: FREE Mock Tests (all students)' : 'Shown ONLY inside the paid batch(es) selected below',
                 style: TextStyle(color: chosen.isEmpty ? AppC.green : AppC.orange, fontSize: 12, fontWeight: FontWeight.w600),
               ),
-              Text('Tap a batch to add / remove it (max 2). No batch = free.', style: TextStyle(color: AppC.muted, fontSize: 11)),
+              Text('Tap a batch to add / remove it (max 3). No batch = free.', style: TextStyle(color: AppC.muted, fontSize: 11)),
               const SizedBox(height: 4),
               if (batches.isEmpty)
                 Text('No paid batch created yet', style: TextStyle(color: AppC.muted, fontSize: 12))
@@ -321,8 +321,8 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
     final next = f.batchIds.where(existing.contains).toList();
     if (on) {
       if (next.contains(batchId)) return;
-      if (next.length >= 2) {
-        _snack('A folder can be in at most 2 batches. Remove one first.');
+      if (next.length >= 3) {
+        _snack('A folder can be in at most 3 batches. Remove one first.');
         return;
       }
       next.add(batchId);
