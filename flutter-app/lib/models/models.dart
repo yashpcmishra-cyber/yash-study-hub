@@ -116,22 +116,33 @@ class PdfFolderModel {
   final String id;
   final String name;
   final String type; // "free" | "batch"
+  // First paid batch of the folder. Kept (always = batchIds.first) so older
+  // folders and older app versions keep working.
   final String? batchId;
+  // Paid batches this folder is shown in (max 3). Old folders only have
+  // `batchId`, so it is turned into a 1-item list here.
+  final List<String> batchIds;
   final DateTime? createdAt;
   final int? order;
 
-  PdfFolderModel({required this.id, required this.name, required this.type, this.batchId, this.createdAt, this.order});
+  PdfFolderModel({required this.id, required this.name, required this.type, this.batchId, List<String>? batchIds, this.createdAt, this.order})
+      : batchIds = batchIds ?? ((batchId != null && batchId.isNotEmpty) ? <String>[batchId] : <String>[]);
 
-  factory PdfFolderModel.fromMap(String id, Map<String, dynamic> m) => PdfFolderModel(
-        id: id,
-        name: m['name'] ?? '',
-        type: m['type'] ?? 'free',
-        batchId: m['batchId'],
-        createdAt: _dt(m['createdAt']),
-        order: _optInt(m['order']),
-      );
+  factory PdfFolderModel.fromMap(String id, Map<String, dynamic> m) {
+    final single = m['batchId'] is String && (m['batchId'] as String).isNotEmpty ? m['batchId'] as String : null;
+    final multi = (m['batchIds'] is List) ? (m['batchIds'] as List).map((e) => e.toString()).where((e) => e.isNotEmpty).toList() : <String>[];
+    return PdfFolderModel(
+      id: id,
+      name: m['name'] ?? '',
+      type: m['type'] ?? 'free',
+      batchId: multi.isNotEmpty ? multi.first : single,
+      batchIds: multi.isNotEmpty ? multi : (single != null ? <String>[single] : <String>[]),
+      createdAt: _dt(m['createdAt']),
+      order: _optInt(m['order']),
+    );
+  }
 
-  Map<String, dynamic> toMap() => {'name': name, 'type': type, 'batchId': batchId};
+  Map<String, dynamic> toMap() => {'name': name, 'type': type, 'batchId': batchId, 'batchIds': batchIds};
 }
 
 class PdfModel {
@@ -498,7 +509,7 @@ class MockTestFolderModel {
   final String id;
   final String examName; // e.g. "SSC CGL", "Banking PO"
   final DateTime? createdAt;
-  // Paid batches this folder is shown in (max 2). Empty / missing = FREE
+  // Paid batches this folder is shown in (max 3). Empty / missing = FREE
   // folder (old folders have no such field, so they stay free).
   final List<String> batchIds;
   final int? order;
