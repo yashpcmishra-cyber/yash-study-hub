@@ -14,7 +14,8 @@ import 'mock_rank_service.dart';
 //    - Exam countdown (exam ka naam + date)
 //    - Galtiyan (mistake notebook) aur Saved (bookmark) sawal
 //    - Mock test history (Progress screen ke liye)
-//    - Daily Quiz ka aaj ka cache + "aaj ho gaya" nishaan
+//    - Daily Quiz ke pichhle 7 din ka cache + har din ka "ho gaya" nishaan
+//      (8th din purana quiz phone se bhi hat jaata hai)
 //
 //  Galtiyan / Saved / History me 30 din se purani entries apne aap hat jaati
 //  hain (keepDays).
@@ -188,8 +189,15 @@ class StudyStore {
   static const _kMistakes = 'ysh2_mistakes';
   static const _kBookmarks = 'ysh2_bookmarks';
   static const _kHistory = 'ysh2_history';
+  // Purani (sirf 1 din wali) keys - ab sirf migration ke liye padhi / hatayi jaati hain.
   static const _kQuizDone = 'ysh2_quiz_done';
   static const _kQuizCache = 'ysh2_quiz_cache';
+  // Nayi keys: {yyyy-MM-dd: ...} map, jisme sirf pichhle [quizDays] din rehte hain.
+  static const _kQuizDoneMap = 'ysh2_quiz_done7';
+  static const _kQuizCacheMap = 'ysh2_quiz_cache7';
+
+  /// Daily Quiz itne din (aaj + pichhle 6 din) tak available rehta hai.
+  static const int quizDays = 7;
 
   /// Kuch badla to ye number badhta hai - Home ka card isse apne aap refresh hota hai.
   static final ValueNotifier<int> changes = ValueNotifier<int>(0);
@@ -472,11 +480,13 @@ class StudyStore {
           wrongQs.add(questions[i]);
         }
       }
-      final already = await quizDone();
-      final firstTime = already == null || already.day != day;
+      final already = await quizDoneFor(day);
+      final firstTime = already == null;
       if (firstTime) {
         final p = await SharedPreferences.getInstance();
-        await p.setString(_kQuizDone, '$day|$correct|${questions.length}');
+        final done = _pruneQuizDays(_decodeMap(p.getString(_kQuizDoneMap)));
+        done[day] = '$correct|${questions.length}';
+        await p.setString(_kQuizDoneMap, jsonEncode(done));
         await _addRecord(TestRecord(
           title: 'Daily Quiz',
           subject: 'Daily Quiz',
@@ -518,26 +528,90 @@ class StudyStore {
 
   // ----------------------------------------------------------- daily quiz
 
-  static Future<QuizDone?> quizDone() async {
-    final p = await SharedPreferences.getInstance();
-    final raw = p.getString(_kQuizDone);
-    if (raw == null) return null;
-    final parts = raw.split('|');
-    if (parts.length != 3) return null;
-    final s = int.tryParse(parts[1]);
-    final t = int.tryParse(parts[2]);
-    if (s == null || t == null) return null;
-    return QuizDone(parts[0], s, t);
+  /// Quiz ke liye pichhle [quizDays] din ki date keys (aaj pehle), yyyy-MM-dd.
+  static List<String> quizDayKeys() {
+    final n = DateTime.now();
+    return List<String>.generate(quizDays, (i) => _dayKey(DateTime(n.year, n.month, n.day - i)));
   }
 
-  /// Quiz ka phone me rakha hua copy (taaki roz sirf 1 read lage).
-  static Future<String?> readQuizCache() async {
-    final p = await SharedPreferences.getInstance();
-    return p.getString(_kQuizCache);
+  static Map<String, dynamic> _decodeMap(String? raw) {
+    if (raw == null || raw.isEmpty) return <String, dynamic>{};
+    try {
+      final m = jsonDecode(raw);
+      if (m is Map) return Map<String, dynamic>.from(m);
+    } catch (_) {}
+    return <String, dynamic>{};
   }
 
-  static Future<void> writeQuizCache(String json) async {
+  /// 7 din se purani date wali entries hata deta hai.
+  static Map<String, dynamic> _pruneQuizDays(Map<String, dynamic> m) {
+    final keep = quizDayKeys().toSet();
+    m.removeWhere((k, _) => !keep.contains(k));
+    return m;
+  }
+
+  /// Aaj ka quiz ho gaya? (Home ka red dot isse chalta hai.)
+  static Future<QuizDone?> quizDone() => quizDoneFor(today());
+
+  /// Us din ka quiz ho gaya? Nahi to null.
+  static Future<QuizDone?> quizDoneFor(String day) async {
     final p = await SharedPreferences.getInstance();
-    await p.setString(_kQuizCache, json);
+    final v = _decodeMap(p.getString(_kQuizDoneMap))[day];
+    if (v is String) {
+      final parts = v.split('|');
+      final s = parts.length == 2 ? int.tryParse(parts[0]) : null;
+      final t = parts.length == 2 ? int.tryParse(parts[1]) : null;
+      if (s != null && t != null) return QuizDone(day, s, t);
+    }
+    // Purana format (day|score|total) - update se pehle ka aaj ka result.
+    final old = p.getString(_kQuizDone)?.split('|');
+    if (old != null && old.length == 3 && old[0] == day) {
+      final s = int.tryParse(old[1]);
+      final t = int.tryParse(old[2]);
+      if (s != null && t != null) return QuizDone(day, s, t);
+    }
+    return null;
+  }
+
+  /// Un dino ki date keys jinka quiz ho chuka hai (chips par tick ke liye).
+  static Future<Set<String>> quizDoneDays() async {
+    final p = await SharedPreferences.getInstance();
+    final out = _pruneQuizDays(_decodeMap(p.getString(_kQuizDoneMap))).keys.toSet();
+    final old = p.getString(_kQuizDone)?.split('|');
+    if (old != null && old.length == 3 && quizDayKeys().contains(old[0])) out.add(old[0]);
+    return out;
+  }
+
+  /// Us din ke quiz ka phone me rakha hua copy (taaki baar-baar read na lage).
+  static Future<String?> readQuizCacheDay(String day) async {
+    final p = await SharedPreferences.getInstance();
+    final v = _pruneQuizDays(_decodeMap(p.getString(_kQuizCacheMap)))[day];
+    return v is String ? v : null;
+  }
+
+  static Future<void> writeQuizCacheDay(String day, String json) async {
+    final p = await SharedPreferences.getInstance();
+    final m = _pruneQuizDays(_decodeMap(p.getString(_kQuizCacheMap)));
+    if (!quizDayKeys().contains(day)) return;
+    m[day] = json;
+    await p.setString(_kQuizCacheMap, jsonEncode(m));
+  }
+
+  /// 7 din se purana quiz cache / result phone se hata deta hai
+  /// (aur purani 1-din wali keys bhi). Daily Quiz screen khulte hi chalta hai.
+  static Future<void> purgeOldQuizData() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final cache = _decodeMap(p.getString(_kQuizCacheMap));
+      final cacheKept = _pruneQuizDays(Map<String, dynamic>.from(cache));
+      if (cacheKept.length != cache.length) await p.setString(_kQuizCacheMap, jsonEncode(cacheKept));
+      final done = _decodeMap(p.getString(_kQuizDoneMap));
+      final doneKept = _pruneQuizDays(Map<String, dynamic>.from(done));
+      if (doneKept.length != done.length) await p.setString(_kQuizDoneMap, jsonEncode(doneKept));
+      await p.remove(_kQuizCache);
+      // Purana _kQuizDone sirf tab rakho jab uski date 7 din ke andar ho.
+      final old = p.getString(_kQuizDone)?.split('|');
+      if (old != null && !quizDayKeys().contains(old.first)) await p.remove(_kQuizDone);
+    } catch (_) {}
   }
 }
