@@ -13,7 +13,7 @@
  *     one-liner + a Hindi version, using ONLY facts present in the release,
  *  5) saves them into ONE Firestore document per day, dailyCA/{yyyy-MM-dd}
  *     (field "items"), so the app needs just 1 read per day it shows, and
- *     deletes days older than 10 days to keep Firestore storage small.
+ *     deletes days older than 7 days to keep Firestore storage small.
  *
  * If Gemini fails, nothing is marked as handled, so the next run retries.
  */
@@ -44,7 +44,7 @@ const PIB_PROXY_URL = process.env.PIB_PROXY_URL || "";
 const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
 const TOPICS = ["national", "international", "states", "economy", "banking", "trade", "polity", "schemes", "appointments", "awards", "sports", "days", "summits", "mou", "reports", "books", "obituary", "defence", "security", "science_tech", "space", "environment", "energy", "agriculture", "health", "education", "infrastructure", "culture", "misc"];
 const BATCH_SIZE = 10;
-const KEEP_DAYS = 10; // today + the previous 9 days are kept
+const KEEP_DAYS = 7; // today + the previous 6 days are kept (8th day gets deleted)
 const MAX_PER_DAY = 40; // keeps each day's document small
 const MAX_PROCESSED = 500;
 

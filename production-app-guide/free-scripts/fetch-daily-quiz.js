@@ -12,7 +12,8 @@
  * lets students read dailyCA also lets them read the quiz.)
  * App roz sirf 1 read se ise padhta hai.
  *
- * Storage: quiz documents jo 30 din se purane hain, ye script hata deta hai
+ * Storage: sirf 7 din ke quiz (aaj + pichhle 6 din) rakhe jaate hain. 8th din
+ * purana quiz ye script Firestore se hata deta hai
  * (field "qdate" se). Purani current-affairs lines ko ye script nahi chhuta.
  *
  * Safe to run many times a day: agar aaj ka quiz bana hua hai to kuch nahi karta
@@ -26,7 +27,7 @@ const MIN_QUESTIONS = 5; // isse kam valid sawal bane to quiz publish nahi hota 
 const MIN_SOURCE_ITEMS = 6; // quiz banane ke liye kam se kam itni current-affairs lines chahiye
 const MAX_SOURCE_ITEMS = 25;
 const LOOKBACK_DAYS = 3; // aaj + pichhle 3 din ki lines
-const KEEP_DAYS = 30; // 1 mahine baad quiz Firestore se delete
+const KEEP_DAYS = 7; // aaj + pichhle 6 din ke quiz rakhe jaate hain, 8th din delete
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const istDate = (offsetDays = 0) =>
@@ -193,13 +194,13 @@ async function loadSourceItems(db) {
 }
 
 async function deleteOldQuizzes(db) {
-  const cutoff = istDate(KEEP_DAYS);
+  const cutoff = istDate(KEEP_DAYS - 1); // qdate < cutoff delete => 7 din bachte hain
   const snap = await db.collection("dailyCA").where("qdate", "<", cutoff).limit(400).get();
   if (snap.empty) return;
   const batch = db.batch();
   snap.docs.forEach((d) => batch.delete(d.ref));
   await batch.commit();
-  console.log(`Deleted ${snap.size} quiz document(s) older than ${KEEP_DAYS} days.`);
+  console.log(`Deleted ${snap.size} quiz document(s) older than ${KEEP_DAYS} days (before ${cutoff}).`);
 }
 
 async function main() {
