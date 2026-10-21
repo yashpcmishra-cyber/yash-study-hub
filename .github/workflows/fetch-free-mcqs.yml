@@ -1,0 +1,44 @@
+name: Monthly Free MCQs (free, PIB archive + Wikipedia + Gemini)
+
+on:
+  schedule:
+    - cron: '30 2 1 * *'   # 1st of every month, 8:00 AM IST - builds LAST month's sets
+    - cron: '30 2 3 * *'   # 3rd of every month - retry (existing sets are skipped)
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to build, yyyy-MM (blank = previous month)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild sets that already exist (true/false)'
+        required: false
+        default: 'false'
+      dry_run:
+        description: 'Only check the Wikipedia source pools, nothing is written (true/false)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: fetch-free-mcqs
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node fetch-free-mcqs.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MONTH: ${{ github.event.inputs.month }}
+          FORCE: ${{ github.event.inputs.force }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
