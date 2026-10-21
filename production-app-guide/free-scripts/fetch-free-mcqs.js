@@ -7,7 +7,7 @@
  * SOURCES (all free to reuse, see free-mcq-sources.js for the licence notes):
  *   - Current Affairs  : PIB lines archived by fetch-daily-ca.js in caArchive/{yyyy-MM-dd}
  *   - Static GK / General Science / General Studies : Wikipedia articles (CC BY-SA 4.0),
- *     picked from UPPCS-Prelims-syllabus pools. NCERT is deliberately NOT used (its terms forbid it).
+ *     picked from SSC / Railway / UPSSSC syllabus pools. NCERT is deliberately NOT used (its terms forbid it).
  *
  * HOW A SET IS MADE (so facts come from the source text, not from the AI's memory):
  *   1) Gemini writes 24 questions ONLY from the numbered source texts, in its own words.
@@ -45,16 +45,13 @@ const PAUSE_BETWEEN_SETS_MS = 4000; // gentle on Gemini's free-tier rate limit
 
 const PIB_SOURCE = { title: "PIB - Press Information Bureau, Government of India", url: "https://pib.gov.in/" };
 
-const UPPCS_LEVEL = "UPPCS / UPSC Prelims level: moderate to slightly hard, fact-and-concept based, never trivial.";
-const MODERATE_LEVEL = "Moderate competitive-exam level (SSC / Banking / Railway): clear, factual, not tricky.";
+const MODERATE_LEVEL = "Moderate competitive-exam level (SSC / Railway / UPSSSC): clear, factual, not tricky.";
 
 // Exam folders. `focus` is the exam-wise emphasis (2026) given to Gemini.
 const EXAMS = [
   { id: "ssc", name: "SSC (CGL / CHSL / MTS)", emoji: "🧾", level: MODERATE_LEVEL, focus: "SSC General Awareness: Indian history, geography, polity, economy, general science, static GK and current affairs of national importance. Quick factual questions." },
-  { id: "banking", name: "Banking (IBPS / SBI PO & Clerk)", emoji: "🏦", level: MODERATE_LEVEL, focus: "Banking and financial awareness: RBI, SEBI, NPCI, banking terms, government financial schemes, financial inclusion, economy, current affairs and static GK." },
   { id: "railway", name: "Railway (RRB NTPC / Group D)", emoji: "🚆", level: MODERATE_LEVEL, focus: "Railway General Awareness and General Science at school level: science, history, geography, polity, economy, sports, awards and current affairs." },
-  { id: "up_state", name: "UP State (UPPCS / UPSSSC)", emoji: "🏛️", level: UPPCS_LEVEL, focus: "UPPCS Prelims GS-I with special reference to Uttar Pradesh: current events, history and national movement, India and world geography, polity and governance, economic and social development, environment, ecology and climate change, general science." },
-  { id: "upsc", name: "UPSC Civil Services (Prelims)", emoji: "🎓", level: UPPCS_LEVEL, focus: "UPSC Prelims GS paper: history (ancient, medieval, modern), geography, Indian polity and constitution, economy, environment and ecology, science and technology, current affairs." },
+  { id: "up_state", name: "UPSSSC (PET / Junior Assistant etc.)", emoji: "🏛️", level: MODERATE_LEVEL, focus: "UPSSSC General Awareness with special reference to Uttar Pradesh: UP history, geography, culture, districts, government schemes and economy, plus Indian history, geography, polity, general science and current affairs. Clear factual questions, not tricky." },
 ];
 
 const SUBJECTS = [
