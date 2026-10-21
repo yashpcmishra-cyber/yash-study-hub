@@ -18,7 +18,7 @@ import '../widgets/depth_card.dart';
 import '../widgets/banner_carousel.dart';
 import '../widgets/study_corner_card.dart';
 import 'pdf_library_screen.dart';
-import 'video_classes_screen.dart';
+import 'free_mcqs_screen.dart';
 import 'news_screen.dart';
 import 'current_affairs_screen.dart';
 import 'batches_screen.dart';
@@ -418,13 +418,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               dot: ContentSeenStore.unread('pdfs', upd?.pdfs),
                             ),
                             _quickAccessCard(
-                              '🎬',
-                              'Video Classes',
-                              () {
-                                _seenGrid('videos');
-                                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VideoClassesScreen()));
-                              },
-                              dot: ContentSeenStore.unread('videos', upd?.videos),
+                              '\u{2705}',
+                              'Free MCQs',
+                              () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FreeMcqsScreen())),
                             ),
                             _quickAccessCard(
                               '🎓',
