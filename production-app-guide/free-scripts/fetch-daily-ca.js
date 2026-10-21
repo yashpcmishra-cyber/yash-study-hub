@@ -302,6 +302,8 @@ async function cleanupOld() {
 // Adds new lines to today's single document (skips ones already there).
 async function addToDay(date, newItems) {
   const ref = db.collection("dailyCA").doc(date);
+  // Same lines are also kept in caArchive/{date} for ~40 days, so the monthly Free MCQs job can read a whole month.
+  const archiveRef = db.collection("caArchive").doc(date);
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const existing = (snap.exists && Array.isArray(snap.data().items) && snap.data().items) || [];
@@ -313,7 +315,10 @@ async function addToDay(date, newItems) {
       merged.push(it);
       added++;
     }
-    if (added > 0) tx.set(ref, { date, items: merged, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    if (added > 0) {
+      tx.set(ref, { date, items: merged, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      tx.set(archiveRef, { date, items: merged, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    }
     return added;
   });
 }
