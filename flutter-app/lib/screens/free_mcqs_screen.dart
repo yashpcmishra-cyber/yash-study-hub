@@ -9,7 +9,7 @@ import 'quiz_session_screen.dart';
 import '../app_colors.dart';
 
 /// Free MCQs (home grid): exam folders -> subject folders -> one folder per month.
-/// Every set has 20 MCQs (Hindi + English). Wrong answers go to the Mistake
+/// Every set has 25 MCQs (Hindi + English). Wrong answers go to the Mistake
 /// Notebook and the answered count goes to today's goal, same as the other quizzes.
 class FreeMcqsScreen extends StatefulWidget {
   const FreeMcqsScreen({super.key});
@@ -58,7 +58,7 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
                   child: Text(
-                    'A new set of 20 MCQs every month (Current Affairs, Static GK, General Science, General Studies), written from PIB and open-licensed Wikipedia articles. Tap ⓘ on a month to see the sources.',
+                    'A new set of 25 MCQs every month: Current Affairs (from PIB), Static GK, General Science and General Studies (syllabus-based). Tap ⓘ on a month to see how it was made.',
                     style: TextStyle(color: AppC.muted, fontSize: 12.5),
                   ),
                 ),
@@ -124,7 +124,7 @@ class _FreeMcqExamScreen extends StatelessWidget {
   }
 }
 
-/// Month folders for one exam + subject. Tapping one opens the 20-question quiz.
+/// Month folders for one exam + subject. Tapping one opens the 25-question quiz.
 class _FreeMcqSubjectScreen extends StatefulWidget {
   final FreeMcqIndex index;
   final FreeMcqChoice exam;
@@ -208,7 +208,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
     await StudyStore.addGoalProgress(answered);
   }
 
-  /// "Sources & licence" for one set. Uses the same single read the quiz needs (then cached).
+  /// "About this set" (how it was made, and the PIB link for Current Affairs). Uses the same single read the quiz needs (then cached).
   Future<void> _showSources(FreeMcqSetMeta meta) async {
     final FreeMcqSet set;
     try {
@@ -216,7 +216,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sources could not be loaded. Check your internet and try again.')),
+        const SnackBar(content: Text('Details could not be loaded. Check your internet and try again.')),
       );
       return;
     }
@@ -233,22 +233,16 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
             children: [
-              Text('Sources & licence', style: TextStyle(color: AppC.text, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text('About this set', style: TextStyle(color: AppC.text, fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
-                set.license.startsWith('CC')
-                    ? 'These questions are written in our own words from the articles below, under the licence ${set.license}. '
-                        'They are shared under the same licence. Questions can contain mistakes, so please check important facts in your textbook.'
-                    : 'These questions are written from official PIB (Government of India) press releases. '
-                        'Please check important facts in your textbook.',
+                set.sources.isNotEmpty
+                    ? 'These questions are written from official PIB (Government of India) press releases. The source is credited in each explanation. '
+                        'Questions can contain mistakes, so please check important facts in your textbook.'
+                    : 'These questions are written by AI from the syllabus topics of this exam and checked three times for accuracy (fact-check, independent re-solve, Hindi-English match). '
+                        'No book or website text is copied. Questions can still contain mistakes, so please check important facts in your textbook.',
                 style: TextStyle(color: AppC.muted, fontSize: 12.5, height: 1.35),
               ),
-              if (set.licenseUrl.isNotEmpty && set.license.startsWith('CC'))
-                TextButton(
-                  style: TextButton.styleFrom(alignment: Alignment.centerLeft, padding: EdgeInsets.zero),
-                  onPressed: () => openExternalLink(sheetContext, set.licenseUrl),
-                  child: Text('Read the licence (${set.license})'),
-                ),
               const SizedBox(height: 6),
               for (final src in set.sources)
                 ListTile(
@@ -300,7 +294,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  tooltip: 'Sources & licence',
+                                  tooltip: 'About this set',
                                   icon: Icon(Icons.info_outline, size: 20, color: AppC.muted),
                                   onPressed: _openingId == null ? () => _showSources(m) : null,
                                 ),
