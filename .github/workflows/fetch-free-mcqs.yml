@@ -1,4 +1,4 @@
-name: Monthly Free MCQs (free, PIB archive + Wikipedia + Gemini)
+name: Monthly Free MCQs (free, PIB archive + Gemini)
 
 on:
   schedule:
@@ -14,10 +14,6 @@ on:
         description: 'Rebuild sets that already exist (true/false)'
         required: false
         default: 'false'
-      dry_run:
-        description: 'Only check the Wikipedia source pools, nothing is written (true/false)'
-        required: false
-        default: 'false'
 
 concurrency:
   group: fetch-free-mcqs
@@ -26,7 +22,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -41,4 +37,3 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MONTH: ${{ github.event.inputs.month }}
           FORCE: ${{ github.event.inputs.force }}
-          DRY_RUN: ${{ github.event.inputs.dry_run }}
