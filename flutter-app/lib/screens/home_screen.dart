@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_globals.dart';
@@ -459,7 +460,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                      // Social banner — auto-rotates between Telegram/WhatsApp/YouTube every 3s
+                      // Social banner — auto-rotates between Telegram/WhatsApp/YouTube/Instagram/Facebook every 3s
                       Padding(
                         padding: const EdgeInsets.fromLTRB(14, 22, 14, 0), // grid ke glow se gap
                         child: _SocialRotator(cfg: cfg),
@@ -601,7 +602,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// Telegram / WhatsApp / YouTube tile that flips to the next one every
+/// Telegram / WhatsApp / YouTube / Instagram / Facebook tile that flips to the next one every
 /// 3 seconds. It owns its own timer so that only THIS small widget redraws
 /// (not the whole Home screen).
 class _SocialRotator extends StatefulWidget {
@@ -620,7 +621,7 @@ class _SocialRotatorState extends State<_SocialRotator> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (mounted) setState(() => _idx = (_idx + 1) % 3); // 3 fixed socials
+      if (mounted) setState(() => _idx = (_idx + 1) % 5); // 5 fixed socials
     });
   }
 
@@ -634,9 +635,11 @@ class _SocialRotatorState extends State<_SocialRotator> {
   Widget build(BuildContext context) {
     final cfg = widget.cfg;
     final socials = <Map<String, dynamic>>[
-      {'title': 'Official Telegram', 'sub': 'Instant updates & PDFs', 'cta': 'Join', 'color': AppC.telegram, 'icon': Icons.send, 'url': cfg.telegramUrl},
-      {'title': 'Official WhatsApp', 'sub': 'Fastest notifications', 'cta': 'Follow', 'color': AppC.whatsapp, 'icon': Icons.chat, 'url': cfg.whatsappUrl},
-      {'title': 'Official YouTube', 'sub': 'Free live classes', 'cta': 'Sub', 'color': AppC.youtube, 'icon': Icons.play_circle_fill, 'url': cfg.youtubeUrl},
+      {'title': 'Official Telegram', 'sub': 'Instant updates & PDFs', 'cta': 'Join', 'color': AppC.telegram, 'icon': FontAwesomeIcons.telegram, 'url': cfg.telegramUrl},
+      {'title': 'Official WhatsApp', 'sub': 'Fastest notifications', 'cta': 'Follow', 'color': AppC.whatsapp, 'icon': FontAwesomeIcons.whatsapp, 'url': cfg.whatsappUrl},
+      {'title': 'Official YouTube', 'sub': 'Free live classes', 'cta': 'Sub', 'color': AppC.youtube, 'icon': FontAwesomeIcons.youtube, 'url': cfg.youtubeUrl},
+      {'title': 'Official Instagram', 'sub': 'Daily updates & reels', 'cta': 'Follow', 'color': AppC.instagram, 'icon': FontAwesomeIcons.instagram, 'url': kInstagramUrl},
+      {'title': 'Official Facebook', 'sub': 'Join our community', 'cta': 'Like', 'color': AppC.facebook, 'icon': FontAwesomeIcons.facebookF, 'url': kFacebookUrl},
     ];
     final s = socials[_idx];
     final Color color = s['color'] as Color;
@@ -647,7 +650,7 @@ class _SocialRotatorState extends State<_SocialRotator> {
         decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.4))),
         child: Row(
           children: [
-            CircleAvatar(backgroundColor: color, child: Icon(s['icon'] as IconData, color: Colors.white, size: 18)),
+            CircleAvatar(backgroundColor: color, child: FaIcon(s['icon'] as FaIconData, color: Colors.white, size: 18)),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
