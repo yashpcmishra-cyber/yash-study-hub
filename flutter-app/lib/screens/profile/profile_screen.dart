@@ -165,8 +165,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final links = <_SocialLink>[
       _SocialLink(FontAwesomeIcons.telegram, 'Telegram', const Color(0xFF229ED9), 'https://t.me/YashStudyHub'),
       _SocialLink(FontAwesomeIcons.whatsapp, 'WhatsApp', const Color(0xFF25D366), 'https://whatsapp.com/channel/0029VbCnzSvKmCPLxoMBuk33'),
-      _SocialLink(FontAwesomeIcons.youtube, 'YouTube', const Color(0xFFFF0000), 'https://www.youtube.com/c/YashStudyHub'),
-      _SocialLink(FontAwesomeIcons.instagram, 'Instagram', const Color(0xFFD6249F), 'https://www.instagram.com/yash_pcm?mdxt=NjljN3c1NXY3cjdo'),
+      _SocialLink(FontAwesomeIcons.instagram, 'Instagram', const Color(0xFFD6249F), kInstagramUrl),
+      _SocialLink(FontAwesomeIcons.facebookF, 'Facebook', const Color(0xFF1877F2), kFacebookUrl),
       _SocialLink(FontAwesomeIcons.envelope, 'Mail', const Color(0xFFFF9800), 'mailto:officialteamysh@gmail.com'),
     ];
     return Column(
@@ -198,14 +198,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircleAvatar(
-                        radius: 23,
+                        radius: 18,
                         backgroundColor: l.color,
-                        child: FaIcon(l.icon, color: Colors.white, size: 22),
+                        child: FaIcon(l.icon, color: Colors.white, size: 17),
                       ),
                       const SizedBox(height: 6),
                       FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(l.label, style: TextStyle(color: AppC.text, fontSize: 12)),
+                        child: Text(l.label, style: TextStyle(color: AppC.text, fontSize: 11)),
                       ),
                     ],
                   ),
