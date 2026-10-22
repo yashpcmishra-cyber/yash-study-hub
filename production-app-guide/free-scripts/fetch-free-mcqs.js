@@ -1,7 +1,7 @@
 /**
  * Monthly Free MCQs (free: GitHub Actions + free Gemini key, no Blaze needed).
  *
- * For every exam x subject it builds ONE practice set of 20 MCQs for the previous
+ * For every exam x subject it builds ONE practice set of 25 MCQs for the previous
  * calendar month (or the month in env MONTH=yyyy-MM).
  *
  * LICENCE POLICY (no copyleft, no copied text):
@@ -16,13 +16,17 @@
  *   - Any older set that was built from CC-licensed text is deleted automatically (step 0).
  *
  * ACCURACY (static sets have no source text, so they are checked twice):
- *   1) Gemini writes 24 questions on stable, textbook-level facts only.
- *   2) Check A: a fact-checker removes questions that are doubtful, ambiguous or have 2 right options.
+ *   1) Gemini writes 36 questions (English + Hindi, with explanations) on stable, textbook-level facts only.
+ *      A local check rejects a question if a number in English is missing in Hindi.
+ *   2) Check A: a fact-checker removes questions that are doubtful, ambiguous or have 2 right options,
+ *      or whose explanation does not support the marked answer.
  *   3) Check B: a blind solver answers every question WITHOUT seeing the marked answer.
  *      A question survives only if the solver is sure and picks the same option.
- *   4) The first 20 survivors are saved. If a check cannot run, the set is NOT published
- *      (the retry run on the 3rd of the month tries again).
- *   Current Affairs sets get Check A against the PIB lines.
+ *   4) Check C: an English-Hindi checker removes questions whose Hindi differs from the English in
+ *      meaning, number, name or option order.
+ *   5) Survivors are collected over up to 3 rounds until 25 are there. A set with fewer than 25 is NOT
+ *      published (the retry run on the 3rd of the month tries again). If a check cannot run, the round is lost.
+ *   Current Affairs sets get Check A against the PIB lines, plus Check C.
  *
  * Firestore output (read by the app):
  *   freeMcqSets/{examId}_{subjectId}_{yyyy-MM}
@@ -41,11 +45,12 @@
  */
 const topics = require("./free-mcq-topics.js");
 
-const QUESTIONS_PER_SET = 20; // saved per set
-const QUESTIONS_ASKED = 24; // asked from Gemini, so the checks can remove a few and 20 still remain
-const MIN_QUESTIONS = 15; // fewer verified questions than this = set not published
-const MIN_CA_LINES = 15; // PIB lines needed before the Current Affairs set is built
-const MAX_CA_LINES = 60; // keeps the prompt small
+const QUESTIONS_PER_SET = 25; // saved per set
+const QUESTIONS_ASKED = 36; // asked from Gemini in round 1, so the checks can remove some and 25 still remain
+const MAX_ROUNDS = 3; // write + check rounds per set (later rounds only top up what is missing)
+const MIN_QUESTIONS = QUESTIONS_PER_SET; // fewer verified questions than this = set not published
+const MIN_CA_LINES = 30; // PIB lines needed before the Current Affairs set is built
+const MAX_CA_LINES = 80; // keeps the prompt small
 const KEEP_MONTHS = 3; // this month + 2 earlier months stay in Firestore
 const ARCHIVE_DAYS = 40; // caArchive docs older than this are deleted
 const PREV_QUESTIONS_IN_PROMPT = 30; // earlier questions shown to Gemini as "do not repeat"
@@ -55,23 +60,20 @@ const PIB_SOURCE = { title: "PIB - Press Information Bureau, Government of India
 const PIB_CREDIT = { en: " (Source: PIB, Government of India)", hi: " (स्रोत: PIB, भारत सरकार)" };
 const STATIC_LICENSE = "Original questions";
 
-const UPPCS_LEVEL = "UPPCS / UPSC Prelims level: moderate to slightly hard, fact-and-concept based, never trivial.";
-const MODERATE_LEVEL = "Moderate competitive-exam level (SSC / Banking / Railway): clear, factual, not tricky.";
+const MODERATE_LEVEL = "Moderate competitive-exam level (SSC / Railway / UPSSSC): clear, factual, not tricky.";
 
 // Exam folders. `focus` is the exam-wise emphasis (2026) given to Gemini.
 const EXAMS = [
   { id: "ssc", name: "SSC (CGL / CHSL / MTS)", emoji: "🧾", level: MODERATE_LEVEL, focus: "SSC General Awareness: Indian history, geography, polity, economy, general science, static GK and current affairs of national importance. Quick factual questions." },
-  { id: "banking", name: "Banking (IBPS / SBI PO & Clerk)", emoji: "🏦", level: MODERATE_LEVEL, focus: "Banking and financial awareness: RBI, SEBI, NPCI, banking terms, government financial schemes, financial inclusion, economy, current affairs and static GK." },
+  { id: "upsssc", name: "UPSSSC (PET / Lekhpal / Junior Assistant etc.)", emoji: "🏛️", level: MODERATE_LEVEL, focus: "UPSSSC PET and group C exams: Indian history, culture, geography, polity, economy, general science, current affairs and static GK, with special reference to Uttar Pradesh. Clear factual questions." },
   { id: "railway", name: "Railway (RRB NTPC / Group D)", emoji: "🚆", level: MODERATE_LEVEL, focus: "Railway General Awareness and General Science at school level: science, history, geography, polity, economy, sports, awards and current affairs." },
-  { id: "up_state", name: "UP State (UPPCS / UPSSSC)", emoji: "🏛️", level: UPPCS_LEVEL, focus: "UPPCS Prelims GS-I with special reference to Uttar Pradesh: current events, history and national movement, India and world geography, polity and governance, economic and social development, environment, ecology and climate change, general science." },
-  { id: "upsc", name: "UPSC Civil Services (Prelims)", emoji: "🎓", level: UPPCS_LEVEL, focus: "UPSC Prelims GS paper: history (ancient, medieval, modern), geography, Indian polity and constitution, economy, environment and ecology, science and technology, current affairs." },
 ];
 
 const SUBJECTS = [
   { id: "ca", name: "Current Affairs", emoji: "📰", syllabus: "Current events of national and international importance" },
-  { id: "gk", name: "Static GK", emoji: "🗿", syllabus: "History of India and the national movement; India and world geography; art, culture, awards and sports; Uttar Pradesh special (for UP exams)" },
+  { id: "gk", name: "Static GK", emoji: "🗿", syllabus: "History of India and the national movement; India and world geography; art, culture, awards and sports" },
   { id: "science", name: "General Science", emoji: "🔬", syllabus: "Physics, chemistry and biology as met in everyday life; human health and diseases; space and everyday technology" },
-  { id: "gs", name: "General Studies", emoji: "🧭", syllabus: "Indian polity and governance; economic and social development; environment, ecology, biodiversity and climate change; international organisations; Uttar Pradesh special (for UP exams)" },
+  { id: "gs", name: "General Studies", emoji: "🧭", syllabus: "Indian polity and governance; economic and social development; environment, ecology, biodiversity and climate change; international organisations" },
 ];
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -122,10 +124,12 @@ function outputRules(n, refText) {
 - Mix question types (who / what / which / where / how many). Do not ask two questions about the same fact.
 - Each question must make sense on its own (name the subject in the question). Never write "according to the text" or "as per the source".
 - Write everything in YOUR OWN WORDS. Never copy sentences from any source.
-- "text": the question in English (max 35 words). "textHi": the same question in clear Hindi (Devanagari). Keep proper names and numbers as they are.
+- "text": the question in English (max 35 words). "textHi": the same question in clear, standard exam-paper Hindi (Devanagari). Keep proper names as they are.
+- Write every number, year and date as digits (1857, 3, 42, 2026) in BOTH languages, never as words. Write ordinals as words (first, second / पहला, दूसरा).
+- The Hindi must mean exactly what the English means: same facts, same numbers, same names. Do not add or drop anything.
 - "options": 4 short English options. "optionsHi": the same 4 options in the same order, in Hindi (Devanagari).
 - "correctIndex": number 0-3, the position of the correct option.
-- "explanation": one English sentence (max 30 words) stating the fact. "explanationHi": the same in Hindi (Devanagari).
+- "explanation": 1-2 English sentences (max 45 words) that state the fact and say why the correct option is right. It must agree with "correctIndex". "explanationHi": the same in Hindi (Devanagari).
 - "src": ${refText}
 - Return ONLY a JSON array of ${n} objects with keys: text, textHi, options, optionsHi, correctIndex, explanation, explanationHi, src. No markdown.`;
 }
@@ -198,7 +202,7 @@ function questionLines(questions, withAnswer, refPrefix) {
     .map((q, i) => {
       const opts = q.options.map((o, k) => `${LETTERS[k]}) ${o}`).join("  ");
       const ref = refPrefix && q.src ? ` [${refPrefix}${q.src}]` : "";
-      const ans = withAnswer ? `\n   Marked correct: ${LETTERS[q.correctIndex]}` : "";
+      const ans = withAnswer ? `\n   Marked correct: ${LETTERS[q.correctIndex]}\n   Explanation: ${q.explanation}` : "";
       return `Q${i + 1}${ref} ${q.text}\n   ${opts}${ans}`;
     })
     .join("\n");
@@ -214,6 +218,7 @@ function buildVerifyPrompt({ blocks, topicList, questions }) {
 
 REMOVE a question if ANY of these is true:
 - the marked correct option is not clearly stated or directly implied by the cited source;
+- the explanation says something the source does not say, or does not match the marked correct option;
 - another option is also correct or arguably correct;
 - the question is ambiguous, depends on information the source does not give, or may be outdated;
 - the question is answered by something the source says only vaguely.
@@ -231,6 +236,7 @@ ${questionLines(questions, true, "S")}`;
 
 REMOVE a question if ANY of these is true:
 - you are not fully certain that the marked correct option is right;
+- the explanation contains a wrong or doubtful fact, or does not match the marked correct option;
 - another option is also correct or arguably correct;
 - the question is ambiguous, disputed among historians or scientists, or time-sensitive (it may have changed);
 - it depends on a number, ranking or record that differs between sources.
@@ -255,6 +261,31 @@ Return ONLY a JSON object like {"answers":[{"q":1,"answer":"C","sure":true}]} wi
 
 QUESTIONS:
 ${questionLines(questions, false, "")}`;
+}
+
+/** Check C (all sets): English and Hindi must say exactly the same thing. */
+function buildBilingualPrompt({ questions }) {
+  const lines = questions
+    .map((q, i) => {
+      const en = q.options.map((o, k) => `${LETTERS[k]}) ${o}`).join("  ");
+      const hi = q.optionsHi.map((o, k) => `${LETTERS[k]}) ${o}`).join("  ");
+      return `Q${i + 1}\n   EN: ${q.text}\n   EN options: ${en}\n   EN explanation: ${q.explanation}\n   HI: ${q.textHi}\n   HI options: ${hi}\n   HI explanation: ${q.explanationHi}\n   Marked correct: ${LETTERS[q.correctIndex]}`;
+    })
+    .join("\n");
+  return `You are a strict English-Hindi proofreader for exam questions. Compare the English and Hindi version of each question.
+
+REMOVE a question if ANY of these is true:
+- the Hindi question, a Hindi option or the Hindi explanation does not mean exactly what the English one means;
+- a number, year, date, unit or proper name is different, wrong or missing in Hindi;
+- the Hindi options are not in the same order as the English options;
+- the explanation (English or Hindi) contradicts or does not support the marked correct option;
+- the Hindi has a spelling, grammar or wording mistake that could confuse a student.
+KEEP the question otherwise.
+
+Return ONLY a JSON object like {"remove":[3,7]} listing the question numbers to remove ({"remove":[]} if none). No markdown.
+
+QUESTIONS:
+${lines}`;
 }
 
 // ------------------------------------------------------------------ Gemini
@@ -371,6 +402,22 @@ function shuffleInPlace(arr, rnd) {
   return arr;
 }
 
+const DEVANAGARI_DIGITS = "\u0966\u0967\u0968\u0969\u096A\u096B\u096C\u096D\u096E\u096F";
+
+/** All numbers in a text as plain strings (Devanagari digits and thousand separators normalised). */
+function numbersIn(text) {
+  const t = String(text)
+    .replace(/[\u0966-\u096F]/g, (c) => String(DEVANAGARI_DIGITS.indexOf(c)))
+    .replace(/(\d),(?=\d)/g, "$1");
+  return t.match(/\d+(?:\.\d+)?/g) || [];
+}
+
+/** True when every number of the English text also appears in the Hindi text. */
+function numbersCovered(en, hi) {
+  const have = new Set(numbersIn(hi));
+  return numbersIn(en).every((n) => have.has(n));
+}
+
 /** A clean question object (with `src` for the checkers), or null if anything is wrong with it. */
 function cleanQuestion(raw, { rnd = Math.random, maxSrc = 0 } = {}) {
   if (!raw || typeof raw !== "object") return null;
@@ -393,6 +440,8 @@ function cleanQuestion(raw, { rnd = Math.random, maxSrc = 0 } = {}) {
   if (optionsHi.some((o) => o.length < 1 || o.length > 160)) return null;
   if (new Set(options.map((o) => o.toLowerCase())).size !== 4) return null;
   if (!Number.isInteger(ci) || ci < 0 || ci > 3) return null;
+  if (!numbersCovered(text, textHi) || !numbersCovered(explanation, explanationHi)) return null; // a number differs in Hindi
+  if (options.some((o, i) => !numbersCovered(o, optionsHi[i]))) return null;
   if (maxSrc > 0 && (!Number.isInteger(src) || src < 1 || src > maxSrc)) return null; // must point at a real source / topic
 
   // AI often puts the right answer in the same position, so shuffle (Hindi options follow the same order).
@@ -492,26 +541,46 @@ async function purgeLegacyLicensedSets(db) {
   return ids;
 }
 
+/** Delete every set of an exam that is no longer in EXAMS (e.g. banking, upsc, the old up_state). Returns the deleted ids. */
+async function purgeRemovedExamSets(db) {
+  const keep = new Set(EXAMS.map((e) => e.id));
+  const snap = await db.collection("freeMcqSets").get();
+  const stale = snap.docs.filter((d) => !keep.has(String((d.data() || {}).examId || "")));
+  for (let i = 0; i < stale.length; i += 400) {
+    const batch = db.batch();
+    stale.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  if (stale.length) console.log(`Deleted ${stale.length} set(s) of removed exams: ${stale.map((d) => d.id).join(", ")}`);
+  return new Set(stale.map((d) => d.id));
+}
+
 // ------------------------------------------------------------ generation
 
 /**
- * Writes the questions, then checks them. Returns the final (<= 20) list, or [] if the set must not be published.
+ * Writes the questions, then checks them (A, B, C). Collects survivors over up to MAX_ROUNDS rounds until
+ * QUESTIONS_PER_SET are there. Returns the final list, or [] if the set must not be published.
  * `ctx` is { blocks } for Current Affairs (PIB lines) or { topicList } for static subjects.
  */
 async function generateSet({ exam, subject, monthKey, ctx, previous, key }) {
   const grounded = Array.isArray(ctx.blocks);
-  const exclude = new Set(previous.map((t) => t.toLowerCase()));
-  const prompt = grounded
-    ? buildCaPrompt({ exam, subject, monthKey, blocks: ctx.blocks, previous })
-    : buildStaticPrompt({ exam, subject, monthKey, topicList: ctx.topicList, previous });
   const maxSrc = grounded ? ctx.blocks.length : ctx.topicList.length;
   const temperature = grounded ? 0.2 : 0.3;
+  const kept = [];
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let round = 1; round <= MAX_ROUNDS && kept.length < QUESTIONS_PER_SET; round++) {
     try {
-      const cleaned = cleanQuestions(parseAnswer(await callGemini(prompt, key, temperature)), { exclude, maxSrc });
-      console.log(`  attempt ${attempt}: ${cleaned.length} well-formed question(s).`);
-      if (cleaned.length < MIN_QUESTIONS) continue;
+      const need = QUESTIONS_PER_SET - kept.length;
+      const n = round === 1 ? QUESTIONS_ASKED : Math.min(QUESTIONS_ASKED, need + 10);
+      const avoid = [...previous, ...kept.map((q) => q.text)]; // earlier months + what this set already has
+      const exclude = new Set(avoid.map((t) => t.toLowerCase()));
+      const prompt = grounded
+        ? buildCaPrompt({ exam, subject, monthKey, blocks: ctx.blocks, previous: avoid, n })
+        : buildStaticPrompt({ exam, subject, monthKey, topicList: ctx.topicList, previous: avoid, n });
+
+      const cleaned = cleanQuestions(parseAnswer(await callGemini(prompt, key, temperature)), { exclude, maxSrc, want: n });
+      console.log(`  round ${round}: ${cleaned.length} well-formed question(s) (asked ${n}).`);
+      if (!cleaned.length) continue;
 
       // Check A: fact-check (against the PIB lines, or against textbook knowledge).
       const removeA = parseVerify(await callGemini(buildVerifyPrompt({ ...ctx, questions: cleaned }), key, 0));
@@ -521,16 +590,47 @@ async function generateSet({ exam, subject, monthKey, ctx, previous, key }) {
         // Check B: blind solve, only for static questions.
         const answers = parseSolve(await callGemini(buildSolvePrompt({ questions: cleaned }), key, 0));
         removeB = solveRejections(cleaned, answers);
-        removeB.forEach((n) => drop.add(n));
+        removeB.forEach((n2) => drop.add(n2));
       }
+      // Check C: English and Hindi must match (all sets).
+      const removeC = parseVerify(await callGemini(buildBilingualPrompt({ questions: cleaned }), key, 0));
+      removeC.forEach((n2) => drop.add(n2));
+
       const survivors = applyVerification(cleaned, [...drop]);
-      console.log(`  attempt ${attempt}: check A removed ${new Set(removeA).size}, check B removed ${removeB.length}, ${survivors.length} survive.`);
-      if (survivors.length >= MIN_QUESTIONS) return survivors.slice(0, QUESTIONS_PER_SET).map(toStored);
+      console.log(`  round ${round}: check A removed ${new Set(removeA).size}, check B removed ${removeB.length}, check C removed ${new Set(removeC).size}, ${survivors.length} survive.`);
+      kept.push(...survivors);
     } catch (err) {
-      console.warn(`  attempt ${attempt} failed: ${err.message}`);
+      console.warn(`  round ${round} failed: ${err.message}`);
     }
   }
-  return [];
+  if (kept.length < MIN_QUESTIONS) return [];
+  return kept.slice(0, QUESTIONS_PER_SET).map(toStored);
+}
+
+/** Rebuilds freeMcqIndex/current (1 read + 1 write). Drops purged sets and sets older than KEEP_MONTHS. */
+async function writeIndex(db, admin, monthKey, built, purged) {
+  const idxRef = db.collection("freeMcqIndex").doc("current");
+  const keepExams = new Set(EXAMS.map((e) => e.id));
+  const oldSets = (((await idxRef.get()).data() || {}).sets || []).filter((s) => s && !purged.has(s.id) && keepExams.has(s.examId));
+  const all = new Map();
+  for (const s of [...oldSets, ...built]) if (s && s.id) all.set(s.id, s);
+  const minKey = shiftMonth(monthKey, -(KEEP_MONTHS - 1));
+  const kept = [];
+  const dropped = [];
+  for (const s of all.values()) (String(s.monthKey) >= minKey ? kept : dropped).push(s);
+  if (dropped.length) {
+    const batch = db.batch();
+    dropped.forEach((s) => batch.delete(db.collection("freeMcqSets").doc(s.id)));
+    await batch.commit();
+    console.log(`Deleted ${dropped.length} set(s) older than ${minKey}.`);
+  }
+  kept.sort((a, b) => (a.monthKey === b.monthKey ? String(a.id).localeCompare(String(b.id)) : a.monthKey < b.monthKey ? 1 : -1));
+  await idxRef.set({
+    exams: EXAMS.map(({ id, name, emoji }) => ({ id, name, emoji })),
+    subjects: SUBJECTS.map(({ id, name, emoji }) => ({ id, name, emoji })),
+    sets: kept.map(({ id, examId, subjectId, monthKey: mk, count, source }) => ({ id, examId, subjectId, monthKey: mk, count, source })),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
 }
 
 // ------------------------------------------------------------------ main
@@ -554,6 +654,7 @@ async function main() {
 
   // 0) No set built from CC-licensed text may stay in the database.
   const purged = await purgeLegacyLicensedSets(db);
+  for (const id of await purgeRemovedExamSets(db)) purged.add(id);
 
   // 1) Which sets already exist? One read per set, skipped entirely when FORCE=true.
   const allIds = [];
@@ -625,32 +726,17 @@ async function main() {
       });
       built.push({ ...meta, count: questions.length });
       newSets++;
+      try {
+        await writeIndex(db, admin, monthKey, built, purged);
+      } catch (err) {
+        console.warn("Index update skipped for now:", err.message);
+      }
       await sleep(PAUSE_BETWEEN_SETS_MS);
     }
   }
 
-  // 4) Rebuild the index (1 read + 1 write). Drop purged sets and sets older than KEEP_MONTHS.
-  const idxRef = db.collection("freeMcqIndex").doc("current");
-  const oldSets = (((await idxRef.get()).data() || {}).sets || []).filter((s) => s && !purged.has(s.id));
-  const all = new Map();
-  for (const s of [...oldSets, ...built]) if (s && s.id) all.set(s.id, s);
-  const minKey = shiftMonth(monthKey, -(KEEP_MONTHS - 1));
-  const kept = [];
-  const dropped = [];
-  for (const s of all.values()) (String(s.monthKey) >= minKey ? kept : dropped).push(s);
-  if (dropped.length) {
-    const batch = db.batch();
-    dropped.forEach((s) => batch.delete(db.collection("freeMcqSets").doc(s.id)));
-    await batch.commit();
-    console.log(`Deleted ${dropped.length} set(s) older than ${minKey}.`);
-  }
-  kept.sort((a, b) => (a.monthKey === b.monthKey ? String(a.id).localeCompare(String(b.id)) : a.monthKey < b.monthKey ? 1 : -1));
-  await idxRef.set({
-    exams: EXAMS.map(({ id, name, emoji }) => ({ id, name, emoji })),
-    subjects: SUBJECTS.map(({ id, name, emoji }) => ({ id, name, emoji })),
-    sets: kept.map(({ id, examId, subjectId, monthKey: mk, count, source }) => ({ id, examId, subjectId, monthKey: mk, count, source })),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  // 4) Final index rebuild (also done after every new set, so a timeout cannot leave it stale).
+  await writeIndex(db, admin, monthKey, built, purged);
 
   // 5) Trim the PIB archive (1 query).
   try {
@@ -705,6 +791,8 @@ module.exports = {
   buildStaticPrompt,
   buildVerifyPrompt,
   buildSolvePrompt,
+  buildBilingualPrompt,
+  numbersCovered,
   generateSet,
   purgeLegacyLicensedSets,
   shiftMonth,

@@ -3,14 +3,13 @@
  *
  * These are only TOPIC NAMES (our own outline, following the UPPCS Prelims GS-I syllabus:
  * history and national movement, geography, polity and governance, economic and social
- * development, environment / ecology / climate change, general science, "with special
- * reference to Uttar Pradesh"). No text from any website or book is stored or copied:
+ * development, environment / ecology / climate change, general science). No text from any website or book is stored or copied:
  * Gemini writes original questions on these topics and every question is fact-checked twice.
  *
  * `exams`: the group is used only for these exams (omit = every exam).
  */
 
-const TOPICS_PER_SET = 10;
+const TOPICS_PER_SET = 14; // 25 questions per set, at most 3 per topic
 
 const POOLS = {
   gk: [
@@ -32,7 +31,7 @@ const POOLS = {
     },
     {
       label: "Uttar Pradesh",
-      exams: ["up_state"],
+      exams: ["upsssc"],
       topics: ["History of Uttar Pradesh: Awadh and 1857 in UP", "Geography of Uttar Pradesh: regions and rivers", "Rivers of Uttar Pradesh: Ganga, Yamuna, Gomti, Ghaghara, Chambal", "Cities of Uttar Pradesh: Lucknow, Varanasi, Prayagraj, Agra, Mathura, Ayodhya", "Monuments and tourism in Uttar Pradesh", "Fairs, festivals and handicrafts of Uttar Pradesh", "National parks and wildlife sanctuaries of Uttar Pradesh", "Universities and education in Uttar Pradesh", "Folk music, dance and literature of Uttar Pradesh", "Freedom fighters of Uttar Pradesh"],
     },
   ],
@@ -75,8 +74,8 @@ const POOLS = {
     },
     {
       label: "Uttar Pradesh governance and economy",
-      exams: ["up_state"],
-      topics: ["Uttar Pradesh Legislature, Governor and Chief Minister", "Uttar Pradesh economy: agriculture and industry", "Demographics and districts of Uttar Pradesh", "Major government schemes of Uttar Pradesh", "Allahabad High Court and judicial set-up of Uttar Pradesh", "Local self-government in Uttar Pradesh", "Transport and expressways of Uttar Pradesh", "Uttar Pradesh Public Service Commission and recruitment bodies"],
+      exams: ["upsssc"],
+      topics: ["Uttar Pradesh Legislature, Governor and Chief Minister", "Uttar Pradesh economy: agriculture and industry", "Demographics and districts of Uttar Pradesh", "Major government schemes of Uttar Pradesh", "Allahabad High Court and judicial set-up of Uttar Pradesh", "Local self-government in Uttar Pradesh", "Transport and expressways of Uttar Pradesh", "UPSSSC and recruitment bodies of Uttar Pradesh"],
     },
   ],
 };
