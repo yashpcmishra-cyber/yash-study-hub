@@ -7,6 +7,7 @@ import '../../models/models.dart';
 import '../../services/firestore_service.dart';
 import '../../services/image_upload_service.dart';
 import '../../services/mcq_bulk_parser.dart';
+import 'admin_free_mcq_import.dart';
 import 'admin_mock_subject_widgets.dart';
 
 import '../../app_colors.dart';
@@ -154,6 +155,24 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
       _dirty = true;
     });
     _snack('${r.questions.length} questions added. Tap Save to keep them.');
+  }
+
+  // Copy every question of the Free MCQs set(s) the admin ticks into this test.
+  Future<void> _importFromFreeMcqs() async {
+    final res = await showFreeMcqImportSheet(context);
+    if (res == null || !mounted) return;
+    final seen = _qs.map((q) => q.text.trim().toLowerCase()).toSet();
+    final fresh = res.questions.where((q) => seen.add(q.text.trim().toLowerCase())).toList();
+    final skipped = res.questions.length - fresh.length;
+    if (_qs.length + fresh.length > kMaxQuestionsPerTest) {
+      _snack('One test can have at most $kMaxQuestionsPerTest questions (this one has ${_qs.length}). Pick fewer sets.');
+      return;
+    }
+    setState(() {
+      _qs.addAll(fresh);
+      _dirty = true;
+    });
+    _snack('${fresh.length} MCQs copied${skipped > 0 ? ' ($skipped repeats skipped)' : ''}. Tap Save to keep them.');
   }
 
   // ---- save ----
@@ -385,6 +404,8 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
             const SizedBox(height: 8),
             OutlinedButton.icon(onPressed: _bulkAdd, icon: const Icon(Icons.playlist_add), label: const Text('Check and add')),
             for (final e in _bulkErrors.take(10)) Padding(padding: const EdgeInsets.only(top: 3), child: Text('\u2022 $e', style: TextStyle(color: AppC.orange, fontSize: 12))),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(onPressed: _importFromFreeMcqs, icon: const Icon(Icons.library_add), label: const Text('Copy from Free MCQs')),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _saving ? null : _save,

@@ -7,6 +7,7 @@ import '../../services/firestore_service.dart';
 import '../../models/models.dart';
 import '../../services/image_upload_service.dart';
 import '../../services/mcq_bulk_parser.dart';
+import 'admin_free_mcq_import.dart';
 import 'admin_mock_subject_widgets.dart';
 import 'admin_mocktest_edit_screen.dart';
 import 'admin_rename_folder_dialog.dart';
@@ -183,6 +184,25 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
       _bulkErrors = [];
     });
     _snack('${result.questions.length} questions added to this test.');
+  }
+
+  // Copy every question of the Free MCQs set(s) the admin ticks into the test being built.
+  Future<void> _importFromFreeMcqs() async {
+    final res = await showFreeMcqImportSheet(context);
+    if (res == null || !mounted) return;
+    final seen = _draftQuestions.map((q) => q.text.trim().toLowerCase()).toSet();
+    final fresh = res.questions.where((q) => seen.add(q.text.trim().toLowerCase())).toList();
+    final skipped = res.questions.length - fresh.length;
+    if (_draftQuestions.length + fresh.length > kMaxQuestionsPerTest) {
+      _snack('One test can have at most $kMaxQuestionsPerTest questions (you already have ${_draftQuestions.length}). Pick fewer sets.');
+      return;
+    }
+    setState(() {
+      _draftQuestions.addAll(fresh);
+      if (_testTitle.text.trim().isEmpty && res.suggestedTitle.isNotEmpty) _testTitle.text = res.suggestedTitle;
+      if (_subject.text.trim().isEmpty && res.suggestedSubject.isNotEmpty) _subject.text = res.suggestedSubject;
+    });
+    _snack('${fresh.length} MCQs copied from ${res.setCount} set(s)${skipped > 0 ? ' ($skipped repeats skipped)' : ''}. Now choose the folder and publish.');
   }
 
   Future<void> _publishTest() async {
@@ -481,6 +501,12 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
               )),
           if (_bulkErrors.length > 12) Text('...and ${_bulkErrors.length - 12} more problems', style: TextStyle(color: AppC.orange, fontSize: 12)),
         ],
+        Divider(color: AppC.divider, height: 30),
+        Text('4c. Copy from Free MCQs', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text('Take the ready-made MCQs of any Free MCQs subject / month (with Hindi and explanations) into this test. You can tick several sets, and delete single questions below.', style: TextStyle(color: AppC.muted, fontSize: 11)),
+        const SizedBox(height: 6),
+        OutlinedButton.icon(onPressed: _importFromFreeMcqs, icon: const Icon(Icons.library_add), label: const Text('Copy from Free MCQs')),
         Divider(color: AppC.divider, height: 30),
         Text('Questions added so far: ${_draftQuestions.length}', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold)),
         ..._draftQuestions.asMap().entries.map((e) => ListTile(
