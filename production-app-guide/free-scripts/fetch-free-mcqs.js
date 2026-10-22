@@ -4,17 +4,25 @@
  * For every exam x subject it builds ONE practice set of 20 MCQs for the previous
  * calendar month (or the month in env MONTH=yyyy-MM).
  *
- * SOURCES (all free to reuse, see free-mcq-sources.js for the licence notes):
- *   - Current Affairs  : PIB lines archived by fetch-daily-ca.js in caArchive/{yyyy-MM-dd}
- *   - Static GK / General Science / General Studies : Wikipedia articles (CC BY-SA 4.0),
- *     picked from SSC / Railway / UPSSSC syllabus pools. NCERT is deliberately NOT used (its terms forbid it).
+ * LICENCE POLICY (no copyleft, no copied text):
+ *   - Current Affairs : written ONLY from PIB lines archived by fetch-daily-ca.js (caArchive).
+ *     PIB's copyright policy allows free reproduction if the source is acknowledged, so EVERY
+ *     Current Affairs question carries "Source: PIB, Government of India" inside its explanation.
+ *     That credit travels with the question, also when an admin copies it into a Mock Test.
+ *   - Static GK / General Science / General Studies : Gemini writes ORIGINAL questions on our own
+ *     syllabus topic list (free-mcq-topics.js). No website or book text is used, so there is
+ *     nothing to licence. (Gemini API terms: Google does not claim ownership of the output.)
+ *   - No Wikipedia / CC BY-SA content. No NCERT content.
+ *   - Any older set that was built from CC-licensed text is deleted automatically (step 0).
  *
- * HOW A SET IS MADE (so facts come from the source text, not from the AI's memory):
- *   1) Gemini writes 24 questions ONLY from the numbered source texts, in its own words.
- *   2) A second Gemini pass checks every question against the same text and removes any whose
- *      answer is not clearly supported, or that could have two correct options.
- *   3) The first 20 surviving questions are saved. If the check cannot run, the set is NOT
- *      published (the retry run on the 3rd of the month tries again).
+ * ACCURACY (static sets have no source text, so they are checked twice):
+ *   1) Gemini writes 24 questions on stable, textbook-level facts only.
+ *   2) Check A: a fact-checker removes questions that are doubtful, ambiguous or have 2 right options.
+ *   3) Check B: a blind solver answers every question WITHOUT seeing the marked answer.
+ *      A question survives only if the solver is sure and picks the same option.
+ *   4) The first 20 survivors are saved. If a check cannot run, the set is NOT published
+ *      (the retry run on the 3rd of the month tries again).
+ *   Current Affairs sets get Check A against the PIB lines.
  *
  * Firestore output (read by the app):
  *   freeMcqSets/{examId}_{subjectId}_{yyyy-MM}
@@ -28,30 +36,35 @@
  * Env: FIREBASE_SERVICE_ACCOUNT, GEMINI_API_KEY   (GitHub secrets)
  *      MONTH=yyyy-MM          optional, default = previous month (IST)
  *      FORCE=true             optional, rebuild sets that already exist
- *      DRY_RUN=true           optional, only checks the Wikipedia source pools (no Gemini, no Firebase)
  *      FREE_MCQ_NOTIFY=false  optional, skip the "Free MCQs ready" push
+ *      GEMINI_GAP_MS=3000     optional, pause before every Gemini call (free-tier rate limit)
  */
-const sources = require("./free-mcq-sources.js");
+const topics = require("./free-mcq-topics.js");
 
 const QUESTIONS_PER_SET = 20; // saved per set
-const QUESTIONS_ASKED = 24; // asked from Gemini, so the check can remove a few and 20 still remain
+const QUESTIONS_ASKED = 24; // asked from Gemini, so the checks can remove a few and 20 still remain
 const MIN_QUESTIONS = 15; // fewer verified questions than this = set not published
 const MIN_CA_LINES = 15; // PIB lines needed before the Current Affairs set is built
 const MAX_CA_LINES = 60; // keeps the prompt small
 const KEEP_MONTHS = 3; // this month + 2 earlier months stay in Firestore
 const ARCHIVE_DAYS = 40; // caArchive docs older than this are deleted
 const PREV_QUESTIONS_IN_PROMPT = 30; // earlier questions shown to Gemini as "do not repeat"
-const PAUSE_BETWEEN_SETS_MS = 4000; // gentle on Gemini's free-tier rate limit
+const PAUSE_BETWEEN_SETS_MS = 3000;
 
 const PIB_SOURCE = { title: "PIB - Press Information Bureau, Government of India", url: "https://pib.gov.in/" };
+const PIB_CREDIT = { en: " (Source: PIB, Government of India)", hi: " (स्रोत: PIB, भारत सरकार)" };
+const STATIC_LICENSE = "Original questions";
 
-const MODERATE_LEVEL = "Moderate competitive-exam level (SSC / Railway / UPSSSC): clear, factual, not tricky.";
+const UPPCS_LEVEL = "UPPCS / UPSC Prelims level: moderate to slightly hard, fact-and-concept based, never trivial.";
+const MODERATE_LEVEL = "Moderate competitive-exam level (SSC / Banking / Railway): clear, factual, not tricky.";
 
 // Exam folders. `focus` is the exam-wise emphasis (2026) given to Gemini.
 const EXAMS = [
   { id: "ssc", name: "SSC (CGL / CHSL / MTS)", emoji: "🧾", level: MODERATE_LEVEL, focus: "SSC General Awareness: Indian history, geography, polity, economy, general science, static GK and current affairs of national importance. Quick factual questions." },
+  { id: "banking", name: "Banking (IBPS / SBI PO & Clerk)", emoji: "🏦", level: MODERATE_LEVEL, focus: "Banking and financial awareness: RBI, SEBI, NPCI, banking terms, government financial schemes, financial inclusion, economy, current affairs and static GK." },
   { id: "railway", name: "Railway (RRB NTPC / Group D)", emoji: "🚆", level: MODERATE_LEVEL, focus: "Railway General Awareness and General Science at school level: science, history, geography, polity, economy, sports, awards and current affairs." },
-  { id: "up_state", name: "UPSSSC (PET / Junior Assistant etc.)", emoji: "🏛️", level: MODERATE_LEVEL, focus: "UPSSSC General Awareness with special reference to Uttar Pradesh: UP history, geography, culture, districts, government schemes and economy, plus Indian history, geography, polity, general science and current affairs. Clear factual questions, not tricky." },
+  { id: "up_state", name: "UP State (UPPCS / UPSSSC)", emoji: "🏛️", level: UPPCS_LEVEL, focus: "UPPCS Prelims GS-I with special reference to Uttar Pradesh: current events, history and national movement, India and world geography, polity and governance, economic and social development, environment, ecology and climate change, general science." },
+  { id: "upsc", name: "UPSC Civil Services (Prelims)", emoji: "🎓", level: UPPCS_LEVEL, focus: "UPSC Prelims GS paper: history (ancient, medieval, modern), geography, Indian polity and constitution, economy, environment and ecology, science and technology, current affairs." },
 ];
 
 const SUBJECTS = [
@@ -68,6 +81,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pad2 = (n) => String(n).padStart(2, "0");
 const oneLine = (s) => String(s == null ? "" : s).replace(/\s+/g, " ").trim();
 const hasDevanagari = (s) => /[\u0900-\u097F]/.test(s);
+const geminiGapMs = () => (process.env.GEMINI_GAP_MS !== undefined ? Number(process.env.GEMINI_GAP_MS) || 0 : 3000);
 
 // ------------------------------------------------------------------ dates (IST)
 
@@ -100,24 +114,28 @@ const setId = (examId, subjectId, monthKey) => `${examId}_${subjectId}_${monthKe
 
 // ------------------------------------------------------------------ prompts
 
-/** Output rules shared by every set. */
-function outputRules(n) {
+/** Output rules shared by every set. `refText` explains the "src" field. */
+function outputRules(n, refText) {
   return `OUTPUT RULES:
 - Write exactly ${n} multiple-choice questions.
 - Exactly 4 options. Exactly ONE option is correct. The 3 wrong options must be plausible but clearly wrong, and must NOT also be true.
-- Mix question types (who / what / which / where / how many). Do not ask two questions about the same fact. Spread the questions over different sources.
+- Mix question types (who / what / which / where / how many). Do not ask two questions about the same fact.
 - Each question must make sense on its own (name the subject in the question). Never write "according to the text" or "as per the source".
-- Write the questions and explanations in YOUR OWN WORDS. Never copy a sentence from the sources.
+- Write everything in YOUR OWN WORDS. Never copy sentences from any source.
 - "text": the question in English (max 35 words). "textHi": the same question in clear Hindi (Devanagari). Keep proper names and numbers as they are.
 - "options": 4 short English options. "optionsHi": the same 4 options in the same order, in Hindi (Devanagari).
 - "correctIndex": number 0-3, the position of the correct option.
 - "explanation": one English sentence (max 30 words) stating the fact. "explanationHi": the same in Hindi (Devanagari).
-- "src": the number of the SOURCE the question comes from (for example 3 for [S3]).
+- "src": ${refText}
 - Return ONLY a JSON array of ${n} objects with keys: text, textHi, options, optionsHi, correctIndex, explanation, explanationHi, src. No markdown.`;
 }
 
 function sourceBlock(blocks) {
   return blocks.map((b, i) => `[S${i + 1}] ${b.label}\n${b.text}`).join("\n\n");
+}
+
+function topicBlock(topicList) {
+  return topicList.map((t, i) => `[T${i + 1}] ${t}`).join("\n");
 }
 
 /** Earlier questions (from the last 2 months) that must not come back. */
@@ -126,39 +144,73 @@ function avoidBlock(previous) {
   return `\n\nDO NOT repeat or closely paraphrase these earlier questions:\n${previous.map((t) => `- ${t}`).join("\n")}`;
 }
 
-/** The generation prompt. `blocks` = [{label, text}] (Wikipedia articles, or PIB lines for Current Affairs). */
-function buildPrompt({ exam, subject, monthKey, blocks, previous = [], n = QUESTIONS_ASKED }) {
-  const isCa = subject.id === "ca";
-  return `You write a monthly practice set of multiple-choice questions for Indian competitive-exam students.
-
-EXAM: ${exam.name}
+function header({ exam, subject, monthKey }) {
+  return `EXAM: ${exam.name}
 EXAM FOCUS (2026 syllabus): ${exam.focus}
 SUBJECT: ${subject.name} (${subject.syllabus})
 MONTH: ${monthLabel(monthKey)}
-LEVEL: ${exam.level}
+LEVEL: ${exam.level}`;
+}
 
-${isCa ? "The sources below are verified current-affairs facts from PIB (Government of India)." : "The sources below are encyclopedia articles."}
+/** Current Affairs: questions ONLY from the PIB lines. `blocks` = [{label, text}]. */
+function buildCaPrompt({ exam, subject, monthKey, blocks, previous = [], n = QUESTIONS_ASKED }) {
+  return `You write a monthly practice set of multiple-choice questions for Indian competitive-exam students.
+
+${header({ exam, subject, monthKey })}
+
+The sources below are verified current-affairs facts from PIB (Government of India).
 Write the questions ONLY from the SOURCES.
 - Every question must be answerable from one source. Never add outside knowledge, guesses, or dates/numbers that are not in the source.
-- Prefer facts that matter for the exam. Skip trivia, long lists and anything that looks outdated or disputed.
-- If a source does not give enough clear facts, ask fewer questions about it.
+- Prefer facts that matter for the exam. Skip routine announcements.
 
-${outputRules(n)}${avoidBlock(previous)}
+${outputRules(n, "the number of the SOURCE the question comes from (for example 3 for [S3]).")}${avoidBlock(previous)}
 
 SOURCES:
 ${sourceBlock(blocks)}`;
 }
 
-/** The checking prompt: a second pass over the same sources. */
-function buildVerifyPrompt({ blocks, questions }) {
-  const letters = ["A", "B", "C", "D"];
-  const list = questions
+/** Static subjects: original questions on stable, textbook-level facts about the listed topics. */
+function buildStaticPrompt({ exam, subject, monthKey, topicList, previous = [], n = QUESTIONS_ASKED }) {
+  return `You write a monthly practice set of multiple-choice questions for Indian competitive-exam students.
+
+${header({ exam, subject, monthKey })}
+
+Write ORIGINAL questions on the TOPICS below, using standard textbook-level knowledge.
+
+ACCURACY RULES (most important):
+- Use only facts that are stable, widely agreed and found in standard school textbooks and standard reference books.
+- If you are not 100% sure a fact is correct, do not use it.
+- Never ask about things that change or are disputed: current office holders, populations, rankings, records, "latest" or "recent" events, exact figures that differ between sources.
+- Avoid "first / largest / only / oldest" claims unless they are universally settled.
+- Never invent dates, numbers, names or places.
+- Spread the questions over the topics, at most 3 per topic.
+
+${outputRules(n, "the number of the TOPIC the question is about (for example 3 for [T3]).")}${avoidBlock(previous)}
+
+TOPICS:
+${topicBlock(topicList)}`;
+}
+
+const LETTERS = ["A", "B", "C", "D"];
+
+function questionLines(questions, withAnswer, refPrefix) {
+  return questions
     .map((q, i) => {
-      const opts = q.options.map((o, k) => `${letters[k]}) ${o}`).join("  ");
-      return `Q${i + 1} [S${q.src}] ${q.text}\n   ${opts}\n   Marked correct: ${letters[q.correctIndex]}`;
+      const opts = q.options.map((o, k) => `${LETTERS[k]}) ${o}`).join("  ");
+      const ref = refPrefix && q.src ? ` [${refPrefix}${q.src}]` : "";
+      const ans = withAnswer ? `\n   Marked correct: ${LETTERS[q.correctIndex]}` : "";
+      return `Q${i + 1}${ref} ${q.text}\n   ${opts}${ans}`;
     })
     .join("\n");
-  return `You are a strict fact-checker for exam questions. Check each question against its SOURCE text only.
+}
+
+/**
+ * Check A. Grounded (Current Affairs): against the PIB lines.
+ * Not grounded (static): against standard textbook knowledge, strictly.
+ */
+function buildVerifyPrompt({ blocks, topicList, questions }) {
+  if (blocks) {
+    return `You are a strict fact-checker for exam questions. Check each question against its SOURCE text only.
 
 REMOVE a question if ANY of these is true:
 - the marked correct option is not clearly stated or directly implied by the cited source;
@@ -173,12 +225,43 @@ SOURCES:
 ${sourceBlock(blocks)}
 
 QUESTIONS:
-${list}`;
+${questionLines(questions, true, "S")}`;
+  }
+  return `You are a strict fact-checker for Indian competitive-exam questions. Judge each question with standard school-textbook knowledge.
+
+REMOVE a question if ANY of these is true:
+- you are not fully certain that the marked correct option is right;
+- another option is also correct or arguably correct;
+- the question is ambiguous, disputed among historians or scientists, or time-sensitive (it may have changed);
+- it depends on a number, ranking or record that differs between sources.
+When in doubt, REMOVE. KEEP the question only if you are sure.
+
+Return ONLY a JSON object like {"remove":[3,7]} listing the question numbers to remove ({"remove":[]} if none). No markdown.
+
+TOPICS:
+${topicBlock(topicList)}
+
+QUESTIONS:
+${questionLines(questions, true, "T")}`;
+}
+
+/** Check B (static only): a blind solver answers WITHOUT seeing the marked answer. */
+function buildSolvePrompt({ questions }) {
+  return `You are an expert on Indian competitive exams. Answer each multiple-choice question using standard school-textbook knowledge.
+For each question give the letter of the best option and say whether you are SURE (true) or not sure (false).
+Say sure=false if two options could be right, the question is ambiguous, or you are not certain.
+
+Return ONLY a JSON object like {"answers":[{"q":1,"answer":"C","sure":true}]} with one entry per question. No markdown.
+
+QUESTIONS:
+${questionLines(questions, false, "")}`;
 }
 
 // ------------------------------------------------------------------ Gemini
 
 async function callGemini(prompt, key, temperature) {
+  const gap = geminiGapMs();
+  if (gap > 0) await sleep(gap);
   const models = [];
   if (process.env.GEMINI_MODEL) models.push(process.env.GEMINI_MODEL);
   models.push(...GEMINI_MODELS_DEFAULT);
@@ -236,21 +319,48 @@ function parseAnswer(text) {
   return Array.isArray(arr) ? arr : [];
 }
 
-/** The checker's answer -> list of 1-based question numbers to remove. Throws if unreadable. */
-function parseVerify(text) {
+function parseJsonObject(text, what) {
   const t = stripFences(text);
-  let value;
   try {
-    value = JSON.parse(t);
+    return JSON.parse(t);
   } catch (_) {
     const a = t.indexOf("{");
     const b = t.lastIndexOf("}");
-    if (a < 0 || b <= a) throw new Error("Checker answer is not JSON");
-    value = JSON.parse(t.slice(a, b + 1));
+    if (a < 0 || b <= a) throw new Error(`${what} answer is not JSON`);
+    return JSON.parse(t.slice(a, b + 1));
   }
+}
+
+/** Check A answer -> list of 1-based question numbers to remove. Throws if unreadable. */
+function parseVerify(text) {
+  const value = parseJsonObject(text, "Checker");
   const list = Array.isArray(value) ? value : value && Array.isArray(value.remove) ? value.remove : null;
   if (!list) throw new Error("Checker answer has no 'remove' list");
   return list.map(Number).filter((n) => Number.isInteger(n) && n >= 1);
+}
+
+/** Check B answer -> Map(questionNumber -> {letter, sure}). Throws if unreadable. */
+function parseSolve(text) {
+  const value = parseJsonObject(text, "Solver");
+  const list = Array.isArray(value) ? value : value && Array.isArray(value.answers) ? value.answers : null;
+  if (!list) throw new Error("Solver answer has no 'answers' list");
+  const map = new Map();
+  for (const e of list) {
+    const q = Number(e && e.q);
+    const letter = String((e && e.answer) || "").trim().toUpperCase().charAt(0);
+    if (Number.isInteger(q) && q >= 1 && LETTERS.includes(letter)) map.set(q, { letter, sure: e.sure === true });
+  }
+  return map;
+}
+
+/** Question numbers the blind solver did NOT confirm: other letter, not sure, or missing. */
+function solveRejections(questions, answers) {
+  const bad = [];
+  questions.forEach((q, i) => {
+    const a = answers.get(i + 1);
+    if (!a || !a.sure || a.letter !== LETTERS[q.correctIndex]) bad.push(i + 1);
+  });
+  return bad;
 }
 
 function shuffleInPlace(arr, rnd) {
@@ -261,7 +371,7 @@ function shuffleInPlace(arr, rnd) {
   return arr;
 }
 
-/** A clean question object (with `src` for the checker), or null if anything is wrong with it. */
+/** A clean question object (with `src` for the checkers), or null if anything is wrong with it. */
 function cleanQuestion(raw, { rnd = Math.random, maxSrc = 0 } = {}) {
   if (!raw || typeof raw !== "object") return null;
   const text = oneLine(raw.text);
@@ -283,7 +393,7 @@ function cleanQuestion(raw, { rnd = Math.random, maxSrc = 0 } = {}) {
   if (optionsHi.some((o) => o.length < 1 || o.length > 160)) return null;
   if (new Set(options.map((o) => o.toLowerCase())).size !== 4) return null;
   if (!Number.isInteger(ci) || ci < 0 || ci > 3) return null;
-  if (maxSrc > 0 && (!Number.isInteger(src) || src < 1 || src > maxSrc)) return null; // must point at a real source
+  if (maxSrc > 0 && (!Number.isInteger(src) || src < 1 || src > maxSrc)) return null; // must point at a real source / topic
 
   // AI often puts the right answer in the same position, so shuffle (Hindi options follow the same order).
   const order = shuffleInPlace([0, 1, 2, 3], rnd);
@@ -321,10 +431,15 @@ function toStored(q) {
   return rest;
 }
 
-/** Drops the questions the checker rejected. Out-of-range numbers are ignored. */
+/** Drops the questions at the given 1-based numbers. Out-of-range numbers are ignored. */
 function applyVerification(questions, removeNumbers) {
   const drop = new Set(removeNumbers);
   return questions.filter((_, i) => !drop.has(i + 1));
+}
+
+/** PIB wants its source acknowledged: put the credit inside the explanation, so it travels with the question. */
+function withCredit(q, credit) {
+  return { ...q, explanation: `${q.explanation}${credit.en}`, explanationHi: `${q.explanationHi}${credit.hi}` };
 }
 
 // ------------------------------------------------------------ Firestore reads
@@ -364,25 +479,53 @@ async function loadPreviousTexts(db, examId, subjectId, monthKey) {
   return texts.slice(0, PREV_QUESTIONS_IN_PROMPT);
 }
 
+/** Step 0: delete every set that was built from CC-licensed text (an older version of this job). */
+async function purgeLegacyLicensedSets(db) {
+  const snap = await db.collection("freeMcqSets").where("license", ">=", "CC").where("license", "<", "CD").get();
+  const ids = new Set(snap.docs.map((d) => d.id));
+  if (ids.size) {
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    console.log(`Deleted ${ids.size} older set(s) that used CC-licensed text: ${[...ids].join(", ")}`);
+  }
+  return ids;
+}
+
 // ------------------------------------------------------------ generation
 
-/** Writes the questions, then checks them against the same sources. Returns the final (<= 20) list. */
-async function generateSet({ exam, subject, monthKey, blocks, previous, key }) {
+/**
+ * Writes the questions, then checks them. Returns the final (<= 20) list, or [] if the set must not be published.
+ * `ctx` is { blocks } for Current Affairs (PIB lines) or { topicList } for static subjects.
+ */
+async function generateSet({ exam, subject, monthKey, ctx, previous, key }) {
+  const grounded = Array.isArray(ctx.blocks);
   const exclude = new Set(previous.map((t) => t.toLowerCase()));
-  const prompt = buildPrompt({ exam, subject, monthKey, blocks, previous });
-  const temperature = subject.id === "ca" ? 0.2 : 0.3;
+  const prompt = grounded
+    ? buildCaPrompt({ exam, subject, monthKey, blocks: ctx.blocks, previous })
+    : buildStaticPrompt({ exam, subject, monthKey, topicList: ctx.topicList, previous });
+  const maxSrc = grounded ? ctx.blocks.length : ctx.topicList.length;
+  const temperature = grounded ? 0.2 : 0.3;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const cleaned = cleanQuestions(parseAnswer(await callGemini(prompt, key, temperature)), { exclude, maxSrc: blocks.length });
+      const cleaned = cleanQuestions(parseAnswer(await callGemini(prompt, key, temperature)), { exclude, maxSrc });
       console.log(`  attempt ${attempt}: ${cleaned.length} well-formed question(s).`);
       if (cleaned.length < MIN_QUESTIONS) continue;
 
-      const verifyPrompt = buildVerifyPrompt({ blocks, questions: cleaned });
-      const remove = parseVerify(await callGemini(verifyPrompt, key, 0));
-      const verified = applyVerification(cleaned, remove).slice(0, QUESTIONS_PER_SET);
-      console.log(`  attempt ${attempt}: checker removed ${cleaned.length - applyVerification(cleaned, remove).length}, ${verified.length} kept.`);
-      if (verified.length >= MIN_QUESTIONS) return verified.map(toStored);
+      // Check A: fact-check (against the PIB lines, or against textbook knowledge).
+      const removeA = parseVerify(await callGemini(buildVerifyPrompt({ ...ctx, questions: cleaned }), key, 0));
+      const drop = new Set(removeA);
+      let removeB = [];
+      if (!grounded) {
+        // Check B: blind solve, only for static questions.
+        const answers = parseSolve(await callGemini(buildSolvePrompt({ questions: cleaned }), key, 0));
+        removeB = solveRejections(cleaned, answers);
+        removeB.forEach((n) => drop.add(n));
+      }
+      const survivors = applyVerification(cleaned, [...drop]);
+      console.log(`  attempt ${attempt}: check A removed ${new Set(removeA).size}, check B removed ${removeB.length}, ${survivors.length} survive.`);
+      if (survivors.length >= MIN_QUESTIONS) return survivors.slice(0, QUESTIONS_PER_SET).map(toStored);
     } catch (err) {
       console.warn(`  attempt ${attempt} failed: ${err.message}`);
     }
@@ -390,40 +533,11 @@ async function generateSet({ exam, subject, monthKey, blocks, previous, key }) {
   return [];
 }
 
-// ------------------------------------------------------------ dry run
-
-/** Checks that the Wikipedia pools work. Needs no Gemini key and no Firebase. */
-async function dryRun(monthKey) {
-  const titles = sources.allPoolTitles();
-  console.log(`DRY RUN: checking ${titles.length} Wikipedia article(s) in the source pools...`);
-  const missing = [];
-  for (const t of titles) {
-    const p = await sources.fetchPage(t);
-    if (!p) missing.push(t);
-  }
-  console.log(`Usable: ${titles.length - missing.length} / ${titles.length}.`);
-  if (missing.length) console.log(`Missing or too short (skipped automatically, you may fix the title):\n  - ${missing.join("\n  - ")}`);
-
-  let bad = 0;
-  for (const exam of EXAMS) {
-    for (const subject of SUBJECTS) {
-      if (subject.id === "ca") continue;
-      const pages = await sources.pickPages({ subjectId: subject.id, examId: exam.id, monthKey });
-      const ok = pages.length >= sources.MIN_PAGES;
-      if (!ok) bad++;
-      console.log(`${ok ? "OK  " : "FAIL"} ${setId(exam.id, subject.id, monthKey)}: ${pages.length} article(s): ${pages.map((p) => p.title).join(" | ")}`);
-    }
-  }
-  return bad;
-}
-
 // ------------------------------------------------------------------ main
 
 async function main() {
   const monthKey = (process.env.MONTH || "").trim() || shiftMonth(currentMonthIST(), -1);
   if (!/^\d{4}-\d{2}$/.test(monthKey)) throw new Error(`MONTH must look like 2026-10, got "${monthKey}"`);
-
-  if (process.env.DRY_RUN === "true") return dryRun(monthKey);
 
   const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
   if (!GEMINI_KEY) {
@@ -437,6 +551,9 @@ async function main() {
   const force = process.env.FORCE === "true";
   const notify = process.env.FREE_MCQ_NOTIFY !== "false";
   console.log(`Building free MCQs for ${monthLabel(monthKey)} (${monthKey}).`);
+
+  // 0) No set built from CC-licensed text may stay in the database.
+  const purged = await purgeLegacyLicensedSets(db);
 
   // 1) Which sets already exist? One read per set, skipped entirely when FORCE=true.
   const allIds = [];
@@ -459,7 +576,7 @@ async function main() {
     for (const subject of SUBJECTS) {
       const id = setId(exam.id, subject.id, monthKey);
       const isCa = subject.id === "ca";
-      const sourceLabel = isCa ? "PIB archive" : `Wikipedia · ${sources.LICENSE}`;
+      const sourceLabel = isCa ? "PIB archive" : "Syllabus-based, AI-checked";
       const meta = { id, examId: exam.id, subjectId: subject.id, monthKey, count: 0, source: sourceLabel };
 
       if (existing.has(id)) {
@@ -468,44 +585,41 @@ async function main() {
         continue;
       }
 
-      // Source texts for this set.
-      let blocks;
-      let setSources;
+      let ctx;
       if (isCa) {
         if (caLines.length < MIN_CA_LINES) {
           console.warn(`${id}: only ${caLines.length} PIB line(s), need ${MIN_CA_LINES}. Skipped for now (next run will retry).`);
           continue;
         }
-        blocks = caLines.map((l) => ({ label: `(PIB, ${l.topic || "misc"})`, text: l.en }));
-        setSources = [PIB_SOURCE];
+        ctx = { blocks: caLines.map((l) => ({ label: `(PIB, ${l.topic || "misc"})`, text: l.en })) };
       } else {
-        const pages = await sources.pickPages({ subjectId: subject.id, examId: exam.id, monthKey });
-        if (pages.length < sources.MIN_PAGES) {
-          console.warn(`${id}: only ${pages.length} usable article(s), need ${sources.MIN_PAGES}. Skipped for now (next run will retry).`);
+        ctx = { topicList: topics.pickTopics({ subjectId: subject.id, examId: exam.id, monthKey }) };
+        if (ctx.topicList.length < 5) {
+          console.warn(`${id}: no topics configured for this subject.`);
           failed++;
           continue;
         }
-        blocks = pages.map((p) => ({ label: `${p.title} (Wikipedia)`, text: p.text }));
-        setSources = pages.map((p) => ({ title: p.title, url: p.url }));
       }
 
-      console.log(`${id}: generating from ${blocks.length} source(s)...`);
+      console.log(`${id}: generating...`);
       const previous = await loadPreviousTexts(db, exam.id, subject.id, monthKey);
-      const questions = await generateSet({ exam, subject, monthKey, blocks, previous, key: GEMINI_KEY });
+      let questions = await generateSet({ exam, subject, monthKey, ctx, previous, key: GEMINI_KEY });
       if (questions.length < MIN_QUESTIONS) {
         failed++;
         console.error(`${id}: only ${questions.length} verified question(s) - not published.`);
         continue;
       }
+      if (isCa) questions = questions.map((q) => withCredit(q, PIB_CREDIT));
+
       await db.collection("freeMcqSets").doc(id).set({
         examId: exam.id,
         subjectId: subject.id,
         monthKey,
         count: questions.length,
         source: sourceLabel,
-        license: isCa ? "Source: PIB, Government of India" : sources.LICENSE,
-        licenseUrl: isCa ? "https://pib.gov.in/" : sources.LICENSE_URL,
-        sources: setSources,
+        license: isCa ? "Source: PIB, Government of India" : STATIC_LICENSE,
+        licenseUrl: isCa ? PIB_SOURCE.url : "",
+        sources: isCa ? [PIB_SOURCE] : [],
         questions,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -515,9 +629,9 @@ async function main() {
     }
   }
 
-  // 4) Rebuild the index (1 read + 1 write). Drop sets older than KEEP_MONTHS.
+  // 4) Rebuild the index (1 read + 1 write). Drop purged sets and sets older than KEEP_MONTHS.
   const idxRef = db.collection("freeMcqIndex").doc("current");
-  const oldSets = ((await idxRef.get()).data() || {}).sets || [];
+  const oldSets = (((await idxRef.get()).data() || {}).sets || []).filter((s) => s && !purged.has(s.id));
   const all = new Map();
   for (const s of [...oldSets, ...built]) if (s && s.id) all.set(s.id, s);
   const minKey = shiftMonth(monthKey, -(KEEP_MONTHS - 1));
@@ -577,15 +691,22 @@ module.exports = {
   QUESTIONS_PER_SET,
   QUESTIONS_ASKED,
   MIN_QUESTIONS,
+  PIB_CREDIT,
   cleanQuestion,
   cleanQuestions,
   parseAnswer,
   parseVerify,
+  parseSolve,
+  solveRejections,
   applyVerification,
   toStored,
-  buildPrompt,
+  withCredit,
+  buildCaPrompt,
+  buildStaticPrompt,
   buildVerifyPrompt,
+  buildSolvePrompt,
   generateSet,
+  purgeLegacyLicensedSets,
   shiftMonth,
   monthRange,
   monthLabel,
