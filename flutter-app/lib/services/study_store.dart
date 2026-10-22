@@ -174,10 +174,10 @@ class StudyStore {
   static const int _maxMistakes = 100;
   static const int _maxBookmarks = 100;
   static const int _maxHistory = 60;
-  static const int defaultGoal = 10;
+  static const int defaultGoal = 25;
   /// The only goal choices. (Daily Quiz itself has at most 10 questions/day;
-  /// the rest of the goal is filled by Mock Tests / practice.)
-  static const List<int> goalOptions = [10, 20, 30, 40, 50];
+  /// the rest of the goal is filled by Free MCQs, Mock Tests and practice.)
+  static const List<int> goalOptions = [25, 35, 50, 75, 100];
 
   static const _kStreak = 'ysh2_streak';
   static const _kStreakLast = 'ysh2_streak_last';
@@ -248,9 +248,18 @@ class StudyStore {
 
   static Future<int> goalTarget() async {
     final p = await SharedPreferences.getInstance();
-    final v = p.getInt(_kGoalTarget) ?? defaultGoal;
-    // Old saved values (e.g. 5) that are no longer an option fall back to the default 10.
-    return goalOptions.contains(v) ? v : defaultGoal;
+    final v = p.getInt(_kGoalTarget);
+    if (v == null) return defaultGoal;
+    // Old saved values (10, 20, 30, 40) that are no longer an option move to the nearest new option.
+    return goalOptions.contains(v) ? v : _nearestGoal(v);
+  }
+
+  static int _nearestGoal(int v) {
+    var best = goalOptions.first;
+    for (final o in goalOptions) {
+      if ((o - v).abs() < (best - v).abs()) best = o;
+    }
+    return best;
   }
 
   static Future<void> setGoalTarget(int n) async {

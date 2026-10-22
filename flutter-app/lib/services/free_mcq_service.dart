@@ -39,7 +39,7 @@ class FreeMcqSetMeta {
       );
 }
 
-/// One source article / page a set was written from (shown with its licence).
+/// A source page of a set (only Current Affairs has one: the PIB link).
 class FreeMcqSource {
   final String title;
   final String url;
@@ -50,7 +50,7 @@ class FreeMcqSource {
 class FreeMcqSet {
   final List<MockQuestion> questions;
   final List<FreeMcqSource> sources;
-  final String license; // e.g. "CC BY-SA 4.0"
+  final String license; // "Original questions" or "Source: PIB, Government of India"
   final String licenseUrl;
   const FreeMcqSet(this.questions, {this.sources = const [], this.license = '', this.licenseUrl = ''});
 }
@@ -81,9 +81,9 @@ class FreeMcqIndex {
 ///
 /// Quiz scores stay on the phone only (no Firestore writes at all for this feature).
 class FreeMcqService {
-  static const _kIndex = 'ysh_fmcq_index_v1';
-  static const _kSetPrefix = 'ysh_fmcq_set_v1_';
-  static const _kSetIds = 'ysh_fmcq_set_ids_v1'; // cached set ids, oldest first
+  static const _kIndex = 'ysh_fmcq_index_v2';
+  static const _kSetPrefix = 'ysh_fmcq_set_v2_';
+  static const _kSetIds = 'ysh_fmcq_set_ids_v2'; // cached set ids, oldest first
   static const _kDone = 'ysh_fmcq_done_v1'; // {setId: "correct/total"}
   static const Duration _indexTtl = Duration(hours: 12);
   static const int _maxCachedSets = 12;
