@@ -137,4 +137,6 @@ class AppC {
   static Color get telegram => _p(const Color(0xFF2AABEE), const Color(0xFF0F7BB8));
   static Color get whatsapp => _p(const Color(0xFF25D366), const Color(0xFF0E7C3F));
   static Color get youtube => _p(const Color(0xFFFF0000), const Color(0xFFD32F2F));
+  static Color get instagram => _p(const Color(0xFFD6249F), const Color(0xFFB5177F));
+  static Color get facebook => _p(const Color(0xFF1877F2), const Color(0xFF1259B8));
 }
