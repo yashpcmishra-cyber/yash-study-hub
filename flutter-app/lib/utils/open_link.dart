@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+// Official social links (used by the Home rotating card and Profile > Contact and Join Us).
+const String kInstagramUrl = 'https://www.instagram.com/yash_study_hub';
+const String kFacebookUrl = 'https://www.facebook.com/YashStudyHub';
+
 void _showSnack(BuildContext context, String message) {
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
