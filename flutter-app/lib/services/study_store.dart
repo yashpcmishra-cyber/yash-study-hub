@@ -159,6 +159,22 @@ class TestRecord {
   }
 }
 
+/// Ab tak ke total aankde (kabhi reset nahi hote) - Badges isse bante hain.
+class LifetimeStats {
+  final int questions;
+  final int tests;
+  final int highScores; // 80%+ wale tests
+  final int perfectScores; // 100% wale tests
+  final int maxStreak;
+  const LifetimeStats({
+    this.questions = 0,
+    this.tests = 0,
+    this.highScores = 0,
+    this.perfectScores = 0,
+    this.maxStreak = 0,
+  });
+}
+
 class QuizDone {
   final String day; // quiz ki date (yyyy-MM-dd)
   final int score;
@@ -189,6 +205,12 @@ class StudyStore {
   static const _kMistakes = 'ysh2_mistakes';
   static const _kBookmarks = 'ysh2_bookmarks';
   static const _kHistory = 'ysh2_history';
+  // Lifetime counters (Badges ke liye) - 30 din baad hatte nahi.
+  static const _kLifeQ = 'ysh3_life_q';
+  static const _kLifeTests = 'ysh3_life_tests';
+  static const _kLifeHigh = 'ysh3_life_high';
+  static const _kLifePerfect = 'ysh3_life_perfect';
+  static const _kMaxStreak = 'ysh3_max_streak';
   // Purani (sirf 1 din wali) keys - ab sirf migration ke liye padhi / hatayi jaati hain.
   static const _kQuizDone = 'ysh2_quiz_done';
   static const _kQuizCache = 'ysh2_quiz_cache';
@@ -202,6 +224,9 @@ class StudyStore {
   /// Kuch badla to ye number badhta hai - Home ka card isse apne aap refresh hota hai.
   static final ValueNotifier<int> changes = ValueNotifier<int>(0);
   static void _bump() => changes.value = changes.value + 1;
+
+  /// Dusri services (Revision, Badges...) kuch badalne par Home ko refresh karwane ke liye.
+  static void notifyChanged() => _bump();
 
   // ---------------------------------------------------------------- dates
 
@@ -232,6 +257,7 @@ class StudyStore {
       days = (last == yesterday()) ? days + 1 : 1;
       await p.setString(_kStreakLast, t);
       await p.setInt(_kStreak, days);
+      if (days > (p.getInt(_kMaxStreak) ?? 0)) await p.setInt(_kMaxStreak, days);
     }
     return StreakInfo(days);
   }
@@ -282,6 +308,7 @@ class StudyStore {
     final done = p.getString(_kGoalDay) == t ? (p.getInt(_kGoalDone) ?? 0) : 0;
     await p.setString(_kGoalDay, t);
     await p.setInt(_kGoalDone, done + n);
+    await p.setInt(_kLifeQ, (p.getInt(_kLifeQ) ?? 0) + n);
     _bump();
   }
 
@@ -434,6 +461,25 @@ class StudyStore {
     if (list.length > _maxHistory) list.removeRange(_maxHistory, list.length);
     final p = await SharedPreferences.getInstance();
     await p.setString(_kHistory, jsonEncode(list.map((e) => e.toMap()).toList()));
+    await p.setInt(_kLifeTests, (p.getInt(_kLifeTests) ?? 0) + 1);
+    if (r.attempted > 0 && r.scorePercent >= 80) await p.setInt(_kLifeHigh, (p.getInt(_kLifeHigh) ?? 0) + 1);
+    if (r.attempted > 0 && r.scorePercent >= 100) await p.setInt(_kLifePerfect, (p.getInt(_kLifePerfect) ?? 0) + 1);
+  }
+
+  // ------------------------------------------------------------ lifetime
+
+  /// Ab tak ke total aankde (Badges ke liye). Sirf phone me, 0 Firestore reads.
+  static Future<LifetimeStats> lifetime() async {
+    final p = await SharedPreferences.getInstance();
+    final cur = await readStreak();
+    final stored = p.getInt(_kMaxStreak) ?? 0;
+    return LifetimeStats(
+      questions: p.getInt(_kLifeQ) ?? 0,
+      tests: p.getInt(_kLifeTests) ?? 0,
+      highScores: p.getInt(_kLifeHigh) ?? 0,
+      perfectScores: p.getInt(_kLifePerfect) ?? 0,
+      maxStreak: cur.days > stored ? cur.days : stored,
+    );
   }
 
   // -------------------------------------------------- results (mock / quiz)

@@ -47,6 +47,9 @@ class ShareService {
     }
   }
 
+  /// Koi bhi custom message (Word of the Day / My progress) + app download link.
+  static Future<void> custom(BuildContext context, String head, String line) => _send(context, head, line);
+
   /// Free mock test (or a whole free mock folder).
   static Future<void> freeMock(BuildContext context, String title, {bool folder = false}) => _send(
         context,
