@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/study_store.dart';
 import '../widgets/state_views.dart';
+import '../widgets/study_time_chart.dart';
 
 import '../app_colors.dart';
 
@@ -51,7 +52,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
       body: records == null
           ? const LoadingView()
           : records.isEmpty
-              ? const EmptyView('No data yet.\nTake a Mock Test or Daily Quiz \u2014 your progress will show up here.\n\nअभी कोई डेटा नहीं है।\nकोई मॉक टेस्ट या डेली क्विज़ दीजिए, फिर प्रोग्रेस यहाँ दिखेगा।')
+              ? Column(
+                  children: [
+                    const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 0), child: StudyTimeChart()),
+                    const Expanded(
+                      child: EmptyView('No data yet.\nTake a Mock Test or Daily Quiz \u2014 your progress will show up here.\n\nअभी कोई डेटा नहीं है।\nकोई मॉक टेस्ट या डेली क्विज़ दीजिए, फिर प्रोग्रेस यहाँ दिखेगा।'),
+                    ),
+                  ],
+                )
               : _content(records),
     );
   }
@@ -120,6 +128,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
             ]),
           ),
+          const SizedBox(height: 14),
+          const StudyTimeChart(),
           const SizedBox(height: 18),
           Text('Recent tests score (%) / पिछले टेस्ट का स्कोर (%)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),

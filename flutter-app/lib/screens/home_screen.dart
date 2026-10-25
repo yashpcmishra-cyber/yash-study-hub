@@ -18,6 +18,8 @@ import '../widgets/bottom_nav.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/banner_carousel.dart';
 import '../widgets/study_corner_card.dart';
+import '../widgets/study_tools_card.dart';
+import '../widgets/daily_gyan_card.dart';
 import 'pdf_library_screen.dart';
 import 'free_mcqs_screen.dart';
 import 'news_screen.dart';
@@ -471,6 +473,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       const Padding(
                         padding: EdgeInsets.fromLTRB(sidePad, 16, sidePad, 0),
                         child: StudyCornerCard(),
+                      ),
+
+                      // Study Tools: Smart Revision, Study Timer, Flashcards, Badges
+                      // (all data lives on the phone - 0 Firestore reads).
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
+                        child: StudyToolsCard(),
+                      ),
+
+                      // Aaj ka Gyaan: Word of the Day + GK fact (bundled in the app).
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
+                        child: DailyGyanCard(),
                       ),
 
                       // YouTube auto-fetch section — sits BELOW the social
