@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
+import 'activity_log.dart';
 import 'mock_rank_service.dart';
 
 // =============================================================================
@@ -309,6 +310,7 @@ class StudyStore {
     await p.setString(_kGoalDay, t);
     await p.setInt(_kGoalDone, done + n);
     await p.setInt(_kLifeQ, (p.getInt(_kLifeQ) ?? 0) + n);
+    await ActivityLog.addQuestions(n); // Weekly Report ke liye din-wise ginti
     _bump();
   }
 
