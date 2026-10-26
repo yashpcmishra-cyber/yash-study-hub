@@ -154,6 +154,28 @@ const SylSubject _up = SylSubject('up', '🏛️', 'Uttar Pradesh Special', 'उ
   SylTopic('u.law', 'Criminal Laws (BNS, BNSS, BSA) Basics', 'आपराधिक कानून (BNS, BNSS, BSA) की मूल बातें'),
 ]);
 
+const SylSubject _rural = SylSubject('rural', '🌾', 'Rural Development & Panchayati Raj', 'ग्रामीण विकास व पंचायती राज', [
+  SylTopic('v.panchayat', 'Panchayati Raj System (73rd Amendment)', 'पंचायती राज व्यवस्था (73वां संशोधन)'),
+  SylTopic('v.rdschemes', 'Rural Development Schemes (MGNREGA, PMAY-G, NRLM)', 'ग्रामीण विकास योजनाएँ'),
+  SylTopic('v.agri', 'Agriculture & Allied Activities', 'कृषि एवं संबद्ध गतिविधियाँ'),
+  SylTopic('v.village', 'Village Administration & Land Records', 'ग्राम प्रशासन व भूमि अभिलेख'),
+  SylTopic('v.sanit', 'Sanitation, Health & Rural Welfare', 'स्वच्छता, स्वास्थ्य व ग्रामीण कल्याण'),
+]);
+
+const SylSubject _revenue = SylSubject('revenue', '🗺️', 'Land Revenue & Records (Lekhpal)', 'भू-राजस्व व अभिलेख (लेखपाल)', [
+  SylTopic('l.records', 'Khasra, Khatauni, Khewat & Land Records', 'खसरा, खतौनी, खेवट व भूमि अभिलेख'),
+  SylTopic('l.revenue', 'UP Revenue Code 2006 (Basics)', 'उ.प्र. राजस्व संहिता 2006 (मूल बातें)'),
+  SylTopic('l.measure', 'Land Measurement & Area Units', 'भूमि माप व क्षेत्रफल इकाइयाँ'),
+  SylTopic('l.duties', 'Lekhpal Duties & Revenue Administration', 'लेखपाल के कर्तव्य व राजस्व प्रशासन'),
+]);
+
+const SylSubject _pcs = SylSubject('pcs', '🎓', 'Lower PCS Special', 'लोअर पीसीएस विशेष', [
+  SylTopic('p.csat', 'Comprehension & Decision Making', 'बोधगम्यता व निर्णय क्षमता'),
+  SylTopic('p.admin', 'Public Administration & Governance', 'लोक प्रशासन व सुशासन'),
+  SylTopic('p.upadmin', 'UP Administration & Local Government', 'उ.प्र. प्रशासन व स्थानीय शासन'),
+  SylTopic('p.essay', 'Hindi Essay & Descriptive Writing', 'हिंदी निबंध व वर्णनात्मक लेखन'),
+]);
+
 // Kisi subject me se chune hue topics (exam ke hisaab se chhota syllabus).
 SylSubject _pick(SylSubject s, List<String> ids) {
   return SylSubject(s.id, s.emoji, s.en, s.hi, s.topics.where((t) => ids.contains(t.id)).toList());
@@ -161,7 +183,7 @@ SylSubject _pick(SylSubject s, List<String> ids) {
 
 // --------------------------------------------------------------- exams
 
-final List<SylExam> kSylExams = [
+final List<SylExam> _baseExams = [
   SylExam('ssc', '🧾', 'SSC CGL / CHSL', 'एसएससी सीजीएल / सीएचएसएल', [
     _pick(_quant, [
       'q.numsys', 'q.hcflcm', 'q.simp', 'q.sqrt', 'q.percent', 'q.ratio', 'q.avg', 'q.pl', 'q.si', 'q.tw', 'q.tsd',
@@ -175,7 +197,7 @@ final List<SylExam> kSylExams = [
     _gs,
     _computer,
   ]),
-  SylExam('bank', '🏦', 'Banking (IBPS / SBI PO-Clerk)', 'बैंकिंग (IBPS / SBI PO-क्लर्क)', [
+  SylExam('bank', '🏦', 'Banking (General)', 'बैंकिंग (सामान्य)', [
     _pick(_quant, [
       'q.numsys', 'q.hcflcm', 'q.simp', 'q.sqrt', 'q.series', 'q.percent', 'q.ratio', 'q.avg', 'q.pl', 'q.si',
       'q.tw', 'q.tsd', 'q.mix', 'q.age', 'q.mens', 'q.di',
@@ -188,7 +210,7 @@ final List<SylExam> kSylExams = [
     _computer,
     _pick(_gs, ['g.eco', 'g.ca', 'g.static']),
   ]),
-  SylExam('rrb', '🚆', 'Railway (RRB NTPC / Group D)', 'रेलवे (RRB NTPC / ग्रुप D)', [
+  SylExam('rrb', '🚆', 'Railway NTPC / Group D', 'रेलवे एनटीपीसी / ग्रुप डी', [
     _pick(_quant, [
       'q.numsys', 'q.hcflcm', 'q.simp', 'q.sqrt', 'q.percent', 'q.ratio', 'q.avg', 'q.pl', 'q.si', 'q.tw', 'q.tsd',
       'q.mix', 'q.age', 'q.algebra', 'q.geo', 'q.mens', 'q.trig',
@@ -199,19 +221,63 @@ final List<SylExam> kSylExams = [
     ]),
     _gs,
   ]),
-  SylExam('up', '👮', 'UP Police / UPSSSC PET', 'यूपी पुलिस / UPSSSC पेट', [
+];
+
+// ---- Banking / Insurance ke common topic-set (Quant, Reasoning, English) ----
+const List<String> _bkQuant = [
+  'q.numsys', 'q.hcflcm', 'q.simp', 'q.sqrt', 'q.series', 'q.percent', 'q.ratio', 'q.avg', 'q.pl', 'q.si',
+  'q.tw', 'q.tsd', 'q.mix', 'q.age', 'q.mens', 'q.di',
+];
+const List<String> _bkReason = [
+  'r.series', 'r.coding', 'r.blood', 'r.direction', 'r.rank', 'r.syll', 'r.puzzle', 'r.ineq', 'r.statement',
+];
+const List<String> _bkEng = ['e.grammar', 'e.spot', 'e.fill', 'e.cloze', 'e.rc', 'e.sent', 'e.para', 'e.vocab', 'e.idiom'];
+const List<String> _sscQuant = [
+  'q.numsys', 'q.hcflcm', 'q.simp', 'q.sqrt', 'q.percent', 'q.ratio', 'q.avg', 'q.pl', 'q.si', 'q.tw', 'q.tsd',
+  'q.mix', 'q.age', 'q.algebra', 'q.geo', 'q.mens', 'q.trig', 'q.di',
+];
+const List<String> _sscReason = [
+  'r.analogy', 'r.classif', 'r.series', 'r.coding', 'r.blood', 'r.direction', 'r.rank', 'r.syll', 'r.venn',
+  'r.clock', 'r.math', 'r.statement', 'r.nonverbal',
+];
+
+SylExam _bankExam(String id, String emoji, String en, String hi, {bool gsFull = false}) {
+  return SylExam(id, emoji, en, hi, [
+    _pick(_quant, _bkQuant),
+    _pick(_reason, _bkReason),
+    _pick(_english, _bkEng),
+    _bank,
+    _computer,
+    _pick(_gs, gsFull ? ['g.eco', 'g.ca', 'g.static', 'g.polity', 'g.geo_ind'] : ['g.eco', 'g.ca', 'g.static']),
+  ]);
+}
+
+final List<SylExam> _moreExams = [
+  _bankExam('ibps_po', '🏦', 'IBPS PO / Clerk', 'आईबीपीएस पीओ / क्लर्क'),
+  _bankExam('ibps_rrb', '🌾', 'IBPS RRB PO / Clerk', 'आईबीपीएस आरआरबी पीओ / क्लर्क'),
+  _bankExam('sbi', '🏛️', 'SBI PO / Clerk', 'एसबीआई पीओ / क्लर्क'),
+  _bankExam('niacl', '🛡️', 'NICL / NIACL Assistant / AO', 'एनआईसीएल / एनआईएसीएल असिस्टेंट / एओ', gsFull: true),
+  _bankExam('rbi_asst', '💰', 'RBI Assistant', 'आरबीआई असिस्टेंट', gsFull: true),
+  SylExam('upsssc', '📋', 'UPSSSC (PET / VDO-VPO / Lekhpal / Jr Assistant / Lower PCS)', 'यूपीएसएसएससी (पेट / वीडीओ-वीपीओ / लेखपाल / जू. असिस्टेंट / लोअर पीसीएस)', [
     _hindi,
-    _pick(_quant, [
-      'q.numsys', 'q.hcflcm', 'q.simp', 'q.percent', 'q.ratio', 'q.avg', 'q.pl', 'q.si', 'q.tw', 'q.tsd', 'q.age',
-      'q.mens',
-    ]),
-    _pick(_reason, [
-      'r.analogy', 'r.classif', 'r.series', 'r.coding', 'r.blood', 'r.direction', 'r.rank', 'r.syll', 'r.venn',
-      'r.clock', 'r.math',
-    ]),
+    _pick(_quant, ['q.numsys', 'q.hcflcm', 'q.simp', 'q.percent', 'q.ratio', 'q.avg', 'q.pl', 'q.si', 'q.tw', 'q.tsd', 'q.age', 'q.mens', 'q.di']),
+    _pick(_reason, ['r.analogy', 'r.classif', 'r.series', 'r.coding', 'r.blood', 'r.direction', 'r.rank', 'r.venn', 'r.clock', 'r.math']),
     _gs,
     _up,
+    _rural,
+    _revenue,
+    _pcs,
+    _computer,
   ]),
+];
+
+// Exam picker / chips me dikhne ka kram.
+final List<SylExam> kSylExams = [
+  ..._baseExams.where((e) => e.id == 'ssc'),
+  ..._baseExams.where((e) => e.id == 'bank'),
+  ..._moreExams.where((e) => const ['ibps_po', 'ibps_rrb', 'sbi', 'niacl', 'rbi_asst'].contains(e.id)),
+  ..._baseExams.where((e) => e.id == 'rrb'),
+  ..._moreExams.where((e) => e.id == 'upsssc'),
 ];
 
 SylExam? sylExamById(String id) {
