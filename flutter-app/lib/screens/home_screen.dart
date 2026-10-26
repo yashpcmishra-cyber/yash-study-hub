@@ -19,6 +19,7 @@ import '../widgets/depth_card.dart';
 import '../widgets/banner_carousel.dart';
 import '../widgets/study_corner_card.dart';
 import '../widgets/study_tools_card.dart';
+import '../widgets/smart_study_card.dart';
 import '../widgets/daily_gyan_card.dart';
 import 'pdf_library_screen.dart';
 import 'free_mcqs_screen.dart';
@@ -480,6 +481,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       const Padding(
                         padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
                         child: StudyToolsCard(),
+                      ),
+
+                      // Smart Study: Today's Plan, Speed Maths, Syllabus Tracker, Weekly Report
+                      // (all data lives on the phone - 0 Firestore reads).
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
+                        child: SmartStudyCard(),
                       ),
 
                       // Aaj ka Gyaan: Word of the Day + GK fact (bundled in the app).
