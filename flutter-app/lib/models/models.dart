@@ -387,8 +387,12 @@ class AccessGrantModel {
   final String batchId;
   final DateTime? grantedAt;
   final DateTime? expiresAt; // null = lifetime access
+  // false = granted by hand from the admin's "Manual grant" box: the student
+  // does NOT need an access code. Every older record has no such field, so it
+  // stays "code required" (true).
+  final bool codeRequired;
 
-  AccessGrantModel({required this.id, required this.studentEmail, required this.batchId, this.grantedAt, this.expiresAt});
+  AccessGrantModel({required this.id, required this.studentEmail, required this.batchId, this.grantedAt, this.expiresAt, this.codeRequired = true});
 
   factory AccessGrantModel.fromMap(String id, Map<String, dynamic> m) => AccessGrantModel(
         id: id,
@@ -396,6 +400,7 @@ class AccessGrantModel {
         batchId: m['batchId'] ?? '',
         grantedAt: _dt(m['grantedAt']),
         expiresAt: _dt(m['expiresAt']),
+        codeRequired: m['codeRequired'] != false,
       );
 
   bool get isExpired => expiresAt != null && !DateTime.now().isBefore(expiresAt!);
@@ -414,10 +419,16 @@ class AccessCheck {
 /// What the admin gets back after granting access: the code to share, and
 /// the date the access runs out (null = lifetime).
 class GrantResult {
-  final String code;
+  final String code; // empty when the grant needs no code (manual grant)
   final DateTime? expiresAt;
-  const GrantResult(this.code, this.expiresAt);
+  final bool codeRequired;
+  const GrantResult(this.code, this.expiresAt, {this.codeRequired = true});
 }
+
+/// Marker used by the "Copy folder" feature: this destination = the FREE
+/// section (Free PDFs / Free Video Classes / Free Mock Tests). Any other
+/// destination value is a paid batch id.
+const String kCopyFreeDest = 'free';
 
 /// A student's own profile (students/{uid}, uid = Firebase Auth uid).
 /// `profileComplete` gates the mandatory Login -> Profile Setup -> Home
