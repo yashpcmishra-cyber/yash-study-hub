@@ -8,6 +8,7 @@ import '../../services/storage_service.dart';
 import '../../services/image_upload_service.dart';
 import '../../models/models.dart';
 import '../../widgets/net_image.dart';
+import 'admin_copy_folder_dialog.dart';
 import 'admin_rename_folder_dialog.dart';
 import 'admin_reorder_list.dart';
 import '../../app_colors.dart';
@@ -217,6 +218,29 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
     }
   }
 
+  // Copies this folder (with all its PDFs) into other paid batches and / or
+  // Free PDFs in one go. The copy is independent of the original.
+  Future<void> _copyFolder(PdfFolderModel f) async {
+    final choice = await showCopyFolderDialog(
+      context,
+      folderName: f.name,
+      freeLabel: 'Free PDFs',
+      batches: _batches.where((b) => !b.mockOnly).toList(), // Mock Test Series batches have no PDFs
+      alreadyIn: f.type == 'free' ? <String>{kCopyFreeDest} : f.batchIds.toSet(),
+    );
+    if (choice == null || !mounted) return;
+    setState(() => _statusMsg = 'Copying "${f.name}" ...');
+    try {
+      final n = await _fs.copyPdfFolder(f.id, choice.destinations);
+      final msg = 'Copied "${f.name}" ($n PDFs) to ${choice.destinations.length} place(s).';
+      if (!mounted) return;
+      setState(() => _statusMsg = msg);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (e) {
+      if (mounted) setState(() => _statusMsg = 'Copy failed: $e');
+    }
+  }
+
   Future<void> _deleteFolderConfirm(String folderId, String folderName) async {
     final ok = await _confirm('Delete folder?', 'Delete the folder "$folderName"? All PDFs inside it will be deleted too. This cannot be undone.');
     if (!ok) return;
@@ -356,6 +380,7 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
                   ),
                 ),
                 if (_selectedFolderId != null && selected.isNotEmpty) ...[
+                  IconButton(tooltip: 'Copy this folder to other batches / Free PDFs', icon: Icon(Icons.copy_all, color: AppC.sky, size: 20), onPressed: () => _copyFolder(selected.first)),
                   IconButton(tooltip: 'Rename this folder', icon: Icon(Icons.edit, color: AppC.accent, size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.name)),
                   IconButton(tooltip: 'Delete this folder', icon: Icon(Icons.delete, color: AppC.red, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.name)),
                 ],

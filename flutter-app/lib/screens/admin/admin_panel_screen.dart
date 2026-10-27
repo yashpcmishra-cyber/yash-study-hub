@@ -408,6 +408,56 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   }
 
   // ------------------------------------------------------------------
+  // Manual grant: no code. Just tells the admin it is done and lets them
+  // inform the student (WhatsApp / email) if they want to.
+  // ------------------------------------------------------------------
+  Future<void> _showNoCodeGrantDialog(String email, {String phone = '', DateTime? expiresAt}) {
+    final hasPhone = phone.trim().isNotEmpty;
+    final validityNote = expiresAt != null ? ' Your access is valid till ${DateFormat('d MMM yyyy').format(expiresAt)}.' : '';
+    final message = 'Yash Study Hub: your batch access is ready. No code needed \u2014 just log in to the app with your email ($email) and open your batch.$validityNote';
+    return showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppC.card,
+        title: Text('Access granted', style: TextStyle(color: AppC.text)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(email, style: TextStyle(color: AppC.text, fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 8),
+            Text(
+              'No access code is needed. The batch opens for this student as soon as they log in with this email.',
+              style: TextStyle(color: AppC.muted, fontSize: 12.5),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              expiresAt != null ? 'Valid till ${DateFormat('d MMM yyyy').format(expiresAt)}' : 'Lifetime access (no time limit)',
+              style: TextStyle(color: AppC.text70, fontSize: 12.5),
+            ),
+            if (hasPhone) ...[
+              const SizedBox(height: 8),
+              Text('Number: $phone', style: TextStyle(color: AppC.muted, fontSize: 12)),
+            ],
+          ],
+        ),
+        actions: [
+          if (hasPhone)
+            TextButton(
+              onPressed: () async {
+                var digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+                if (digits.length == 10) digits = '91$digits'; // Indian number typed without country code
+                await openExternalLink(dialogContext, 'https://wa.me/$digits?text=${Uri.encodeComponent(message)}');
+              },
+              child: const Text('Tell on WhatsApp'),
+            ),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Done')),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------------
   // Access code dialog (after granting access)
   // ------------------------------------------------------------------
   Future<void> _showAccessCodeDialog(String email, String code, {String phone = '', DateTime? expiresAt}) {
@@ -591,11 +641,18 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   // Grants
   // ------------------------------------------------------------------
   // [months] = how long the access lasts (0 = lifetime).
-  Future<void> _grant(String email, String batchId, {String phone = '', int months = 0}) async {
+  //
+  // [requireCode] = true: normal grant from the pending-request queue (a code
+  // is made and given to the student). false: Manual grant — no code at all.
+  Future<void> _grant(String email, String batchId, {String phone = '', int months = 0, bool requireCode = true}) async {
     try {
-      final res = await _fs.grantAccess(email, batchId, months: months);
+      final res = await _fs.grantAccess(email, batchId, months: months, requireCode: requireCode);
       if (!mounted) return;
-      await _showAccessCodeDialog(email, res.code, phone: phone, expiresAt: res.expiresAt);
+      if (requireCode) {
+        await _showAccessCodeDialog(email, res.code, phone: phone, expiresAt: res.expiresAt);
+      } else {
+        await _showNoCodeGrantDialog(email, phone: phone, expiresAt: res.expiresAt);
+      }
     } catch (e) {
       _snack('Could not grant access: $e');
     }
@@ -708,6 +765,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             ),
             Divider(color: AppC.divider, height: 30),
             Text('Manual grant', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
+            Text('No access code is needed here \u2014 the student just logs in with this email and the batch opens by itself. (A code is only used when the student sends an Access Request.)', style: TextStyle(color: AppC.muted, fontSize: 11)),
             const SizedBox(height: 8),
             TextField(controller: _grantEmailCtrl, keyboardType: TextInputType.emailAddress, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Student email', labelStyle: TextStyle(color: AppC.muted))),
             const SizedBox(height: 10),
@@ -755,9 +813,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 _grantEmailCtrl.clear();
                 _grantPhoneCtrl.clear();
                 _grantMonthsCtrl.clear();
-                await _grant(email, batchId, phone: phone, months: months);
+                await _grant(email, batchId, phone: phone, months: months, requireCode: false);
               },
-              child: const Text('Grant access'),
+              child: const Text('Grant access (no code needed)'),
             ),
             Divider(color: AppC.divider, height: 34),
             Text('Students who have access', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
@@ -796,6 +854,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                                         : (g.isExpired ? 'Expired on ${DateFormat('d MMM yyyy').format(g.expiresAt!)}' : 'Valid till ${DateFormat('d MMM yyyy').format(g.expiresAt!)}'),
                                     style: TextStyle(color: g.isExpired ? AppC.red : AppC.green, fontSize: 11.5, fontWeight: FontWeight.w600),
                                   ),
+                                  if (!g.codeRequired) Text('Manual grant \u2022 no code needed', style: TextStyle(color: AppC.sky, fontSize: 11)),
                                 ],
                               ),
                               trailing: Row(

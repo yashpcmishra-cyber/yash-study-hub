@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import '../../services/image_upload_service.dart';
 import '../../services/mcq_bulk_parser.dart';
 import 'admin_free_mcq_import.dart';
+import 'admin_copy_folder_dialog.dart';
 import 'admin_mock_subject_widgets.dart';
 import 'admin_mocktest_edit_screen.dart';
 import 'admin_rename_folder_dialog.dart';
@@ -269,6 +270,39 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
     }
   }
 
+  // Copies this exam folder (all tests, or just one subject folder of it) into
+  // other paid batches and / or Free Mock Tests in one go. The copy is
+  // independent of the original.
+  Future<void> _copyFolder(MockTestFolderModel f) async {
+    List<BatchModel> batches;
+    List<String> subjects;
+    try {
+      batches = await _fs.streamBatches().first.timeout(const Duration(seconds: 12));
+      final tests = await _fs.streamMockTests(f.id).first.timeout(const Duration(seconds: 12));
+      subjects = groupMockTestsBySubject(tests).groups.map((g) => g.name).toList();
+    } catch (_) {
+      _snack('Could not load the data \u2014 check your internet and try again.');
+      return;
+    }
+    if (!mounted) return;
+    final choice = await showCopyFolderDialog(
+      context,
+      folderName: f.examName,
+      freeLabel: 'Free Mock Tests',
+      batches: batches, // every batch type can hold mock tests
+      alreadyIn: f.isFree ? <String>{kCopyFreeDest} : f.batchIds.toSet(),
+      subjects: subjects,
+    );
+    if (choice == null) return;
+    _snack('Copying "${f.examName}" ...');
+    try {
+      final n = await _fs.copyMockFolder(f.id, choice.destinations, onlySubject: choice.subject);
+      _snack('Copied "${f.examName}" ($n tests) to ${choice.destinations.length} place(s).');
+    } catch (e) {
+      _snack('Copy failed: $e');
+    }
+  }
+
   Future<void> _deleteFolderConfirm(String folderId, String folderName) async {
     final ok = await _confirm('Delete folder?', 'Delete the folder "$folderName"? All mock tests inside it will be deleted too. This cannot be undone.');
     if (!ok) return;
@@ -385,6 +419,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                 ),
               ),
               if (_selectedFolderId != null && selected.isNotEmpty) ...[
+                IconButton(tooltip: 'Copy this folder to other batches / Free Mocks', icon: Icon(Icons.copy_all, color: AppC.sky, size: 20), onPressed: () => _copyFolder(selected.first)),
                 IconButton(tooltip: 'Rename this folder', icon: Icon(Icons.edit, color: AppC.accent, size: 20), onPressed: () => _renameFolder(selected.first.id, selected.first.examName)),
                 IconButton(tooltip: 'Delete this folder', icon: Icon(Icons.delete, color: AppC.red, size: 20), onPressed: () => _deleteFolderConfirm(selected.first.id, selected.first.examName)),
               ],
