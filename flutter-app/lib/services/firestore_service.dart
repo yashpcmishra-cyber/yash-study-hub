@@ -497,8 +497,14 @@ class FirestoreService {
       // verifying the payment. A granted record alone is not enough — without
       // the right code (empty / wrong) nothing is unlocked and nothing about
       // the record (e.g. its expiry) is revealed.
-      final savedCode = (data['accessCode'] ?? '').toString().trim();
-      if (savedCode.isEmpty || savedCode != code.trim()) return const AccessCheck();
+      // EXCEPTION: a grant the admin made by hand ("Manual grant") is saved
+      // with codeRequired == false — the student's email alone is enough.
+      // Every other grant (also all older ones) still needs the code.
+      final codeRequired = data['codeRequired'] != false;
+      if (codeRequired) {
+        final savedCode = (data['accessCode'] ?? '').toString().trim();
+        if (savedCode.isEmpty || savedCode != code.trim()) return const AccessCheck();
+      }
       final exp = (data['expiresAt'] as Timestamp?)?.toDate();
       if (exp != null && !DateTime.now().isBefore(exp)) return AccessCheck(expired: true, expiresAt: exp);
       return AccessCheck(granted: true, expiresAt: exp);
@@ -517,16 +523,22 @@ class FirestoreService {
   // the student. [months] = how long the access lasts; 0 = lifetime.
   // Granting again (renewal) replaces the old record, so it gets a fresh
   // code and a fresh time limit.
-  Future<GrantResult> grantAccess(String email, String batchId, {int months = 0}) async {
+  //
+  // [requireCode] = true (default): a 6-digit code is made and the student
+  // must enter it (this is the normal flow after an Access Request).
+  // [requireCode] = false: Manual grant — no code is made and the student
+  // does not need one; logging in with the same email is enough.
+  Future<GrantResult> grantAccess(String email, String batchId, {int months = 0, bool requireCode = true}) async {
     final clean = email.trim();
     final id = '${clean.toLowerCase()}_$batchId';
-    final code = (100000 + Random().nextInt(900000)).toString(); // 6 digits
+    final code = requireCode ? (100000 + Random().nextInt(900000)).toString() : ''; // 6 digits
     final expiresAt = months > 0 ? addMonthsEndOfDay(DateTime.now(), months) : null;
     await _db.collection('batchAccess').doc(id).set({
       'studentEmail': clean,
       'batchId': batchId,
       'status': 'granted',
       'accessCode': code,
+      'codeRequired': requireCode,
       'grantedAt': FieldValue.serverTimestamp(),
       'grantedBy': 'admin',
       'validityMonths': months,
@@ -536,7 +548,7 @@ class FirestoreService {
     // "Check Access" flow) so it disappears from the admin's queue. No-op
     // (and no error) if no such request exists — e.g. manual grants.
     await _db.collection('accessRequests').doc(id).delete();
-    return GrantResult(code, expiresAt);
+    return GrantResult(code, expiresAt, codeRequired: requireCode);
   }
 
   // Adds [months] to a student's access. Counted from today, or from the
@@ -598,10 +610,13 @@ class FirestoreService {
         final data = doc.data();
         final exp = (data?['expiresAt'] as Timestamp?)?.toDate();
         final expired = exp != null && !DateTime.now().isBefore(exp);
-        // Badge only when the student has entered the right code on this phone.
+        // Badge only when the student has entered the right code on this phone
+        // (a manual grant has no code, so it shows the badge straight away).
         final savedCode = (prefs.getString('access_code_$id') ?? '').trim();
         final realCode = (data?['accessCode'] ?? '').toString().trim();
-        if (data != null && data['status'] == 'granted' && !expired && realCode.isNotEmpty && realCode == savedCode) {
+        final codeRequired = data?['codeRequired'] != false;
+        final codeOk = codeRequired ? (realCode.isNotEmpty && realCode == savedCode) : true;
+        if (data != null && data['status'] == 'granted' && !expired && codeOk) {
           out.add(id);
         }
       } catch (_) {
@@ -845,4 +860,164 @@ class FirestoreService {
 
   Future<void> setAppLogoUrl(String url) =>
       _db.collection('appConfig').doc('main').set({'logoUrl': url}, SetOptions(merge: true));
+
+  // ====================================================================
+  // ---- COPY FOLDER (Admin Panel) ----
+  // Copies a whole folder with everything inside it into one or more
+  // places at once: a paid batch, or the FREE section. The copy is fully
+  // independent (new folder + new items) - editing or deleting the copy
+  // never touches the original, and the original stays where it was.
+  //
+  // [destinations]: a paid batch id, or kCopyFreeDest for the free section.
+  // The items keep the order the admin arranged them in.
+  // ====================================================================
+
+  // Runs many writes in chunks (Firestore allows 500 per commit; mock tests
+  // are big documents so their chunk is smaller to stay under the size limit).
+  Future<void> _runWrites(List<void Function(WriteBatch b)> ops, {int chunk = 400}) async {
+    var batch = _db.batch();
+    var n = 0;
+    for (final op in ops) {
+      op(batch);
+      n++;
+      if (n >= chunk) {
+        await batch.commit();
+        batch = _db.batch();
+        n = 0;
+      }
+    }
+    if (n > 0) await batch.commit();
+  }
+
+  // PDF folder -> every destination. Returns how many PDFs were copied per
+  // destination.
+  Future<int> copyPdfFolder(String folderId, List<String> destinations) async {
+    if (destinations.isEmpty) return 0;
+    final folderSnap = await _db.collection('pdfFolders').doc(folderId).get();
+    final fData = folderSnap.data();
+    if (fData == null) throw StateError('The folder no longer exists.');
+    final name = (fData['name'] ?? '').toString();
+    final pdfSnap = await _db.collection('pdfs').where('folderId', isEqualTo: folderId).get();
+    final pdfs = pdfSnap.docs.map((d) => PdfModel.fromMap(d.id, d.data())).toList()
+      ..sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
+
+    for (final dest in destinations.toSet()) {
+      final isFree = dest == kCopyFreeDest;
+      final folderRef = _db.collection('pdfFolders').doc();
+      final ops = <void Function(WriteBatch b)>[
+        (b) => b.set(folderRef, {
+              'name': name,
+              'type': isFree ? 'free' : 'batch',
+              'batchId': isFree ? null : dest,
+              'batchIds': isFree ? <String>[] : <String>[dest],
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+      ];
+      for (var i = 0; i < pdfs.length; i++) {
+        final p = pdfs[i];
+        ops.add((b) => b.set(_db.collection('pdfs').doc(), {
+              'title': p.title,
+              'iconUrl': p.iconUrl,
+              'driveLink': p.driveLink,
+              'batchId': isFree ? null : dest,
+              'folderId': folderRef.id,
+              'order': i,
+              'createdAt': FieldValue.serverTimestamp(),
+            }));
+      }
+      await _runWrites(ops);
+      if (!isFree) await _bumpBatchCount(dest, 'pdfs', pdfs.length);
+    }
+    if (destinations.any((d) => d != kCopyFreeDest)) await _markUpdated('newBatchesAt');
+    if (destinations.contains(kCopyFreeDest)) await _markUpdated('newPdfsAt');
+    return pdfs.length;
+  }
+
+  // Video folder -> every destination (auto-fetched YouTube videos are never
+  // inside folders, and hidden videos are skipped).
+  Future<int> copyVideoFolder(String folderId, List<String> destinations) async {
+    if (destinations.isEmpty) return 0;
+    final folderSnap = await _db.collection('videoFolders').doc(folderId).get();
+    final fData = folderSnap.data();
+    if (fData == null) throw StateError('The folder no longer exists.');
+    final name = (fData['name'] ?? '').toString();
+    final vSnap = await _db.collection('videos').where('folderId', isEqualTo: folderId).get();
+    final videos = vSnap.docs
+        .map((d) => VideoModel.fromMap(d.id, d.data()))
+        .where((v) => !v.hidden)
+        .toList()
+      ..sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
+
+    for (final dest in destinations.toSet()) {
+      final isFree = dest == kCopyFreeDest;
+      final folderRef = _db.collection('videoFolders').doc();
+      final ops = <void Function(WriteBatch b)>[
+        (b) => b.set(folderRef, {
+              'name': name,
+              'batchId': isFree ? kFreeVideoBatchId : dest,
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+      ];
+      for (var i = 0; i < videos.length; i++) {
+        final v = videos[i];
+        ops.add((b) => b.set(_db.collection('videos').doc(), {
+              'title': v.title,
+              'thumbUrl': v.thumbUrl,
+              'youtubeLink': v.youtubeLink,
+              'batchId': isFree ? null : dest, // free videos have batchId null
+              'folderId': folderRef.id,
+              'source': 'upload',
+              'order': i,
+              'createdAt': FieldValue.serverTimestamp(),
+            }));
+      }
+      await _runWrites(ops);
+      if (!isFree) await _bumpBatchCount(dest, 'videos', videos.length);
+    }
+    if (destinations.any((d) => d != kCopyFreeDest)) await _markUpdated('newBatchesAt');
+    if (destinations.contains(kCopyFreeDest)) await _markUpdated('newVideosAt');
+    return videos.length;
+  }
+
+  // Mock exam folder -> every destination. [onlySubject] = copy just one
+  // subject folder of the exam (e.g. "Maths"); null = every test of the exam.
+  // The new exam folder gets the same name and the tests keep their subject.
+  Future<int> copyMockFolder(String folderId, List<String> destinations, {String? onlySubject}) async {
+    if (destinations.isEmpty) return 0;
+    final folderSnap = await _db.collection('mockTestFolders').doc(folderId).get();
+    final fData = folderSnap.data();
+    if (fData == null) throw StateError('The folder no longer exists.');
+    final name = (fData['examName'] ?? '').toString();
+    final tSnap = await _db.collection('mockTests').where('folderId', isEqualTo: folderId).get();
+    var docs = tSnap.docs.toList();
+    if (onlySubject != null) {
+      final key = mockSubjectKey(onlySubject);
+      docs = docs.where((d) => mockSubjectKey((d.data()['subject'] ?? '').toString()) == key).toList();
+    }
+    final tests = docs.map((d) => MapEntry(MockTestModel.fromMap(d.id, d.data()), d.data())).toList()
+      ..sort((a, b) => compareOrderThenCreated(a.key.order, b.key.order, a.key.createdAt, b.key.createdAt, a.key.title, b.key.title));
+
+    for (final dest in destinations.toSet()) {
+      final isFree = dest == kCopyFreeDest;
+      final folderRef = _db.collection('mockTestFolders').doc();
+      final ops = <void Function(WriteBatch b)>[
+        (b) => b.set(folderRef, {
+              'examName': name,
+              'batchIds': isFree ? <String>[] : <String>[dest],
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+      ];
+      for (var i = 0; i < tests.length; i++) {
+        final raw = Map<String, dynamic>.from(tests[i].value); // every field (questions, timer, marks ...) is kept
+        raw['folderId'] = folderRef.id;
+        raw['order'] = i;
+        raw['createdAt'] = FieldValue.serverTimestamp();
+        ops.add((b) => b.set(_db.collection('mockTests').doc(), raw));
+      }
+      await _runWrites(ops, chunk: 8);
+    }
+    if (destinations.any((d) => d != kCopyFreeDest)) await _markUpdated('newBatchesAt');
+    if (destinations.contains(kCopyFreeDest)) await _markUpdated('newMocksAt');
+    return tests.length;
+  }
 }
