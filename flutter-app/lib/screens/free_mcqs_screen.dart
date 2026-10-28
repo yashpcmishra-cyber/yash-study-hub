@@ -58,7 +58,7 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
                   child: Text(
-                    'A new set of 25 MCQs every month: Current Affairs (from PIB), Static GK, General Science and General Studies (syllabus-based). Tap ⓘ on a month to see how it was made.',
+                    'A new set of 25 MCQs every month: Static GK, General Science and General Studies (syllabus-based, Hindi + English). Tap ⓘ on a month to see how it was made.',
                     style: TextStyle(color: AppC.muted, fontSize: 12.5),
                   ),
                 ),
@@ -208,7 +208,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
     await StudyStore.addGoalProgress(answered);
   }
 
-  /// "About this set" (how it was made, and the PIB link for Current Affairs). Uses the same single read the quiz needs (then cached).
+  /// "About this set" (how it was made). Uses the same single read the quiz needs (then cached).
   Future<void> _showSources(FreeMcqSetMeta meta) async {
     final FreeMcqSet set;
     try {

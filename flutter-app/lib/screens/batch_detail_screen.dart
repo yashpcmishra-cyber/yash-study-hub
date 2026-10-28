@@ -627,6 +627,23 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
     );
   }
 
+  // Subject folders (if any) first, then the tests without a subject.
+  List<Widget> _mockSubjectTiles(List<MockTestModel> tests, double indent) {
+    final split = groupMockTestsBySubject(tests);
+    return [
+      ...split.groups.map((g) => ExpansionTile(
+            iconColor: AppC.accent,
+            collapsedIconColor: AppC.muted,
+            tilePadding: EdgeInsets.only(left: indent, right: 16),
+            leading: const Text('📚', style: TextStyle(fontSize: 18)),
+            title: Text(g.name, style: TextStyle(color: AppC.text, fontSize: 14)),
+            subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: TextStyle(color: AppC.muted, fontSize: 11)),
+            children: g.tests.map(_mockTestTile).toList(),
+          )),
+      ...split.ungrouped.map(_mockTestTile),
+    ];
+  }
+
   // Mock test folders added to this paid batch. Tapping a test opens the
   // same exam screen as the free Mock Tests.
   Widget _mocksTab() {
@@ -652,20 +669,27 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                           if (!testSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
                           final tests = testSnap.data!;
                           if (tests.isEmpty) return Padding(padding: EdgeInsets.all(12), child: Text('Empty', style: TextStyle(color: AppC.muted, fontSize: 12)));
-                          // Subject folders (if any) first, then tests without a subject.
-                          final split = groupMockTestsBySubject(tests);
+                          // Prelims / Mains folders (if any test has a category), then
+                          // subject folders, then tests without a subject.
+                          final byStage = splitMockTestsByStage(tests);
+                          if (!byStage.hasStages) return Column(children: _mockSubjectTiles(tests, 28));
                           return Column(
                             children: [
-                              ...split.groups.map((g) => ExpansionTile(
+                              for (final stage in [kStagePrelims, kStageMains])
+                                if ((stage == kStagePrelims ? byStage.prelims : byStage.mains).isNotEmpty)
+                                  ExpansionTile(
                                     iconColor: AppC.accent,
                                     collapsedIconColor: AppC.muted,
                                     tilePadding: const EdgeInsets.only(left: 28, right: 16),
-                                    leading: const Text('📚', style: TextStyle(fontSize: 18)),
-                                    title: Text(g.name, style: TextStyle(color: AppC.text, fontSize: 14)),
-                                    subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: TextStyle(color: AppC.muted, fontSize: 11)),
-                                    children: g.tests.map(_mockTestTile).toList(),
-                                  )),
-                              ...split.ungrouped.map(_mockTestTile),
+                                    leading: Text(mockStageEmoji(stage), style: const TextStyle(fontSize: 18)),
+                                    title: Text(mockStageLabel(stage), style: TextStyle(color: AppC.text, fontSize: 14)),
+                                    subtitle: Text(
+                                      '${(stage == kStagePrelims ? byStage.prelims : byStage.mains).length} tests',
+                                      style: TextStyle(color: AppC.muted, fontSize: 11),
+                                    ),
+                                    children: _mockSubjectTiles(stage == kStagePrelims ? byStage.prelims : byStage.mains, 44),
+                                  ),
+                              ..._mockSubjectTiles(byStage.none, 28),
                             ],
                           );
                         },
