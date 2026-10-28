@@ -69,8 +69,9 @@ const EXAMS = [
   { id: "railway", name: "Railway (RRB NTPC / Group D)", emoji: "🚆", level: MODERATE_LEVEL, focus: "Railway General Awareness and General Science at school level: science, history, geography, polity, economy, sports, awards and current affairs." },
 ];
 
+// Current Affairs is NOT built any more (the monthly quiz was never reliably created), so it is not listed here.
+// Its code paths below stay for reference; purgeRemovedSubjectSets() deletes any old "ca" set.
 const SUBJECTS = [
-  { id: "ca", name: "Current Affairs", emoji: "📰", syllabus: "Current events of national and international importance" },
   { id: "gk", name: "Static GK", emoji: "🗿", syllabus: "History of India and the national movement; India and world geography; art, culture, awards and sports" },
   { id: "science", name: "General Science", emoji: "🔬", syllabus: "Physics, chemistry and biology as met in everyday life; human health and diseases; space and everyday technology" },
   { id: "gs", name: "General Studies", emoji: "🧭", syllabus: "Indian polity and governance; economic and social development; environment, ecology, biodiversity and climate change; international organisations" },
@@ -555,23 +556,37 @@ async function purgeRemovedExamSets(db) {
   return new Set(stale.map((d) => d.id));
 }
 
+/** Delete every set whose subject is no longer in SUBJECTS (e.g. the removed Current Affairs). Returns the deleted ids. */
+async function purgeRemovedSubjectSets(db) {
+  const keep = new Set(SUBJECTS.map((s) => s.id));
+  const snap = await db.collection("freeMcqSets").get();
+  const stale = snap.docs.filter((d) => !keep.has(String((d.data() || {}).subjectId || "")));
+  for (let i = 0; i < stale.length; i += 400) {
+    const batch = db.batch();
+    stale.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  if (stale.length) console.log(`Deleted ${stale.length} set(s) of removed subjects: ${stale.map((d) => d.id).join(", ")}`);
+  return new Set(stale.map((d) => d.id));
+}
+
 // ------------------------------------------------------------ generation
 
 /**
  * Writes the questions, then checks them (A, B, C). Collects survivors over up to MAX_ROUNDS rounds until
- * QUESTIONS_PER_SET are there. Returns the final list, or [] if the set must not be published.
+ * `perSet` (default QUESTIONS_PER_SET) are there. Returns the final list, or [] if the set must not be published.
  * `ctx` is { blocks } for Current Affairs (PIB lines) or { topicList } for static subjects.
  */
-async function generateSet({ exam, subject, monthKey, ctx, previous, key }) {
+async function generateSet({ exam, subject, monthKey, ctx, previous, key, perSet = QUESTIONS_PER_SET, asked = QUESTIONS_ASKED }) {
   const grounded = Array.isArray(ctx.blocks);
   const maxSrc = grounded ? ctx.blocks.length : ctx.topicList.length;
   const temperature = grounded ? 0.2 : 0.3;
   const kept = [];
 
-  for (let round = 1; round <= MAX_ROUNDS && kept.length < QUESTIONS_PER_SET; round++) {
+  for (let round = 1; round <= MAX_ROUNDS && kept.length < perSet; round++) {
     try {
-      const need = QUESTIONS_PER_SET - kept.length;
-      const n = round === 1 ? QUESTIONS_ASKED : Math.min(QUESTIONS_ASKED, need + 10);
+      const need = perSet - kept.length;
+      const n = round === 1 ? asked : Math.min(asked, need + 10);
       const avoid = [...previous, ...kept.map((q) => q.text)]; // earlier months + what this set already has
       const exclude = new Set(avoid.map((t) => t.toLowerCase()));
       const prompt = grounded
@@ -603,15 +618,16 @@ async function generateSet({ exam, subject, monthKey, ctx, previous, key }) {
       console.warn(`  round ${round} failed: ${err.message}`);
     }
   }
-  if (kept.length < MIN_QUESTIONS) return [];
-  return kept.slice(0, QUESTIONS_PER_SET).map(toStored);
+  if (kept.length < perSet) return [];
+  return kept.slice(0, perSet).map(toStored);
 }
 
 /** Rebuilds freeMcqIndex/current (1 read + 1 write). Drops purged sets and sets older than KEEP_MONTHS. */
 async function writeIndex(db, admin, monthKey, built, purged) {
   const idxRef = db.collection("freeMcqIndex").doc("current");
   const keepExams = new Set(EXAMS.map((e) => e.id));
-  const oldSets = (((await idxRef.get()).data() || {}).sets || []).filter((s) => s && !purged.has(s.id) && keepExams.has(s.examId));
+  const keepSubjects = new Set(SUBJECTS.map((x) => x.id));
+  const oldSets = (((await idxRef.get()).data() || {}).sets || []).filter((s) => s && !purged.has(s.id) && keepExams.has(s.examId) && keepSubjects.has(s.subjectId));
   const all = new Map();
   for (const s of [...oldSets, ...built]) if (s && s.id) all.set(s.id, s);
   const minKey = shiftMonth(monthKey, -(KEEP_MONTHS - 1));
@@ -655,6 +671,7 @@ async function main() {
   // 0) No set built from CC-licensed text may stay in the database.
   const purged = await purgeLegacyLicensedSets(db);
   for (const id of await purgeRemovedExamSets(db)) purged.add(id);
+  for (const id of await purgeRemovedSubjectSets(db)) purged.add(id);
 
   // 1) Which sets already exist? One read per set, skipped entirely when FORCE=true.
   const allIds = [];
@@ -665,9 +682,9 @@ async function main() {
     for (const s of snaps) if (s.exists) existing.set(s.id, Number(s.data().count) || 0);
   }
 
-  // 2) Current Affairs source: the PIB lines archived during this month.
-  const caLines = await loadCaLines(db, admin, monthKey);
-  console.log(`PIB archive has ${caLines.length} current-affairs line(s) for ${monthKey}.`);
+  // 2) Current Affairs source: only read when a "ca" subject is configured (it is not, now).
+  const caLines = SUBJECTS.some((x) => x.id === "ca") ? await loadCaLines(db, admin, monthKey) : [];
+  if (caLines.length) console.log(`PIB archive has ${caLines.length} current-affairs line(s) for ${monthKey}.`);
 
   // 3) Build every missing set.
   const built = [];
@@ -781,6 +798,8 @@ module.exports = {
   cleanQuestion,
   cleanQuestions,
   parseAnswer,
+  callGemini,
+  oneLine,
   parseVerify,
   parseSolve,
   solveRejections,
@@ -795,6 +814,7 @@ module.exports = {
   numbersCovered,
   generateSet,
   purgeLegacyLicensedSets,
+  purgeRemovedSubjectSets,
   shiftMonth,
   monthRange,
   monthLabel,
