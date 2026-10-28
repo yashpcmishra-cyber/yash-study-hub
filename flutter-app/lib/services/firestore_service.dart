@@ -694,6 +694,10 @@ class FirestoreService {
     });
   }
 
+  // Switch the monthly auto MCQ PDFs on / off for one FREE folder.
+  Future<void> setPdfFolderAutoMcq(String folderId, bool on) =>
+      _db.collection('pdfFolders').doc(folderId).update({'autoMonthlyMcq': on});
+
   Future<void> addFolder(PdfFolderModel f) =>
       _db.collection('pdfFolders').add({...f.toMap(), 'createdAt': FieldValue.serverTimestamp()});
 
@@ -789,9 +793,13 @@ class FirestoreService {
     await _db.collection('mockTests').doc(t.id).set(t.toMap(), SetOptions(merge: true));
   }
 
-  // Move a test to another exam folder and/or subject (only these 2 fields change).
-  Future<void> moveMockTest(String id, String folderId, String subject) =>
-      _db.collection('mockTests').doc(id).update({'folderId': folderId, 'subject': subject.trim()});
+  // Move a test to another exam folder / subject, and optionally set its Prelims / Mains category.
+  Future<void> moveMockTest(String id, String folderId, String subject, {String? examStage}) =>
+      _db.collection('mockTests').doc(id).update({
+        'folderId': folderId,
+        'subject': subject.trim(),
+        if (examStage != null) 'examStage': normalizeMockStage(examStage),
+      });
 
   Future<void> deleteMockTest(String id) => _db.collection('mockTests').doc(id).delete();
 

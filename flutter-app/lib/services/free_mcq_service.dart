@@ -39,7 +39,7 @@ class FreeMcqSetMeta {
       );
 }
 
-/// A source page of a set (only Current Affairs has one: the PIB link).
+/// A source page of a set (older Current Affairs sets had one: the PIB link).
 class FreeMcqSource {
   final String title;
   final String url;
@@ -139,16 +139,23 @@ class FreeMcqService {
     }
   }
 
+  // Current Affairs monthly quizzes are not made any more, so the subject is
+  // hidden here even if an older index (or phone cache) still lists it.
+  static const Set<String> _removedSubjectIds = {'ca'};
+
   static FreeMcqIndex _fromMap(Map<String, dynamic> m) {
     final sets = <FreeMcqSetMeta>[];
     final raw = m['sets'];
     if (raw is List) {
       for (final e in raw.whereType<Map>()) {
         final meta = FreeMcqSetMeta.fromMap(Map<String, dynamic>.from(e));
-        if (meta.id.isNotEmpty && meta.examId.isNotEmpty && meta.subjectId.isNotEmpty) sets.add(meta);
+        if (meta.id.isNotEmpty && meta.examId.isNotEmpty && meta.subjectId.isNotEmpty && !_removedSubjectIds.contains(meta.subjectId)) {
+          sets.add(meta);
+        }
       }
     }
-    return FreeMcqIndex(_choices(m['exams']), _choices(m['subjects']), sets);
+    final subjects = _choices(m['subjects']).where((s) => !_removedSubjectIds.contains(s.id)).toList();
+    return FreeMcqIndex(_choices(m['exams']), subjects, sets);
   }
 
   static List<FreeMcqChoice> _choices(dynamic raw) {
