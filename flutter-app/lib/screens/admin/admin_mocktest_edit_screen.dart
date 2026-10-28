@@ -35,6 +35,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
   final _bulkCtrl = TextEditingController();
   late List<MockQuestion> _qs;
   late String _folderId;
+  late String _examStage;
   List<String> _bulkErrors = [];
   bool _saving = false;
   bool _dirty = false;
@@ -53,6 +54,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
     _subject = TextEditingController(text: t.subject);
     _qs = List<MockQuestion>.from(t.questions);
     _folderId = t.folderId;
+    _examStage = t.examStage;
     _subject.addListener(_onSubjectChanged);
   }
 
@@ -212,6 +214,7 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
       marksPerQuestion: marks,
       negativeMarks: neg,
       subject: _subject.text.trim(),
+      examStage: _examStage,
     );
     if (utf8.encode(jsonEncode(updated.toMap())).length > 900000) {
       _snack('This test is too big to save. Remove some questions or shorten explanations.');
@@ -329,6 +332,8 @@ class _AdminMockTestEditScreenState extends State<AdminMockTestEditScreen> {
             ]),
             const SizedBox(height: 12),
             _folderPicker(),
+            const SizedBox(height: 10),
+            MockStagePicker(value: _examStage, onChanged: (v) => setState(() { _examStage = v; _dirty = true; })),
             const SizedBox(height: 10),
             MockSubjectField(controller: _subject, folderId: _folderId.isEmpty ? null : _folderId, onChanged: (_) => _dirty = true),
             const SizedBox(height: 8),

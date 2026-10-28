@@ -95,6 +95,46 @@ class _MockSubjectFieldState extends State<MockSubjectField> {
   }
 }
 
+/// Prelims / Mains category picker for a mock test (None = no category, the
+/// test shows directly like before). [value] is '', 'prelims' or 'mains'.
+class MockStagePicker extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+  const MockStagePicker({super.key, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget chip(String stage, String label) {
+      final on = value == stage;
+      return ChoiceChip(
+        label: Text(label, style: TextStyle(color: on ? AppC.onGold : AppC.text, fontSize: 12)),
+        selected: on,
+        selectedColor: AppC.gold,
+        backgroundColor: AppC.card2,
+        onSelected: (_) => onChanged(stage),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Exam category', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
+        const SizedBox(height: 4),
+        Wrap(spacing: 6, children: [
+          chip('', 'None'),
+          chip(kStagePrelims, '🎯 Prelims'),
+          chip(kStageMains, '✍️ Mains'),
+        ]),
+        const SizedBox(height: 4),
+        Text(
+          'Students will see Exam folder > Prelims / Mains > Subject > Tests. None = the test shows as before.',
+          style: TextStyle(color: AppC.muted, fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
 /// Opens the "Move test" dialog. Returns true if the test was moved.
 Future<bool> showMoveMockTestDialog(BuildContext context, MockTestModel test) async {
   final ok = await showDialog<bool>(context: context, builder: (_) => _MoveMockTestDialog(test: test));
@@ -115,6 +155,7 @@ class _MoveMockTestDialogState extends State<_MoveMockTestDialog> {
   late final Stream<List<BatchModel>> _batchesStream = _fs.streamBatches();
   late String _folderId = widget.test.folderId;
   late final TextEditingController _subject = TextEditingController(text: widget.test.subject);
+  late String _stage = widget.test.examStage;
   bool _saving = false;
   String? _error;
 
@@ -137,7 +178,7 @@ class _MoveMockTestDialogState extends State<_MoveMockTestDialog> {
       _error = null;
     });
     try {
-      await _fs.moveMockTest(widget.test.id, _folderId, _subject.text);
+      await _fs.moveMockTest(widget.test.id, _folderId, _subject.text, examStage: _stage);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
@@ -153,7 +194,7 @@ class _MoveMockTestDialogState extends State<_MoveMockTestDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppC.card,
-      title: Text('Move mock test', style: TextStyle(color: AppC.text)),
+      title: Text('Move / categorise mock test', style: TextStyle(color: AppC.text)),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -200,6 +241,8 @@ class _MoveMockTestDialogState extends State<_MoveMockTestDialog> {
                           ),
                         ),
                       const SizedBox(height: 6),
+                      MockStagePicker(value: _stage, onChanged: (v) => setState(() => _stage = v)),
+                      const SizedBox(height: 10),
                       MockSubjectField(controller: _subject, folderId: _folderId.isEmpty ? null : _folderId),
                       if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: AppC.orange, fontSize: 12))),
                     ],

@@ -32,6 +32,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
   String? _selectedFolderId;
   final _testTitle = TextEditingController();
   final _subject = TextEditingController(); // optional subject folder inside the exam folder
+  String _examStage = ''; // '' | 'prelims' | 'mains' (stays for the next test, like the subject)
   bool _publishing = false;
 
   // Questions being built for the test currently being created.
@@ -236,6 +237,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
       marksPerQuestion: marks,
       negativeMarks: neg,
       subject: _subject.text.trim(),
+      examStage: _examStage,
     );
     // Firestore documents are limited to about 1 MB.
     if (utf8.encode(jsonEncode(test.toMap())).length > 900000) {
@@ -445,11 +447,13 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
           IconButton(icon: Icon(Icons.add_circle, color: AppC.accent), onPressed: _createFolder),
         ]),
         Divider(color: AppC.divider),
-        Text('2. Test title and subject', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
+        Text('2. Test title, Prelims / Mains category and subject', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         TextField(controller: _testTitle, style: TextStyle(color: AppC.text), decoration: InputDecoration(hintText: 'e.g. SSC CGL Full Mock 1', hintStyle: TextStyle(color: AppC.muted))),
         const SizedBox(height: 10),
+        MockStagePicker(value: _examStage, onChanged: (v) => setState(() => _examStage = v)),
+        const SizedBox(height: 10),
         MockSubjectField(controller: _subject, folderId: _selectedFolderId),
-        Text('The subject stays filled for your next test (clear it if the next test has no subject).', style: TextStyle(color: AppC.muted, fontSize: 11)),
+        Text('The subject and category stay filled for your next test (clear it if the next test has no subject).', style: TextStyle(color: AppC.muted, fontSize: 11)),
         Divider(color: AppC.divider),
         Text('3. Exam settings', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
@@ -586,6 +590,7 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
                           leading: Icon(Icons.quiz, color: AppC.accent, size: 20),
                           title: Text(t.title, style: TextStyle(color: AppC.text, fontSize: 13)),
                           subtitle: Text(
+                              '${t.examStage.isNotEmpty ? '${mockStageEmoji(t.examStage)} ${mockStageLabel(t.examStage)} • ' : ''}'
                               '${t.subject.isNotEmpty ? '📚 ${t.subject} • ' : ''}'
                               '${t.durationMinutes > 0 ? '${t.questions.length} questions • ${t.durationMinutes} min • +${t.marksPerQuestion} / -${t.negativeMarks}' : '${t.questions.length} questions'}',
                               style: TextStyle(color: AppC.muted, fontSize: 11),

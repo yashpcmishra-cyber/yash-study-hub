@@ -390,6 +390,25 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
                 children: [
                   folderRow,
                   if (_type == 'batch' && selected.isNotEmpty) _batchPicker(selected.first),
+                  if (_type == 'free' && selected.isNotEmpty)
+                    SwitchListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: AppC.accent,
+                      title: Text('Monthly auto MCQ PDFs', style: TextStyle(color: AppC.text, fontSize: 13, fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        'ON: every month 20 Hindi + English MCQs per subject (Static GK, General Science, General Studies) are made as PDFs and added to this folder automatically.',
+                        style: TextStyle(color: AppC.muted, fontSize: 11),
+                      ),
+                      value: selected.first.autoMonthlyMcq,
+                      onChanged: (v) async {
+                        try {
+                          await _fs.setPdfFolderAutoMcq(selected.first.id, v);
+                        } catch (e) {
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not update: $e')));
+                        }
+                      },
+                    ),
                   if (folders.length >= 2)
                     AdminFolderOrderSection<PdfFolderModel>(
                       items: folders,
