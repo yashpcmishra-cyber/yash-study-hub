@@ -124,8 +124,11 @@ class PdfFolderModel {
   final List<String> batchIds;
   final DateTime? createdAt;
   final int? order;
+  // FREE folders only: the monthly GitHub job adds 20 bilingual MCQs per subject
+  // as PDFs into this folder. Missing field (old folders) = ON; the admin can switch it off.
+  final bool autoMonthlyMcq;
 
-  PdfFolderModel({required this.id, required this.name, required this.type, this.batchId, List<String>? batchIds, this.createdAt, this.order})
+  PdfFolderModel({required this.id, required this.name, required this.type, this.batchId, List<String>? batchIds, this.createdAt, this.order, this.autoMonthlyMcq = true})
       : batchIds = batchIds ?? ((batchId != null && batchId.isNotEmpty) ? <String>[batchId] : <String>[]);
 
   factory PdfFolderModel.fromMap(String id, Map<String, dynamic> m) {
@@ -139,6 +142,7 @@ class PdfFolderModel {
       batchIds: multi.isNotEmpty ? multi : (single != null ? <String>[single] : <String>[]),
       createdAt: _dt(m['createdAt']),
       order: _optInt(m['order']),
+      autoMonthlyMcq: m['autoMonthlyMcq'] != false,
     );
   }
 
@@ -740,6 +744,9 @@ class MockTestModel {
   // Optional subject folder INSIDE the exam folder (e.g. "Maths", "Reasoning").
   // Old tests have no subject (empty) - they simply show directly in the exam folder.
   final String subject;
+  // Prelims / Mains category chosen by the admin: '' (none), 'prelims' or 'mains'.
+  // Old tests have none, so they keep showing exactly where they were.
+  final String examStage;
   final int? order;
 
   MockTestModel({
@@ -752,6 +759,7 @@ class MockTestModel {
     this.marksPerQuestion = 1,
     this.negativeMarks = 0,
     this.subject = '',
+    this.examStage = '',
     this.order,
   });
 
@@ -765,6 +773,7 @@ class MockTestModel {
         marksPerQuestion: (m['marksPerQuestion'] as num?)?.toDouble() ?? 1,
         negativeMarks: (m['negativeMarks'] as num?)?.toDouble() ?? 0,
         subject: (m['subject'] ?? '').toString().trim(),
+        examStage: normalizeMockStage(m['examStage']),
         order: _optInt(m['order']),
       );
 
@@ -776,7 +785,45 @@ class MockTestModel {
         'marksPerQuestion': marksPerQuestion,
         'negativeMarks': negativeMarks,
         'subject': subject.trim(),
+        'examStage': normalizeMockStage(examStage),
       };
+}
+
+/// Prelims / Mains categories of a mock test ('' = no category).
+const String kStagePrelims = 'prelims';
+const String kStageMains = 'mains';
+
+String normalizeMockStage(dynamic v) {
+  final s = (v ?? '').toString().trim().toLowerCase();
+  return (s == kStagePrelims || s == kStageMains) ? s : '';
+}
+
+String mockStageLabel(String stage) => stage == kStagePrelims ? 'Prelims' : (stage == kStageMains ? 'Mains' : '');
+String mockStageEmoji(String stage) => stage == kStagePrelims ? '🎯' : (stage == kStageMains ? '✍️' : '📝');
+
+/// Result of [splitMockTestsByStage].
+class MockStageSplit {
+  final List<MockTestModel> prelims;
+  final List<MockTestModel> mains;
+  final List<MockTestModel> none; // tests with no Prelims / Mains category
+  MockStageSplit(this.prelims, this.mains, this.none);
+
+  /// Prelims / Mains folders only appear when at least one test has a category.
+  bool get hasStages => prelims.isNotEmpty || mains.isNotEmpty;
+}
+
+MockStageSplit splitMockTestsByStage(List<MockTestModel> tests) {
+  final p = <MockTestModel>[], m = <MockTestModel>[], n = <MockTestModel>[];
+  for (final t in tests) {
+    if (t.examStage == kStagePrelims) {
+      p.add(t);
+    } else if (t.examStage == kStageMains) {
+      m.add(t);
+    } else {
+      n.add(t);
+    }
+  }
+  return MockStageSplit(p, m, n);
 }
 
 /// "Maths" and " maths " are the same subject.
