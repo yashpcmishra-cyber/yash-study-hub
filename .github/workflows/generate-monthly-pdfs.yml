@@ -1,0 +1,53 @@
+name: Monthly MCQ PDFs for Free PDF folders (free, Gemini + Chrome)
+
+on:
+  schedule:
+    - cron: '30 4 2 * *'   # 2nd of every month, 10:00 AM IST - after the Free MCQs job of the 1st
+    - cron: '30 4 5 * *'   # 5th of every month - retry (PDFs that already exist are skipped)
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to build, yyyy-MM (blank = previous month)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild PDFs that already exist (true/false)'
+        required: false
+        default: 'false'
+      only_folder:
+        description: 'Only this free PDF folder (exact name, blank = all folders)'
+        required: false
+        default: ''
+
+concurrency:
+  group: generate-monthly-pdfs
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Hindi (Devanagari) fonts for the PDFs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-core fonts-lohit-deva
+          fc-list :lang=hi | head -3
+          test "$(fc-list :lang=hi | wc -l)" -gt 0
+      - name: Chrome (preinstalled on the runner)
+        run: google-chrome --version
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node generate-monthly-pdfs.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          IMAGE_UPLOAD_TOKEN: ${{ secrets.IMAGE_UPLOAD_TOKEN }}
+          MONTH: ${{ github.event.inputs.month }}
+          FORCE: ${{ github.event.inputs.force }}
+          ONLY_FOLDER: ${{ github.event.inputs.only_folder }}
