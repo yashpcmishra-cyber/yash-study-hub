@@ -7,6 +7,7 @@ import '../services/share_service.dart';
 import '../services/speed_math_generator.dart';
 import '../services/speed_math_store.dart';
 import '../services/study_store.dart';
+import 'ready_reckoner_screen.dart';
 
 /// Speed Maths Arena: squares, cubes, tables, roots, fraction<->%, percentage,
 /// quick calc, BODMAS aur number series ke tez drills.
@@ -70,6 +71,36 @@ class _SpeedMathScreenState extends State<SpeedMathScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _header(),
+          const SizedBox(height: 10),
+          // Practice se pehle yaad karne ke liye chart (squares, cubes, tables ...).
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReadyReckonerScreen())),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppC.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppC.accent.withOpacity(0.6)),
+              ),
+              child: Row(
+                children: [
+                  const Text('🧮', style: TextStyle(fontSize: 24)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Ready Reckoner chart', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13.5)),
+                        Text('Learn squares, cubes, tables, roots, fraction % first\nपहले वर्ग, घन, पहाड़े, मूल, भिन्न % याद करें',
+                            style: TextStyle(color: AppC.text70, fontSize: 11.5, height: 1.3)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: AppC.accent),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 14),
           Row(
             children: [

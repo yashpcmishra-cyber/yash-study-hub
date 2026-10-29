@@ -21,6 +21,7 @@ import '../widgets/study_corner_card.dart';
 import '../widgets/study_tools_card.dart';
 import '../widgets/smart_study_card.dart';
 import '../widgets/daily_gyan_card.dart';
+import '../widgets/more_tools_card.dart';
 import 'pdf_library_screen.dart';
 import 'free_mcqs_screen.dart';
 import 'news_screen.dart';
@@ -488,6 +489,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       const Padding(
                         padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
                         child: SmartStudyCard(),
+                      ),
+
+                      // More Tools: My Notes, Important Days, Cloud Backup.
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
+                        child: MoreToolsCard(),
                       ),
 
                       // Aaj ka Gyaan: Word of the Day + GK fact (bundled in the app).
