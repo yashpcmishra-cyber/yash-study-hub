@@ -16,6 +16,7 @@ import 'admin_login_screen.dart';
 import 'admin_pdfs_tab.dart';
 import 'admin_videos_tab.dart';
 import 'admin_mocktests_tab.dart';
+import 'admin_free_mcq_tab.dart';
 import 'admin_queries_tab.dart';
 import 'admin_reorder_list.dart';
 import '../../app_colors.dart';
@@ -272,7 +273,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     super.initState();
     _setAdminAlerts(true);
     Future.microtask(() => adminSignedIn.value = true);
-    _tabs = TabController(length: 11, vsync: this);
+    _tabs = TabController(length: 12, vsync: this);
     _installFuture = _fs.installCount();
     _activeFuture = _loadActiveCounts();
   }
@@ -377,6 +378,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             Tab(text: 'PDFs'),
             Tab(text: 'Videos'),
             Tab(text: 'Mock Tests'),
+            Tab(text: 'Free MCQs'),
             Tab(text: 'Attempts'),
             Tab(text: 'Branding'),
             Tab(text: 'Banners'),
@@ -397,6 +399,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           const AdminPdfsTab(),
           const AdminVideosTab(),
           const AdminMockTestsTab(),
+          const AdminFreeMcqTab(),
           Builder(builder: (_) => _attemptsTab()), // Builder = built lazily, only when tab is opened
           _brandingTab(),
           _bannersTab(),
