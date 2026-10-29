@@ -66,7 +66,7 @@ const MODERATE_LEVEL = "Moderate competitive-exam level (SSC / Railway / UPSSSC)
 const EXAMS = [
   { id: "ssc", name: "SSC (CGL / CHSL / MTS)", emoji: "🧾", level: MODERATE_LEVEL, focus: "SSC General Awareness: Indian history, geography, polity, economy, general science, static GK and current affairs of national importance. Quick factual questions." },
   { id: "upsssc", name: "UPSSSC (PET / Lekhpal / Junior Assistant etc.)", emoji: "🏛️", level: MODERATE_LEVEL, focus: "UPSSSC PET and group C exams: Indian history, culture, geography, polity, economy, general science, current affairs and static GK, with special reference to Uttar Pradesh. Clear factual questions." },
-  { id: "railway", name: "Railway (RRB NTPC / Group D)", emoji: "🚆", level: MODERATE_LEVEL, focus: "Railway General Awareness and General Science at school level: science, history, geography, polity, economy, sports, awards and current affairs." },
+  { id: "railway", name: "Railway (RRB NTPC / Station Master / Group D)", emoji: "🚆", level: MODERATE_LEVEL, focus: "Railway General Awareness and General Science at school level (RRB NTPC including Station Master, and Group D): science, history, geography, polity, economy, sports, awards and current affairs." },
 ];
 
 // Current Affairs is NOT built any more (the monthly quiz was never reliably created), so it is not listed here.
