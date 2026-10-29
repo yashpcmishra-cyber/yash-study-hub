@@ -622,6 +622,41 @@ async function generateSet({ exam, subject, monthKey, ctx, previous, key, perSet
   return kept.slice(0, perSet).map(toStored);
 }
 
+/**
+ * The exam folders are managed from the app (Admin Panel > Free MCQs tab) and stored in
+ * freeMcqIndex/current.exams. When that list exists, it REPLACES the built-in EXAMS above for
+ * this run (so exams added in the app get sets, and exams removed in the app are not rebuilt).
+ * Built-in exams keep their own focus/level; a new exam gets a generic General Awareness focus.
+ * If the list is missing or empty, the built-in EXAMS are used unchanged.
+ */
+async function applyExamsFromFirestore(db) {
+  const snap = await db.collection("freeMcqIndex").doc("current").get();
+  const raw = snap.exists ? (snap.data() || {}).exams : null;
+  if (!Array.isArray(raw)) return;
+  const list = [];
+  const seen = new Set();
+  for (const e of raw) {
+    const id = String((e && e.id) || "").trim();
+    const name = oneLine(e && e.name);
+    if (!id || !name || seen.has(id)) continue;
+    seen.add(id);
+    const builtIn = EXAMS.find((x) => x.id === id);
+    list.push({
+      id,
+      name,
+      emoji: oneLine(e && e.emoji) || "📘",
+      level: builtIn ? builtIn.level : MODERATE_LEVEL,
+      focus: builtIn
+        ? builtIn.focus
+        : `${name}: General Awareness and General Studies for this exam: Indian history, culture, geography, polity, economy, general science, static GK and current affairs, at the level usually asked in ${name}. Clear factual questions.`,
+    });
+  }
+  if (!list.length) return;
+  EXAMS.length = 0;
+  EXAMS.push(...list);
+  console.log(`Exam folders from the app: ${list.map((x) => x.id).join(", ")}`);
+}
+
 /** Rebuilds freeMcqIndex/current (1 read + 1 write). Drops purged sets and sets older than KEEP_MONTHS. */
 async function writeIndex(db, admin, monthKey, built, purged) {
   const idxRef = db.collection("freeMcqIndex").doc("current");
@@ -663,6 +698,7 @@ async function main() {
   const admin = require("firebase-admin");
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   const db = admin.firestore();
+  await applyExamsFromFirestore(db);
 
   const force = process.env.FORCE === "true";
   const notify = process.env.FREE_MCQ_NOTIFY !== "false";
