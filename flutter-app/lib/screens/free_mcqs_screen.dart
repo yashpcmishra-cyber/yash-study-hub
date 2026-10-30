@@ -58,7 +58,7 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
                   child: Text(
-                    'A new set of 25 MCQs every month: Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, moderate to hard). Tap ⓘ on a month to see how it was made.',
+                    'A new set of 25 MCQs every month: Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, easy to hard, a new set every week). Tap ⓘ on a set to see how it was made.',
                     style: TextStyle(color: AppC.muted, fontSize: 12.5),
                   ),
                 ),
@@ -176,8 +176,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
     if (!mounted) return;
     setState(() => _openingId = null);
 
-    final month = FreeMcqService.monthLabel(meta.monthKey);
-    final title = '${widget.subject.name} · $month';
+    final title = '${widget.subject.name} · ${FreeMcqService.setLabel(meta)}';
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => QuizSessionScreen(
@@ -211,7 +210,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
     await StudyStore.addMistakes(
       wrong,
       subject: widget.subject.name,
-      source: '${widget.exam.name} · ${FreeMcqService.monthLabel(meta.monthKey)}',
+      source: '${widget.exam.name} · ${FreeMcqService.setLabel(meta)}',
     );
     await StudyStore.addGoalProgress(answered);
   }
@@ -248,7 +247,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
                     ? 'These questions are written from official PIB (Government of India) press releases. The source is credited in each explanation. '
                         'Questions can contain mistakes, so please check important facts in your textbook.'
                     : widget.subject.id == kEnglishFolderId
-                        ? 'These English questions follow the Banking PO / Clerk pattern (reading comprehension, cloze test, error spotting, fill in the blanks, para jumbles, sentence improvement) at moderate to hard level. '
+                        ? 'These English questions follow the Banking PO / Clerk pattern (reading comprehension, cloze test, error spotting, fill in the blanks, para jumbles, sentence improvement) at easy, moderate and hard level (a new set every week). '
                             'They are written by AI and checked twice for accuracy (grammar check and an independent re-solve). No book or website text is copied. Questions can still contain mistakes, so please confirm doubtful points in a grammar book.'
                         : 'These questions are written by AI from the syllabus topics of this exam and checked three times for accuracy (fact-check, independent re-solve, Hindi-English match). '
                             'No book or website text is copied. Questions can still contain mistakes, so please check important facts in your textbook.',
@@ -285,7 +284,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
       appBar: AppBar(title: Text(widget.subject.name)),
       body: sets.isEmpty
           ? EmptyView(widget.subject.id == kEnglishFolderId
-              ? 'The English set for this month is not ready yet. A new set of 25 English MCQs arrives automatically every month.'
+              ? 'The English set for this week is not ready yet. A new set of 25 English MCQs arrives automatically every Monday.'
               : 'No set for this subject yet.')
           : ListView(
               padding: const EdgeInsets.all(14),
@@ -299,7 +298,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
                         _done.containsKey(m.id) ? Icons.check_circle : Icons.quiz_outlined,
                         color: _done.containsKey(m.id) ? Colors.green : AppC.muted,
                       ),
-                      title: Text(FreeMcqService.monthLabel(m.monthKey), style: TextStyle(color: AppC.text)),
+                      title: Text(FreeMcqService.setLabel(m), style: TextStyle(color: AppC.text)),
                       subtitle: Text(_subtitle(m), style: TextStyle(color: AppC.muted, fontSize: 11)),
                       trailing: _openingId == m.id
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))

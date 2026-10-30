@@ -216,6 +216,8 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
       }
     }
     if (identity.isEmpty) identity = 'anonymous';
+    // The profile name saved at login (empty if the student never logged in). It lets the teacher see WHO attempted.
+    final studentName = (prefs.getString('student_name') ?? '').trim();
 
     // Teacher ke liye score save karna student ka result kabhi nahi rokta.
     String? note;
@@ -228,6 +230,9 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
             score: r.correct,
             total: widget.test.questions.length,
             answers: _answers,
+            studentName: studentName,
+            subject: widget.test.subject,
+            folderId: widget.test.folderId,
           )
           .timeout(const Duration(seconds: 8));
     } on TimeoutException {
