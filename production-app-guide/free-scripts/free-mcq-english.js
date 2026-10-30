@@ -1,9 +1,10 @@
 /**
- * Monthly ENGLISH set for the "English" folder of Free MCQs.
+ * WEEKLY ENGLISH set for the "English" folder of Free MCQs (built by fetch-free-english.js).
  *
  * Pattern: Banking PO / Clerk English Language (IBPS PO, SBI PO, IBPS Clerk, SBI Clerk).
- * Level  : moderate to hard. English only, no Static GK / Science / GS.
- * Size   : 25 MCQs per month, in these sections (the same blueprint every month):
+ * Level  : a mix of EASY (~30%, Clerk Prelims), MODERATE (~40%, PO Prelims / Clerk Mains) and HARD (~30%, PO Mains)
+ *          questions inside every section. English only, no Static GK / Science / GS.
+ * Size   : 25 MCQs per week, in these sections (the same blueprint every week):
  *
  *     Fill in the Blanks (single + double blank) ...... 4
  *     Error Spotting (3 parts + "No error") ........... 4
@@ -164,7 +165,7 @@ function pickPlan(seedKey) {
 // ---------------------------------------------------------------- prompts
 
 const COMMON_RULES = `You are a senior question-setter for the English Language section of Indian bank exams (IBPS PO, SBI PO, IBPS Clerk, SBI Clerk).
-LEVEL: moderate to hard (PO Prelims / Mains standard): about 40% moderate and 60% hard. Hard questions need careful reading: close options, subtle errors, inference instead of direct look-up. Do not write easy, one-glance questions.
+LEVEL MIX inside this section (follow it closely): about 30% EASY (IBPS/SBI Clerk Prelims level: one clear rule or idea, simple vocabulary, direct answer), about 40% MODERATE (PO Prelims / Clerk Mains level: needs a careful read, close options) and about 30% HARD (PO Mains level: subtle errors, very close options, inference instead of direct look-up). If the section has only 1-2 questions, make them moderate. Easy never means careless: every question still needs exactly one correct answer.
 
 RULES (most important first):
 1. Accuracy: every marked answer must be correct under standard English grammar and usage on which all standard grammar books agree. Never use disputed points (split infinitives, "data is/are", "different from/than", "less/fewer" debates, serial commas, British/American spelling differences). If you are not 100% sure, do not use it.
@@ -255,7 +256,7 @@ SECTION: Reading Comprehension. Write ONE original passage of ${n >= 5 ? "190-24
 Theme: ${plan.rcTheme}. Style: ${plan.rcStyle}.
 The passage must be self-contained and formal, with a clear line of argument and enough detail for inference questions. No real statistics, names or dates.
 Then write exactly ${n} questions on it. Spread them over: main idea or best title; inference (what can be concluded); vocabulary in context (quote a word from the passage and ask for its synonym or antonym as used there); the author's tone, attitude or purpose; a statement question ("Which of the following is true / NOT true according to the passage?").
-- Every question must be answerable from the passage alone, and at least 3 must need inference instead of direct look-up.
+- Every question must be answerable from the passage alone, and at least 2 must need inference instead of direct look-up.
 - Options are at most 15 words. No two questions on the same sentence. Never write "according to the text" in a way that hides the question; each question must be clear on its own.
 
 Return a JSON object: {"passage": "...", "questions": [{"text": "...", "options": [4 strings], "correctIndex": 0-3, "explanation": "..."}]}${avoidBlock(avoid)}`;
@@ -602,13 +603,13 @@ function avoidLabel(q) {
 }
 
 /**
- * Builds the 25-question English set. Returns the questions in their final order, or [] when fewer than 25
+ * Builds the 25-question English set of one period (a week key such as "2026-W44"; it only seeds the themes). Returns the questions in their final order, or [] when fewer than 25
  * checked questions could be collected (the set is then NOT published; the retry run tries again).
  *
  *   previous: texts / passage openings of the last two months (never repeated)
  *   callGemini(prompt, key, temperature) -> text   (injected, so this file needs no network by itself)
  */
-async function generateEnglishSet({ monthKey, previous = [], key, callGemini, rnd = Math.random, log = console }) {
+async function generateEnglishSet({ periodKey, previous = [], key, callGemini, rnd = Math.random, log = console }) {
   const kept = Object.fromEntries(SECTIONS.map((s) => [s.id, []]));
   const seenTexts = new Set(previous.map((t) => t.toLowerCase())); // plain texts of earlier months; passage questions use dedupeKey()
   let groupCounter = 0;
@@ -616,8 +617,9 @@ async function generateEnglishSet({ monthKey, previous = [], key, callGemini, rn
   for (let round = 1; round <= MAX_ROUNDS; round++) {
     const needy = SECTIONS.filter((s) => kept[s.id].length < s.target);
     if (!needy.length) break;
-    const plan = pickPlan(`${monthKey}|round${round}`);
-    const avoid = [...new Set([...previous, ...Object.values(kept).flat().map((it) => avoidLabel(it.q))])].slice(0, 40);
+    const plan = pickPlan(`${periodKey}|round${round}`);
+    const keptLabels = Object.values(kept).flat().map((it) => avoidLabel(it.q));
+    const avoid = [...new Set([...previous.slice(0, 30), ...keptLabels])].slice(0, 45);
     const pending = [];
 
     for (const section of needy) {
@@ -706,9 +708,10 @@ function toStored(q) {
   return out;
 }
 
-/** Strings from earlier English sets that the new set must not repeat (first line of each question + passage openings). */
+/** Strings from earlier English sets that the new set must not repeat (question texts + passage openings, passages first). */
 function previousFromSets(setDocs) {
   const texts = [];
+  const passages = [];
   const seenPassages = new Set();
   for (const data of setDocs) {
     for (const q of (data && data.questions) || []) {
@@ -716,7 +719,7 @@ function previousFromSets(setDocs) {
       if (p) {
         if (!seenPassages.has(p)) {
           seenPassages.add(p);
-          texts.push(`Passage starting: "${p}..."`);
+          passages.push(`Passage starting: "${p}..."`);
         }
         continue; // the question wording of a passage question is generic; the passage is what must not come back
       }
@@ -724,7 +727,7 @@ function previousFromSets(setDocs) {
       if (t) texts.push(t);
     }
   }
-  return texts;
+  return [...passages, ...texts]; // passages (themes) first: they matter most when the list is cut
 }
 
 module.exports = {

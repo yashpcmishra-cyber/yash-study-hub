@@ -28,18 +28,18 @@
  *      published (the retry run on the 3rd of the month tries again). If a check cannot run, the round is lost.
  *   Current Affairs sets get Check A against the PIB lines, plus Check C.
  *
- * ENGLISH FOLDER (built in, always built, cannot be removed from the app):
- *   One extra folder "English" holds ONE set of 25 English MCQs per month in the Banking PO / Clerk pattern
- *   (Cloze, Reading Comprehension, Error Spotting, Fill in the Blanks, Para Jumbles, Sentence Improvement ...),
- *   moderate to hard, English only (no GK / Science / GS). It lives in free-mcq-english.js and is checked twice
- *   (grammar checker + blind solver). Other exam folders are NOT touched: they still get Static GK, General
- *   Science and General Studies only. Set id: english_english_yyyy-MM.
+ * ENGLISH FOLDER (built in, cannot be removed from the app):
+ *   The "English" folder is NOT built by this monthly job. It gets ONE set of 25 Banking PO / Clerk English MCQs
+ *   every WEEK (easy + moderate + hard mix) from fetch-free-english.js (workflow: fetch-free-english-weekly.yml).
+ *   This file only (a) skips the English folder, (b) keeps its entries in the shared index, and (c) owns
+ *   writeIndex(), which the weekly job reuses. Weekly English sets stay in Firestore for ENGLISH_KEEP_MONTHS (2)
+ *   months; the app keeps the ones a student opened on the phone for 3 months.
  *
  * Firestore output (read by the app):
  *   freeMcqSets/{examId}_{subjectId}_{yyyy-MM}
  *       { examId, subjectId, monthKey, count, source, license, licenseUrl, sources[{title,url}], questions[], createdAt }
  *   freeMcqIndex/current
- *       { exams[], subjects[], sets[ {id, examId, subjectId, monthKey, count, source} ], updatedAt }
+ *       { exams[], subjects[], sets[ {id, examId, subjectId, monthKey, count, source, (weekKey, periodStart for English weeks)} ], updatedAt }
  *
  * Storage: only the last KEEP_MONTHS months are kept; caArchive older than ARCHIVE_DAYS is deleted.
  * Re-runs are cheap: a set that already exists is skipped (FORCE=true rebuilds all).
@@ -51,7 +51,6 @@
  *      GEMINI_GAP_MS=3000     optional, pause before every Gemini call (free-tier rate limit)
  */
 const topics = require("./free-mcq-topics.js");
-const english = require("./free-mcq-english.js");
 
 const QUESTIONS_PER_SET = 25; // saved per set
 const QUESTIONS_ASKED = 36; // asked from Gemini in round 1, so the checks can remove some and 25 still remain
@@ -60,6 +59,7 @@ const MIN_QUESTIONS = QUESTIONS_PER_SET; // fewer verified questions than this =
 const MIN_CA_LINES = 30; // PIB lines needed before the Current Affairs set is built
 const MAX_CA_LINES = 80; // keeps the prompt small
 const KEEP_MONTHS = 3; // this month + 2 earlier months stay in Firestore
+const ENGLISH_KEEP_MONTHS = 2; // weekly English sets older than this are deleted from Firestore (the app keeps opened ones 3 months)
 const ARCHIVE_DAYS = 40; // caArchive docs older than this are deleted
 const PREV_QUESTIONS_IN_PROMPT = 30; // earlier questions shown to Gemini as "do not repeat"
 const PAUSE_BETWEEN_SETS_MS = 3000;
@@ -78,7 +78,7 @@ const EXAMS = [
 ];
 
 // The built-in English folder (Banking PO / Clerk pattern). It has ONE subject: english.
-const ENGLISH_LEVEL = "Moderate to hard: IBPS PO / SBI PO (Prelims + Mains) standard, with Clerk-level warm-up items.";
+const ENGLISH_LEVEL = "Easy + moderate + hard mix: IBPS / SBI Clerk (easy), PO Prelims (moderate) and PO Mains (hard) standard.";
 const ENGLISH_EXAM = {
   id: "english",
   name: "English",
@@ -129,6 +129,15 @@ const istDateStr = (offsetDays = 0) =>
 
 function currentMonthIST() {
   return istDateStr(0).slice(0, 7);
+}
+
+/** yyyy-MM-dd moved back by `n` whole months (day clamped to the month length). */
+function dateMinusMonths(dateStr, n) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const first = new Date(Date.UTC(y, m - 1 - n, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(d, last));
+  return first.toISOString().slice(0, 10);
 }
 
 /** Month key moved by `delta` months (negative = earlier). */
@@ -564,16 +573,6 @@ async function loadPreviousTexts(db, examId, subjectId, monthKey) {
   return texts.slice(0, PREV_QUESTIONS_IN_PROMPT);
 }
 
-/** English folder: questions and passage openings of the 2 earlier months (2 reads), so nothing comes back. */
-async function loadPreviousEnglish(db, examId, subjectId, monthKey) {
-  const docs = [];
-  for (const back of [1, 2]) {
-    const snap = await db.collection("freeMcqSets").doc(setId(examId, subjectId, shiftMonth(monthKey, -back))).get();
-    if (snap.exists) docs.push(snap.data());
-  }
-  return english.previousFromSets(docs).slice(0, 40);
-}
-
 /** Step 0: delete every set that was built from CC-licensed text (an older version of this job). */
 async function purgeLegacyLicensedSets(db) {
   const snap = await db.collection("freeMcqSets").where("license", ">=", "CC").where("license", "<", "CD").get();
@@ -715,7 +714,13 @@ function ensureEnglishFolder() {
   if (!EXAMS.some((e) => e.id === ENGLISH_EXAM.id)) EXAMS.push({ ...ENGLISH_EXAM });
 }
 
-/** Rebuilds freeMcqIndex/current (1 read + 1 write). Drops purged sets and sets older than KEEP_MONTHS. */
+/**
+ * Rebuilds freeMcqIndex/current (1 read + 1 write) and deletes the sets that are too old.
+ *   - monthly sets (GK / Science / GS): kept for KEEP_MONTHS months counted from `monthKey`
+ *   - weekly English sets (they carry `periodStart`): kept for ENGLISH_KEEP_MONTHS months counted from today (IST)
+ *   - an English set WITHOUT periodStart is an old monthly English set: removed (English is weekly now)
+ * Used by fetch-free-mcqs.js (monthly) and fetch-free-english.js (weekly), so both keep one consistent index.
+ */
 async function writeIndex(db, admin, monthKey, built, purged) {
   const idxRef = db.collection("freeMcqIndex").doc("current");
   const keepExams = new Set(EXAMS.map((e) => e.id));
@@ -724,20 +729,31 @@ async function writeIndex(db, admin, monthKey, built, purged) {
   const all = new Map();
   for (const s of [...oldSets, ...built]) if (s && s.id) all.set(s.id, s);
   const minKey = shiftMonth(monthKey, -(KEEP_MONTHS - 1));
+  const weeklyCutoff = dateMinusMonths(istDateStr(0), ENGLISH_KEEP_MONTHS);
   const kept = [];
   const dropped = [];
-  for (const s of all.values()) (String(s.monthKey) >= minKey ? kept : dropped).push(s);
-  if (dropped.length) {
-    const batch = db.batch();
-    dropped.forEach((s) => batch.delete(db.collection("freeMcqSets").doc(s.id)));
-    await batch.commit();
-    console.log(`Deleted ${dropped.length} set(s) older than ${minKey}.`);
+  for (const s of all.values()) {
+    const weekly = Boolean(s.periodStart);
+    const legacyEnglish = s.examId === "english" && !weekly;
+    const tooOld = legacyEnglish || (weekly ? String(s.periodStart) < weeklyCutoff : String(s.monthKey) < minKey);
+    (tooOld ? dropped : kept).push(s);
   }
-  kept.sort((a, b) => (a.monthKey === b.monthKey ? String(a.id).localeCompare(String(b.id)) : a.monthKey < b.monthKey ? 1 : -1));
+  if (dropped.length) {
+    for (let i = 0; i < dropped.length; i += 400) {
+      const batch = db.batch();
+      dropped.slice(i, i + 400).forEach((s) => batch.delete(db.collection("freeMcqSets").doc(s.id)));
+      await batch.commit();
+    }
+    console.log(`Deleted ${dropped.length} old set(s): ${dropped.map((s) => s.id).join(", ")}`);
+  }
+  const startOf = (s) => String(s.periodStart || `${s.monthKey}-01`);
+  kept.sort((a, b) => (startOf(a) === startOf(b) ? String(a.id).localeCompare(String(b.id)) : startOf(a) < startOf(b) ? 1 : -1));
   await idxRef.set({
     exams: EXAMS.map(({ id, name, emoji }) => ({ id, name, emoji })),
     subjects: ALL_SUBJECTS.map(({ id, name, emoji }) => ({ id, name, emoji })),
-    sets: kept.map(({ id, examId, subjectId, monthKey: mk, count, source }) => ({ id, examId, subjectId, monthKey: mk, count, source })),
+    sets: kept.map(({ id, examId, subjectId, monthKey: mk, count, source, weekKey, periodStart }) => ({
+      id, examId, subjectId, monthKey: mk, count, source, ...(periodStart ? { weekKey, periodStart } : {}),
+    })),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 }
@@ -770,7 +786,7 @@ async function main() {
 
   // 1) Which sets already exist? One read per set, skipped entirely when FORCE=true.
   const allIds = [];
-  for (const exam of EXAMS) for (const subject of subjectsFor(exam)) allIds.push(setId(exam.id, subject.id, monthKey));
+  for (const exam of EXAMS) if (exam.id !== ENGLISH_EXAM.id) for (const subject of subjectsFor(exam)) allIds.push(setId(exam.id, subject.id, monthKey));
   const existing = new Map(); // id -> count
   if (!force) {
     const snaps = await db.getAll(...allIds.map((id) => db.collection("freeMcqSets").doc(id)));
@@ -786,49 +802,16 @@ async function main() {
   let newSets = 0;
   let failed = 0;
   for (const exam of EXAMS) {
+    if (exam.id === ENGLISH_EXAM.id) continue; // the English folder is built weekly by fetch-free-english.js
     for (const subject of subjectsFor(exam)) {
       const id = setId(exam.id, subject.id, monthKey);
       const isCa = subject.id === "ca";
-      const isEnglish = subject.id === "english";
-      const sourceLabel = isCa ? "PIB archive" : isEnglish ? "Banking PO/Clerk pattern, AI-checked" : "Syllabus-based, AI-checked";
+      const sourceLabel = isCa ? "PIB archive" : "Syllabus-based, AI-checked";
       const meta = { id, examId: exam.id, subjectId: subject.id, monthKey, count: 0, source: sourceLabel };
 
       if (existing.has(id)) {
         built.push({ ...meta, count: existing.get(id) });
         console.log(`${id}: already there, skipped.`);
-        continue;
-      }
-
-      if (isEnglish) {
-        // English folder: 25 Banking PO / Clerk style English MCQs (own generator, English only, no Hindi).
-        console.log(`${id}: generating English set...`);
-        const previous = await loadPreviousEnglish(db, exam.id, subject.id, monthKey);
-        const englishQs = await english.generateEnglishSet({ monthKey, previous, key: GEMINI_KEY, callGemini });
-        if (englishQs.length < MIN_QUESTIONS) {
-          failed++;
-          console.error(`${id}: only ${englishQs.length} verified question(s) - not published.`);
-          continue;
-        }
-        await db.collection("freeMcqSets").doc(id).set({
-          examId: exam.id,
-          subjectId: subject.id,
-          monthKey,
-          count: englishQs.length,
-          source: sourceLabel,
-          license: STATIC_LICENSE,
-          licenseUrl: "",
-          sources: [],
-          questions: englishQs,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        built.push({ ...meta, count: englishQs.length });
-        newSets++;
-        try {
-          await writeIndex(db, admin, monthKey, built, purged);
-        } catch (err) {
-          console.warn("Index update skipped for now:", err.message);
-        }
-        await sleep(PAUSE_BETWEEN_SETS_MS);
         continue;
       }
 
@@ -923,6 +906,16 @@ module.exports = {
   ALL_SUBJECTS,
   subjectsFor,
   ensureEnglishFolder,
+  ENGLISH_EXAM,
+  ENGLISH_KEEP_MONTHS,
+  STATIC_LICENSE,
+  PAUSE_BETWEEN_SETS_MS,
+  applyExamsFromFirestore,
+  writeIndex,
+  istDateStr,
+  currentMonthIST,
+  dateMinusMonths,
+  sleep,
   QUESTIONS_PER_SET,
   QUESTIONS_ASKED,
   MIN_QUESTIONS,
