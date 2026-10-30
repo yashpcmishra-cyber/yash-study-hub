@@ -1128,17 +1128,30 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                 ],
               ),
               const SizedBox(height: 4),
-              ...attempts.map((a) => DepthCard(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      title: Text(a.mockTestTitle.isEmpty ? '(test id: ${a.mockTestId})' : a.mockTestTitle, style: TextStyle(color: AppC.text, fontSize: 13)),
-                      subtitle: Text(
-                        a.submittedAt != null ? '${a.studentEmail} \u2022 ${DateFormat('d MMM, h:mm a').format(a.submittedAt!)}' : a.studentEmail,
-                        style: TextStyle(color: AppC.muted, fontSize: 11),
-                      ),
-                      trailing: Text('${a.score}/${a.total}', style: TextStyle(color: a.total > 0 && a.score >= a.total / 2 ? AppC.green : AppC.orange, fontWeight: FontWeight.bold)),
+              ...attempts.map((a) {
+                // "SSC CGL > Maths": the exam folder and the subject folder of the test (the title above is the topic).
+                final place = [if (a.examName.isNotEmpty) a.examName, if (a.subject.isNotEmpty) a.subject].join(' \u203A ');
+                final when = a.submittedAt != null ? DateFormat('d MMM, h:mm a').format(a.submittedAt!) : '';
+                final mutedStyle = TextStyle(color: AppC.muted, fontSize: 11);
+                return DepthCard(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    isThreeLine: true,
+                    title: Text(a.mockTestTitle.isEmpty ? '(test id: ${a.mockTestId})' : a.mockTestTitle, style: TextStyle(color: AppC.text, fontSize: 13)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (a.studentName.isNotEmpty)
+                          Text(a.studentName, style: TextStyle(color: AppC.text, fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text(a.studentEmail, style: mutedStyle),
+                        if (place.isNotEmpty) Text(place, style: mutedStyle),
+                        if (when.isNotEmpty) Text(when, style: mutedStyle),
+                      ],
                     ),
-                  )),
+                    trailing: Text('${a.score}/${a.total}', style: TextStyle(color: a.total > 0 && a.score >= a.total / 2 ? AppC.green : AppC.orange, fontWeight: FontWeight.bold)),
+                  ),
+                );
+              }),
             ],
           ),
         );
