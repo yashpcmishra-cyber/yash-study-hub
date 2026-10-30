@@ -11,6 +11,11 @@ class FreeMcqChoice {
   const FreeMcqChoice(this.id, this.name, this.emoji);
 }
 
+/// The built-in "English" folder (Banking PO / Clerk English, one set per month).
+/// It holds ONE subject (english) and no Static GK / Science / GS; every other exam folder keeps its 3 subjects.
+const String kEnglishFolderId = 'english';
+const FreeMcqChoice kEnglishFolder = FreeMcqChoice(kEnglishFolderId, 'English', '📖');
+
 /// One month's practice set. Only the metadata; the questions are read when opened.
 class FreeMcqSetMeta {
   final String id;
@@ -62,6 +67,11 @@ class FreeMcqIndex {
   final List<FreeMcqSetMeta> sets;
 
   const FreeMcqIndex(this.exams, this.subjects, this.sets);
+
+  /// Subject folders of one exam: the English folder has only English, the other exams never show English.
+  List<FreeMcqChoice> subjectsForExam(String examId) => examId == kEnglishFolderId
+      ? subjects.where((s) => s.id == kEnglishFolderId).toList()
+      : subjects.where((s) => s.id != kEnglishFolderId).toList();
 
   /// All sets of one exam, newest month first.
   List<FreeMcqSetMeta> setsForExam(String examId) => sets.where((s) => s.examId == examId).toList()..sort(_newestFirst);
@@ -155,7 +165,11 @@ class FreeMcqService {
       }
     }
     final subjects = _choices(m['subjects']).where((s) => !_removedSubjectIds.contains(s.id)).toList();
-    return FreeMcqIndex(_choices(m['exams']), subjects, sets);
+    // The English folder is built in: it shows even before the first monthly run has added it to the index.
+    final exams = [..._choices(m['exams'])];
+    if (!exams.any((e) => e.id == kEnglishFolderId)) exams.add(kEnglishFolder);
+    if (!subjects.any((s) => s.id == kEnglishFolderId)) subjects.add(kEnglishFolder);
+    return FreeMcqIndex(exams, subjects, sets);
   }
 
   static List<FreeMcqChoice> _choices(dynamic raw) {
