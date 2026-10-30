@@ -1,0 +1,39 @@
+name: Weekly English MCQs (free, Gemini)
+
+on:
+  schedule:
+    - cron: '30 2 * * 1'   # every Monday, 8:00 AM IST - builds THIS week's English set
+    - cron: '30 2 * * 3'   # every Wednesday - retry (a week that already has its set is skipped)
+  workflow_dispatch:
+    inputs:
+      week:
+        description: 'Week to build: 2026-W44 or any date inside it, 2026-10-28 (blank = this week)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild the set even if it already exists (true/false)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: fetch-free-mcqs
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node fetch-free-english.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          WEEK: ${{ github.event.inputs.week }}
+          FORCE: ${{ github.event.inputs.force }}
