@@ -28,6 +28,13 @@
  *      published (the retry run on the 3rd of the month tries again). If a check cannot run, the round is lost.
  *   Current Affairs sets get Check A against the PIB lines, plus Check C.
  *
+ * ENGLISH FOLDER (built in, always built, cannot be removed from the app):
+ *   One extra folder "English" holds ONE set of 25 English MCQs per month in the Banking PO / Clerk pattern
+ *   (Cloze, Reading Comprehension, Error Spotting, Fill in the Blanks, Para Jumbles, Sentence Improvement ...),
+ *   moderate to hard, English only (no GK / Science / GS). It lives in free-mcq-english.js and is checked twice
+ *   (grammar checker + blind solver). Other exam folders are NOT touched: they still get Static GK, General
+ *   Science and General Studies only. Set id: english_english_yyyy-MM.
+ *
  * Firestore output (read by the app):
  *   freeMcqSets/{examId}_{subjectId}_{yyyy-MM}
  *       { examId, subjectId, monthKey, count, source, license, licenseUrl, sources[{title,url}], questions[], createdAt }
@@ -44,6 +51,7 @@
  *      GEMINI_GAP_MS=3000     optional, pause before every Gemini call (free-tier rate limit)
  */
 const topics = require("./free-mcq-topics.js");
+const english = require("./free-mcq-english.js");
 
 const QUESTIONS_PER_SET = 25; // saved per set
 const QUESTIONS_ASKED = 36; // asked from Gemini in round 1, so the checks can remove some and 25 still remain
@@ -69,6 +77,18 @@ const EXAMS = [
   { id: "railway", name: "Railway (RRB NTPC / Station Master / Group D)", emoji: "🚆", level: MODERATE_LEVEL, focus: "Railway General Awareness and General Science at school level (RRB NTPC including Station Master, and Group D): science, history, geography, polity, economy, sports, awards and current affairs." },
 ];
 
+// The built-in English folder (Banking PO / Clerk pattern). It has ONE subject: english.
+const ENGLISH_LEVEL = "Moderate to hard: IBPS PO / SBI PO (Prelims + Mains) standard, with Clerk-level warm-up items.";
+const ENGLISH_EXAM = {
+  id: "english",
+  name: "English",
+  emoji: "\u{1F4D6}",
+  level: ENGLISH_LEVEL,
+  focus: "Banking PO / Clerk English Language: Reading Comprehension, Cloze Test, Error Spotting, Fill in the Blanks, Para Jumbles, Sentence Improvement, connectors and para completion.",
+  subjectIds: ["english"],
+};
+EXAMS.push({ ...ENGLISH_EXAM });
+
 // Current Affairs is NOT built any more (the monthly quiz was never reliably created), so it is not listed here.
 // Its code paths below stay for reference; purgeRemovedSubjectSets() deletes any old "ca" set.
 const SUBJECTS = [
@@ -76,6 +96,21 @@ const SUBJECTS = [
   { id: "science", name: "General Science", emoji: "🔬", syllabus: "Physics, chemistry and biology as met in everyday life; human health and diseases; space and everyday technology" },
   { id: "gs", name: "General Studies", emoji: "🧭", syllabus: "Indian polity and governance; economic and social development; environment, ecology, biodiversity and climate change; international organisations" },
 ];
+
+const ENGLISH_SUBJECT = {
+  id: "english",
+  name: "English",
+  emoji: "\u{1F4D6}",
+  syllabus: "Banking PO / Clerk English Language: reading comprehension, cloze test, error spotting, fill in the blanks, para jumbles, sentence improvement",
+};
+// Every subject that can exist. SUBJECTS (GK / Science / GS) stay the default for every normal exam folder.
+const ALL_SUBJECTS = [...SUBJECTS, ENGLISH_SUBJECT];
+
+/** The subjects an exam folder gets: its own `subjectIds` (English folder) or the 3 default subjects. */
+function subjectsFor(exam) {
+  if (Array.isArray(exam.subjectIds) && exam.subjectIds.length) return ALL_SUBJECTS.filter((x) => exam.subjectIds.includes(x.id));
+  return SUBJECTS;
+}
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const GEMINI_MODELS_DEFAULT = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
@@ -529,6 +564,16 @@ async function loadPreviousTexts(db, examId, subjectId, monthKey) {
   return texts.slice(0, PREV_QUESTIONS_IN_PROMPT);
 }
 
+/** English folder: questions and passage openings of the 2 earlier months (2 reads), so nothing comes back. */
+async function loadPreviousEnglish(db, examId, subjectId, monthKey) {
+  const docs = [];
+  for (const back of [1, 2]) {
+    const snap = await db.collection("freeMcqSets").doc(setId(examId, subjectId, shiftMonth(monthKey, -back))).get();
+    if (snap.exists) docs.push(snap.data());
+  }
+  return english.previousFromSets(docs).slice(0, 40);
+}
+
 /** Step 0: delete every set that was built from CC-licensed text (an older version of this job). */
 async function purgeLegacyLicensedSets(db) {
   const snap = await db.collection("freeMcqSets").where("license", ">=", "CC").where("license", "<", "CD").get();
@@ -558,9 +603,16 @@ async function purgeRemovedExamSets(db) {
 
 /** Delete every set whose subject is no longer in SUBJECTS (e.g. the removed Current Affairs). Returns the deleted ids. */
 async function purgeRemovedSubjectSets(db) {
-  const keep = new Set(SUBJECTS.map((s) => s.id));
+  const keep = new Set(ALL_SUBJECTS.map((s) => s.id));
   const snap = await db.collection("freeMcqSets").get();
-  const stale = snap.docs.filter((d) => !keep.has(String((d.data() || {}).subjectId || "")));
+  const stale = snap.docs.filter((d) => {
+    const data = d.data() || {};
+    const subjectId = String(data.subjectId || "");
+    if (!keep.has(subjectId)) return true;
+    // A subject that does not belong to its exam folder (e.g. GK inside English) is not kept either.
+    const exam = EXAMS.find((e) => e.id === String(data.examId || ""));
+    return exam ? !subjectsFor(exam).some((x) => x.id === subjectId) : false;
+  });
   for (let i = 0; i < stale.length; i += 400) {
     const batch = db.batch();
     stale.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
@@ -646,6 +698,7 @@ async function applyExamsFromFirestore(db) {
       name,
       emoji: oneLine(e && e.emoji) || "📘",
       level: builtIn ? builtIn.level : MODERATE_LEVEL,
+      subjectIds: builtIn ? builtIn.subjectIds : undefined,
       focus: builtIn
         ? builtIn.focus
         : `${name}: General Awareness and General Studies for this exam: Indian history, culture, geography, polity, economy, general science, static GK and current affairs, at the level usually asked in ${name}. Clear factual questions.`,
@@ -657,11 +710,16 @@ async function applyExamsFromFirestore(db) {
   console.log(`Exam folders from the app: ${list.map((x) => x.id).join(", ")}`);
 }
 
+/** The English folder is built in: it is always there, even if the app's exam list does not mention it. */
+function ensureEnglishFolder() {
+  if (!EXAMS.some((e) => e.id === ENGLISH_EXAM.id)) EXAMS.push({ ...ENGLISH_EXAM });
+}
+
 /** Rebuilds freeMcqIndex/current (1 read + 1 write). Drops purged sets and sets older than KEEP_MONTHS. */
 async function writeIndex(db, admin, monthKey, built, purged) {
   const idxRef = db.collection("freeMcqIndex").doc("current");
   const keepExams = new Set(EXAMS.map((e) => e.id));
-  const keepSubjects = new Set(SUBJECTS.map((x) => x.id));
+  const keepSubjects = new Set(ALL_SUBJECTS.map((x) => x.id));
   const oldSets = (((await idxRef.get()).data() || {}).sets || []).filter((s) => s && !purged.has(s.id) && keepExams.has(s.examId) && keepSubjects.has(s.subjectId));
   const all = new Map();
   for (const s of [...oldSets, ...built]) if (s && s.id) all.set(s.id, s);
@@ -678,7 +736,7 @@ async function writeIndex(db, admin, monthKey, built, purged) {
   kept.sort((a, b) => (a.monthKey === b.monthKey ? String(a.id).localeCompare(String(b.id)) : a.monthKey < b.monthKey ? 1 : -1));
   await idxRef.set({
     exams: EXAMS.map(({ id, name, emoji }) => ({ id, name, emoji })),
-    subjects: SUBJECTS.map(({ id, name, emoji }) => ({ id, name, emoji })),
+    subjects: ALL_SUBJECTS.map(({ id, name, emoji }) => ({ id, name, emoji })),
     sets: kept.map(({ id, examId, subjectId, monthKey: mk, count, source }) => ({ id, examId, subjectId, monthKey: mk, count, source })),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -699,6 +757,7 @@ async function main() {
   admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   const db = admin.firestore();
   await applyExamsFromFirestore(db);
+  ensureEnglishFolder();
 
   const force = process.env.FORCE === "true";
   const notify = process.env.FREE_MCQ_NOTIFY !== "false";
@@ -711,7 +770,7 @@ async function main() {
 
   // 1) Which sets already exist? One read per set, skipped entirely when FORCE=true.
   const allIds = [];
-  for (const exam of EXAMS) for (const subject of SUBJECTS) allIds.push(setId(exam.id, subject.id, monthKey));
+  for (const exam of EXAMS) for (const subject of subjectsFor(exam)) allIds.push(setId(exam.id, subject.id, monthKey));
   const existing = new Map(); // id -> count
   if (!force) {
     const snaps = await db.getAll(...allIds.map((id) => db.collection("freeMcqSets").doc(id)));
@@ -727,15 +786,49 @@ async function main() {
   let newSets = 0;
   let failed = 0;
   for (const exam of EXAMS) {
-    for (const subject of SUBJECTS) {
+    for (const subject of subjectsFor(exam)) {
       const id = setId(exam.id, subject.id, monthKey);
       const isCa = subject.id === "ca";
-      const sourceLabel = isCa ? "PIB archive" : "Syllabus-based, AI-checked";
+      const isEnglish = subject.id === "english";
+      const sourceLabel = isCa ? "PIB archive" : isEnglish ? "Banking PO/Clerk pattern, AI-checked" : "Syllabus-based, AI-checked";
       const meta = { id, examId: exam.id, subjectId: subject.id, monthKey, count: 0, source: sourceLabel };
 
       if (existing.has(id)) {
         built.push({ ...meta, count: existing.get(id) });
         console.log(`${id}: already there, skipped.`);
+        continue;
+      }
+
+      if (isEnglish) {
+        // English folder: 25 Banking PO / Clerk style English MCQs (own generator, English only, no Hindi).
+        console.log(`${id}: generating English set...`);
+        const previous = await loadPreviousEnglish(db, exam.id, subject.id, monthKey);
+        const englishQs = await english.generateEnglishSet({ monthKey, previous, key: GEMINI_KEY, callGemini });
+        if (englishQs.length < MIN_QUESTIONS) {
+          failed++;
+          console.error(`${id}: only ${englishQs.length} verified question(s) - not published.`);
+          continue;
+        }
+        await db.collection("freeMcqSets").doc(id).set({
+          examId: exam.id,
+          subjectId: subject.id,
+          monthKey,
+          count: englishQs.length,
+          source: sourceLabel,
+          license: STATIC_LICENSE,
+          licenseUrl: "",
+          sources: [],
+          questions: englishQs,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        built.push({ ...meta, count: englishQs.length });
+        newSets++;
+        try {
+          await writeIndex(db, admin, monthKey, built, purged);
+        } catch (err) {
+          console.warn("Index update skipped for now:", err.message);
+        }
+        await sleep(PAUSE_BETWEEN_SETS_MS);
         continue;
       }
 
@@ -827,6 +920,9 @@ async function main() {
 module.exports = {
   EXAMS,
   SUBJECTS,
+  ALL_SUBJECTS,
+  subjectsFor,
+  ensureEnglishFolder,
   QUESTIONS_PER_SET,
   QUESTIONS_ASKED,
   MIN_QUESTIONS,
