@@ -188,6 +188,10 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
 
   Future<void> _remove(Map<String, String> exam) async {
     final id = exam['id']!;
+    if (id == kEnglishFolderId) {
+      _snack('The English folder is built in and cannot be removed.');
+      return;
+    }
     final count = _setCount(id);
     final sure = await showDialog<bool>(
       context: context,
@@ -263,7 +267,7 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
         padding: const EdgeInsets.all(14),
         children: [
           Text(
-            'Exam folders of the Free MCQs section. Students see these folders; each one gets 3 subjects (Static GK, General Science, General Studies) with a new 25-question set every month.',
+            'Exam folders of the Free MCQs section. Students see these folders; each one gets 3 subjects (Static GK, General Science, General Studies) with a new 25-question set every month. The "English" folder is built in: it gets only 25 Banking PO / Clerk English MCQs a month (no GK / Science / GS) and cannot be removed.',
             style: TextStyle(color: AppC.muted, fontSize: 12.5),
           ),
           const SizedBox(height: 12),
@@ -311,7 +315,7 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
                     IconButton(
                       tooltip: 'Remove',
                       icon: Icon(Icons.delete_outline, size: 22, color: AppC.red),
-                      onPressed: _busy ? null : () => _remove(_exams[i]),
+                      onPressed: (_busy || _exams[i]['id'] == kEnglishFolderId) ? null : () => _remove(_exams[i]),
                     ),
                   ],
                 ),
