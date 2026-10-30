@@ -58,7 +58,7 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
                   child: Text(
-                    'A new set of 25 MCQs every month: Static GK, General Science and General Studies (syllabus-based, Hindi + English). Tap ⓘ on a month to see how it was made.',
+                    'A new set of 25 MCQs every month: Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, moderate to hard). Tap ⓘ on a month to see how it was made.',
                     style: TextStyle(color: AppC.muted, fontSize: 12.5),
                   ),
                 ),
@@ -66,13 +66,20 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                   DepthCard(
                     margin: const EdgeInsets.only(bottom: 8),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => _FreeMcqExamScreen(index: index, exam: e)),
+                      MaterialPageRoute(
+                        // The English folder has a single subject, so it opens straight on its month list.
+                        builder: (_) => e.id == kEnglishFolderId
+                            ? _FreeMcqSubjectScreen(index: index, exam: e, subject: kEnglishFolder)
+                            : _FreeMcqExamScreen(index: index, exam: e),
+                      ),
                     ),
                     child: ListTile(
                       leading: Text(e.emoji, style: const TextStyle(fontSize: 22)),
                       title: Text(e.name, style: TextStyle(color: AppC.text)),
                       subtitle: Text(
-                        '${index.setsForExam(e.id).length} sets',
+                        e.id == kEnglishFolderId
+                            ? 'Banking PO / Clerk pattern · ${index.setsForExam(e.id).length} sets'
+                            : '${index.setsForExam(e.id).length} sets',
                         style: TextStyle(color: AppC.muted, fontSize: 11),
                       ),
                       trailing: Icon(Icons.chevron_right, color: AppC.muted),
@@ -100,7 +107,7 @@ class _FreeMcqExamScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(14),
         children: [
-          for (final s in index.subjects)
+          for (final s in index.subjectsForExam(exam.id))
             DepthCard(
               margin: const EdgeInsets.only(bottom: 8),
               onTap: () => Navigator.of(context).push(
@@ -176,7 +183,8 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
         builder: (_) => QuizSessionScreen(
           title: title,
           questions: qs,
-          bookmarkSource: '${widget.exam.name} · $title',
+          // English folder: exam and subject are both "English", so do not say it twice.
+          bookmarkSource: widget.exam.id == widget.subject.id ? title : '${widget.exam.name} · $title',
           onFinished: (answers) => _finish(meta, qs, answers),
         ),
       ),
@@ -239,8 +247,11 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
                 set.sources.isNotEmpty
                     ? 'These questions are written from official PIB (Government of India) press releases. The source is credited in each explanation. '
                         'Questions can contain mistakes, so please check important facts in your textbook.'
-                    : 'These questions are written by AI from the syllabus topics of this exam and checked three times for accuracy (fact-check, independent re-solve, Hindi-English match). '
-                        'No book or website text is copied. Questions can still contain mistakes, so please check important facts in your textbook.',
+                    : widget.subject.id == kEnglishFolderId
+                        ? 'These English questions follow the Banking PO / Clerk pattern (reading comprehension, cloze test, error spotting, fill in the blanks, para jumbles, sentence improvement) at moderate to hard level. '
+                            'They are written by AI and checked twice for accuracy (grammar check and an independent re-solve). No book or website text is copied. Questions can still contain mistakes, so please confirm doubtful points in a grammar book.'
+                        : 'These questions are written by AI from the syllabus topics of this exam and checked three times for accuracy (fact-check, independent re-solve, Hindi-English match). '
+                            'No book or website text is copied. Questions can still contain mistakes, so please check important facts in your textbook.',
                 style: TextStyle(color: AppC.muted, fontSize: 12.5, height: 1.35),
               ),
               const SizedBox(height: 6),
@@ -273,7 +284,9 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.subject.name)),
       body: sets.isEmpty
-          ? const EmptyView('No set for this subject yet.')
+          ? EmptyView(widget.subject.id == kEnglishFolderId
+              ? 'The English set for this month is not ready yet. A new set of 25 English MCQs arrives automatically every month.'
+              : 'No set for this subject yet.')
           : ListView(
               padding: const EdgeInsets.all(14),
               children: [
