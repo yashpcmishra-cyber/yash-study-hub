@@ -705,6 +705,10 @@ class MockTestAttemptModel {
   final String mockTestId;
   final String mockTestTitle;
   final String studentEmail; // email, or the name the student typed, or "anonymous"
+  final String studentName; // profile name; empty for attempts saved before names were stored
+  final String subject; // subject folder of the test ("Maths"), empty if the test has none
+  final String folderId; // exam folder of the test
+  final String examName; // exam folder name ("SSC CGL"), filled in by the admin Attempts tab, not stored
   final int score;
   final int total;
   final DateTime? submittedAt;
@@ -716,14 +720,36 @@ class MockTestAttemptModel {
     required this.studentEmail,
     required this.score,
     required this.total,
+    this.studentName = '',
+    this.subject = '',
+    this.folderId = '',
+    this.examName = '',
     this.submittedAt,
   });
+
+  /// Same attempt with the subject / exam folder filled in (old attempts did not store them).
+  MockTestAttemptModel withContext({required String folderId, required String subject, required String examName}) => MockTestAttemptModel(
+        id: id,
+        mockTestId: mockTestId,
+        mockTestTitle: mockTestTitle,
+        studentEmail: studentEmail,
+        studentName: studentName,
+        subject: subject,
+        folderId: folderId,
+        examName: examName,
+        score: score,
+        total: total,
+        submittedAt: submittedAt,
+      );
 
   factory MockTestAttemptModel.fromMap(String id, Map<String, dynamic> m) => MockTestAttemptModel(
         id: id,
         mockTestId: m['mockTestId'] ?? '',
         mockTestTitle: m['mockTestTitle'] ?? '',
         studentEmail: m['studentEmail'] ?? 'anonymous',
+        studentName: (m['studentName'] ?? '').toString().trim(),
+        subject: (m['subject'] ?? '').toString().trim(),
+        folderId: (m['folderId'] ?? '').toString(),
         score: (m['score'] as num?)?.toInt() ?? 0,
         total: (m['total'] as num?)?.toInt() ?? 0,
         submittedAt: _dt(m['submittedAt']),
