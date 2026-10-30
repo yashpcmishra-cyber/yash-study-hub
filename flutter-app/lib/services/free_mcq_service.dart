@@ -11,17 +11,19 @@ class FreeMcqChoice {
   const FreeMcqChoice(this.id, this.name, this.emoji);
 }
 
-/// The built-in "English" folder (Banking PO / Clerk English, one set per month).
+/// The built-in "English" folder (Banking PO / Clerk English, easy + moderate + hard, ONE new set every week).
 /// It holds ONE subject (english) and no Static GK / Science / GS; every other exam folder keeps its 3 subjects.
 const String kEnglishFolderId = 'english';
 const FreeMcqChoice kEnglishFolder = FreeMcqChoice(kEnglishFolderId, 'English', '📖');
 
-/// One month's practice set. Only the metadata; the questions are read when opened.
+/// One practice set (a month for GK / Science / GS, a week for English). Only the metadata; the questions are read when opened.
 class FreeMcqSetMeta {
   final String id;
   final String examId;
   final String subjectId;
   final String monthKey; // yyyy-MM
+  final String weekKey; // "2026-W44", only for weekly English sets
+  final String periodStart; // yyyy-MM-dd (the Monday), only for weekly English sets
   final int count;
   final String source;
 
@@ -32,13 +34,31 @@ class FreeMcqSetMeta {
     required this.monthKey,
     required this.count,
     required this.source,
+    this.weekKey = '',
+    this.periodStart = '',
   });
+
+  /// yyyy-MM-dd used to sort sets and to decide how old a set is.
+  String get startKey => periodStart.isNotEmpty ? periodStart : '$monthKey-01';
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'examId': examId,
+        'subjectId': subjectId,
+        'monthKey': monthKey,
+        'weekKey': weekKey,
+        'periodStart': periodStart,
+        'count': count,
+        'source': source,
+      };
 
   factory FreeMcqSetMeta.fromMap(Map<String, dynamic> m) => FreeMcqSetMeta(
         id: (m['id'] ?? '').toString(),
         examId: (m['examId'] ?? '').toString(),
         subjectId: (m['subjectId'] ?? '').toString(),
         monthKey: (m['monthKey'] ?? '').toString(),
+        weekKey: (m['weekKey'] ?? '').toString(),
+        periodStart: (m['periodStart'] ?? '').toString(),
         count: (m['count'] as num?)?.toInt() ?? 0,
         source: (m['source'] ?? '').toString(),
       );
@@ -80,28 +100,34 @@ class FreeMcqIndex {
   List<FreeMcqSetMeta> setsFor(String examId, String subjectId) =>
       sets.where((s) => s.examId == examId && s.subjectId == subjectId).toList()..sort(_newestFirst);
 
-  static int _newestFirst(FreeMcqSetMeta a, FreeMcqSetMeta b) => b.monthKey.compareTo(a.monthKey);
+  static int _newestFirst(FreeMcqSetMeta a, FreeMcqSetMeta b) => b.startKey.compareTo(a.startKey);
 }
 
 /// Free MCQs data, with a phone cache so Firestore is read as little as possible.
 ///
-/// Firestore layout (written monthly by production-app-guide/free-scripts/fetch-free-mcqs.js):
+/// Firestore layout (GK / Science / GS written monthly by fetch-free-mcqs.js, English weekly by fetch-free-english.js):
 ///   freeMcqIndex/current          1 doc, read at most once every 12 hours per phone
-///   freeMcqSets/{set id}          1 doc per exam+subject+month, read ONCE per phone, then cached
+///   freeMcqSets/{set id}          1 doc per exam+subject+month (English: per week), read ONCE per phone, then cached
+///
+/// Retention: Firestore deletes a weekly English set 2 months after its week began, but a set the student has
+/// opened stays on the phone for 3 months (see [_withCachedSets]), so old weeks keep working and cost no reads.
 ///
 /// Quiz scores stay on the phone only (no Firestore writes at all for this feature).
 class FreeMcqService {
   static const _kIndex = 'ysh_fmcq_index_v2';
   static const _kSetPrefix = 'ysh_fmcq_set_v2_';
   static const _kSetIds = 'ysh_fmcq_set_ids_v2'; // cached set ids, oldest first
+  static const _kSetMeta = 'ysh_fmcq_set_meta_v1'; // {setId: meta} of the cached sets, to list them after Firestore deleted them
   static const _kDone = 'ysh_fmcq_done_v1'; // {setId: "correct/total"}
   static const Duration _indexTtl = Duration(hours: 12);
-  static const int _maxCachedSets = 12;
+  static const int _maxCachedSets = 60; // safety cap (a set is about 20-30 KB)
+  static const int _keepCachedMonths = 3; // a cached set that left Firestore stays this long on the phone
 
   static const _months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
+  static const _shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   final _db = FirebaseFirestore.instance;
 
@@ -114,26 +140,38 @@ class FreeMcqService {
     return '${_months[m - 1]} ${parts[0]}';
   }
 
+  /// The name of a set on a tile: "October 2026" for a monthly set, "Week 44 · 26 Oct – 1 Nov 2026" for a weekly one.
+  static String setLabel(FreeMcqSetMeta m) {
+    final start = DateTime.tryParse(m.periodStart);
+    if (start == null) return monthLabel(m.monthKey);
+    final end = DateTime(start.year, start.month, start.day + 6);
+    final startText = '${start.day} ${_shortMonths[start.month - 1]}${start.year != end.year ? ' ${start.year}' : ''}';
+    final range = '$startText – ${end.day} ${_shortMonths[end.month - 1]} ${end.year}';
+    final week = int.tryParse(RegExp(r'W(\d+)$').firstMatch(m.weekKey)?.group(1) ?? '');
+    return week == null ? range : 'Week $week · $range';
+  }
+
   // ------------------------------------------------------------ index
 
   Future<FreeMcqIndex?> loadIndex({bool force = false}) async {
     final p = await SharedPreferences.getInstance();
     final cached = _readIndexCache(p);
     final fresh = cached != null && DateTime.now().millisecondsSinceEpoch - cached.at < _indexTtl.inMilliseconds;
-    if (!force && fresh) return cached.index;
+    if (!force && fresh) return _withCachedSets(p, cached.index);
 
     try {
       final snap = await _db.collection('freeMcqIndex').doc('current').get().timeout(const Duration(seconds: 12));
       final data = snap.data();
-      if (data == null) return cached?.index;
+      if (data == null) {
+        if (cached == null) return null;
+        return _withCachedSets(p, cached.index);
+      }
       final json = <String, dynamic>{'exams': data['exams'], 'subjects': data['subjects'], 'sets': data['sets']};
       await p.setString(_kIndex, jsonEncode({'at': DateTime.now().millisecondsSinceEpoch, ...json}));
-      final index = _fromMap(json);
-      await _dropCachedSetsNotIn(p, index.sets.map((s) => s.id).toSet());
-      return index;
+      return _withCachedSets(p, _fromMap(json));
     } catch (_) {
       // No internet or no permission: show what we already have, if anything.
-      if (cached != null) return cached.index;
+      if (cached != null) return _withCachedSets(p, cached.index);
       rethrow;
     }
   }
@@ -208,6 +246,7 @@ class FreeMcqService {
       }),
     );
     await _rememberSetId(p, meta.id);
+    await _rememberSetMeta(p, meta);
     return set;
   }
 
@@ -256,25 +295,78 @@ class FreeMcqService {
   /// Phone cache: keep the newest [_maxCachedSets] sets only.
   static Future<void> _rememberSetId(SharedPreferences p, String id) async {
     final ids = List<String>.from(p.getStringList(_kSetIds) ?? const <String>[])..remove(id)..add(id);
+    final metas = _readMetaMap(p);
     while (ids.length > _maxCachedSets) {
       final old = ids.removeAt(0);
       await p.remove('$_kSetPrefix$old');
+      metas.remove(old);
     }
     await p.setStringList(_kSetIds, ids);
+    await p.setString(_kSetMeta, jsonEncode(metas));
   }
 
-  /// Removes cached sets that are no longer in the index (older than the kept months).
-  static Future<void> _dropCachedSetsNotIn(SharedPreferences p, Set<String> keep) async {
+  static Future<void> _rememberSetMeta(SharedPreferences p, FreeMcqSetMeta meta) async {
+    final metas = _readMetaMap(p);
+    metas[meta.id] = meta.toMap();
+    await p.setString(_kSetMeta, jsonEncode(metas));
+  }
+
+  static Map<String, dynamic> _readMetaMap(SharedPreferences p) {
+    final raw = p.getString(_kSetMeta);
+    if (raw == null || raw.isEmpty) return <String, dynamic>{};
+    try {
+      return Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    } catch (_) {
+      return <String, dynamic>{};
+    }
+  }
+
+  /// yyyy-MM-dd, [_keepCachedMonths] months ago. A cached set that started before this is removed.
+  static String _cacheCutoff() {
+    final n = DateTime.now();
+    final d = DateTime(n.year, n.month - _keepCachedMonths, n.day);
+    return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Merges the sets cached on this phone into the Firestore index.
+  ///  - a cached set that is still in the index: kept as before;
+  ///  - a cached set Firestore has already deleted (weekly English sets go after 2 months): still listed for
+  ///    [_keepCachedMonths] months, opened from the phone with no Firestore read;
+  ///  - anything older, or a cache entry we know nothing about: removed from the phone.
+  static Future<FreeMcqIndex> _withCachedSets(SharedPreferences p, FreeMcqIndex index) async {
+    final inIndex = index.sets.map((s) => s.id).toSet();
     final ids = p.getStringList(_kSetIds) ?? <String>[];
-    final kept = <String>[];
+    final metas = _readMetaMap(p);
+    final cutoff = _cacheCutoff();
+    final keptIds = <String>[];
+    final extras = <FreeMcqSetMeta>[];
     for (final id in ids) {
-      if (keep.contains(id)) {
-        kept.add(id);
+      if (inIndex.contains(id)) {
+        keptIds.add(id);
+        continue;
+      }
+      final raw = metas[id];
+      final meta = raw is Map ? FreeMcqSetMeta.fromMap(Map<String, dynamic>.from(raw)) : null;
+      final valid = meta != null &&
+          meta.examId.isNotEmpty &&
+          meta.subjectId.isNotEmpty &&
+          !_removedSubjectIds.contains(meta.subjectId) &&
+          meta.startKey.compareTo(cutoff) >= 0 &&
+          p.containsKey('$_kSetPrefix$id');
+      if (valid) {
+        keptIds.add(id);
+        extras.add(meta);
       } else {
         await p.remove('$_kSetPrefix$id');
+        metas.remove(id);
       }
     }
-    if (kept.length != ids.length) await p.setStringList(_kSetIds, kept);
+    if (keptIds.length != ids.length) {
+      await p.setStringList(_kSetIds, keptIds);
+      await p.setString(_kSetMeta, jsonEncode(metas));
+    }
+    if (extras.isEmpty) return index;
+    return FreeMcqIndex(index.exams, index.subjects, [...index.sets, ...extras]);
   }
 
   // ------------------------------------------------------------ scores (phone only)

@@ -803,6 +803,8 @@ class FirestoreService {
 
   Future<void> deleteMockTest(String id) => _db.collection('mockTests').doc(id).delete();
 
+  // studentName / subject / folderId are optional: they are only written when there is something to write,
+  // and they need the matching Firestore rule (mockTestAttempts create) to allow these 3 extra fields.
   Future<void> saveMockAttempt({
     required String studentEmail,
     required String mockTestId,
@@ -810,16 +812,31 @@ class FirestoreService {
     required int score,
     required int total,
     required List<int?> answers,
+    String studentName = '',
+    String subject = '',
+    String folderId = '',
   }) =>
       _db.collection('mockTestAttempts').add({
         'studentEmail': studentEmail,
+        if (studentName.trim().isNotEmpty) 'studentName': _cut(studentName, 100),
         'mockTestId': mockTestId,
         'mockTestTitle': mockTestTitle,
+        if (subject.trim().isNotEmpty) 'subject': _cut(subject, 100),
+        if (folderId.trim().isNotEmpty) 'folderId': _cut(folderId, 100),
         'score': score,
         'total': total,
         'answers': answers,
         'submittedAt': FieldValue.serverTimestamp(),
       });
+
+  static String _cut(String s, int max) {
+    final t = s.trim();
+    return t.length <= max ? t : t.substring(0, max);
+  }
+
+  // Admin Attempts tab only: remembered for this app run, so a refresh does not read them again.
+  final Map<String, String> _attemptFolderNames = {}; // folderId -> exam name
+  final Map<String, ({String folderId, String subject})?> _attemptTests = {}; // testId -> folder + subject (null = test deleted)
 
   // Admin "Attempts" tab (latest first).
   // One-time read (get), NOT a live listener, so Firestore reads are only
@@ -830,7 +847,45 @@ class FirestoreService {
         .orderBy('submittedAt', descending: true)
         .limit(limit)
         .get();
-    return snap.docs.map((d) => MockTestAttemptModel.fromMap(d.id, d.data())).toList();
+    final attempts = snap.docs.map((d) => MockTestAttemptModel.fromMap(d.id, d.data())).toList();
+    try {
+      return await _withAttemptContext(attempts);
+    } catch (_) {
+      return attempts; // the list still shows, just without the exam / subject line
+    }
+  }
+
+  // Adds "exam folder > subject" to every attempt. New attempts store folderId + subject themselves; for older
+  // attempts the test is read once (and remembered). The exam folder names come from one read of the small
+  // mockTestFolders collection, only when a folder name is not known yet.
+  Future<List<MockTestAttemptModel>> _withAttemptContext(List<MockTestAttemptModel> attempts) async {
+    final oldTestIds = {
+      for (final a in attempts)
+        if (a.folderId.isEmpty && a.mockTestId.isNotEmpty && !_attemptTests.containsKey(a.mockTestId)) a.mockTestId,
+    };
+    for (final id in oldTestIds) {
+      try {
+        final m = (await _db.collection('mockTests').doc(id).get().timeout(const Duration(seconds: 8))).data();
+        _attemptTests[id] = m == null ? null : (folderId: (m['folderId'] ?? '').toString(), subject: (m['subject'] ?? '').toString().trim());
+      } catch (_) {
+        // not remembered: tried again on the next refresh
+      }
+    }
+
+    String folderOf(MockTestAttemptModel a) => a.folderId.isNotEmpty ? a.folderId : (_attemptTests[a.mockTestId]?.folderId ?? '');
+    final wanted = {for (final a in attempts) folderOf(a)}..remove('');
+    if (wanted.any((id) => !_attemptFolderNames.containsKey(id))) {
+      final folders = await _db.collection('mockTestFolders').get();
+      for (final d in folders.docs) {
+        _attemptFolderNames[d.id] = (d.data()['examName'] ?? '').toString().trim();
+      }
+    }
+
+    return attempts.map((a) {
+      final folderId = folderOf(a);
+      final subject = a.subject.isNotEmpty ? a.subject : (_attemptTests[a.mockTestId]?.subject ?? '');
+      return a.withContext(folderId: folderId, subject: subject, examName: _attemptFolderNames[folderId] ?? '');
+    }).toList();
   }
 
   // ---- Home banners (16:9 auto-scroll carousel, Admin Panel -> Banners) ----
