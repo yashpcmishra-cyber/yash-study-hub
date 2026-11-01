@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../services/mock_rank_service.dart';
 import '../services/study_store.dart';
 import '../widgets/di_image.dart';
+import '../widgets/score_share.dart';
 
 import '../app_colors.dart';
 
@@ -267,8 +268,14 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
   Widget _resultView() {
     final total = widget.questions.length;
     var correct = 0;
+    var wrong = 0;
     for (var i = 0; i < total; i++) {
-      if (_answers[i] != null && _answers[i] == widget.questions[i].correctIndex) correct++;
+      if (_answers[i] == null) continue;
+      if (_answers[i] == widget.questions[i].correctIndex) {
+        correct++;
+      } else {
+        wrong++;
+      }
     }
     final pct = total == 0 ? 0 : correct * 100 / total;
     final String msg;
@@ -304,6 +311,29 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
           style: TextStyle(color: AppC.muted, fontSize: 12, height: 1.4),
         ),
         const SizedBox(height: 18),
+        OutlinedButton.icon(
+          onPressed: () => ScoreShare.open(
+            context,
+            ScoreShareData(
+              title: widget.title,
+              big: '$correct / $total',
+              bigLabel: 'Correct answers',
+              stats: [
+                ['Accuracy', '${pct.toStringAsFixed(0)}%'],
+                ['Correct', '$correct'],
+                ['Wrong', '$wrong'],
+              ],
+            ),
+          ),
+          icon: const Icon(Icons.share),
+          label: const Text('Share Score Card / स्कोर कार्ड शेयर करें'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppC.accent,
+            side: BorderSide(color: AppC.accent),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 10),
         ElevatedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
       ],
     );

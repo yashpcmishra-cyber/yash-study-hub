@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../services/mock_rank_service.dart';
 import '../services/study_store.dart';
 import '../widgets/di_image.dart';
+import '../widgets/score_share.dart';
 import 'mock_leaderboard_screen.dart';
 
 import '../app_colors.dart';
@@ -112,6 +113,12 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
             _tile('Unattempted', '${_r.unattempted}', AppC.muted),
           ]),
           _rankNote(),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _shareScore,
+            icon: const Icon(Icons.share),
+            label: const Text('Share Score Card / स्कोर कार्ड शेयर करें'),
+          ),
           const SizedBox(height: 18),
           Row(children: [
             Expanded(child: Text('Review', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15))),
@@ -144,6 +151,23 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
           const SizedBox(height: 10),
         ],
       ),
+    );
+  }
+
+  void _shareScore() {
+    ScoreShare.open(
+      context,
+      ScoreShareData(
+        title: widget.test.title,
+        big: '${fmtMarks(_r.marks)} / ${fmtMarks(_r.maxMarks)}',
+        bigLabel: 'Marks',
+        stats: [
+          ['Accuracy', '${_r.accuracy.toStringAsFixed(1)}%'],
+          ['Correct', '${_r.correct}'],
+          ['Wrong', '${_r.wrong}'],
+        ],
+      ),
+      rank: _rankFuture,
     );
   }
 
