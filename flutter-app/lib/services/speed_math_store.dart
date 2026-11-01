@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'study_store.dart';
+import 'xp_store.dart';
 
 // =============================================================================
 //  SpeedMathStore - Speed Maths Arena ka hisaab (best score, din-wise rounds).
@@ -104,6 +105,7 @@ class SpeedMathStore {
 
       await p.setInt(_kRounds, (p.getInt(_kRounds) ?? 0) + 1);
 
+      await XpStore.add(5); // har round par 5 XP
       final goalQs = answered ~/ 5;
       if (goalQs > 0) await StudyStore.addGoalProgress(goalQs);
       _bump();

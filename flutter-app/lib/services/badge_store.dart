@@ -51,9 +51,9 @@ class BadgeStore {
     final focusMin = focusSec ~/ 60;
     return [
       BadgeInfo(id: 'first', emoji: '🌱', title: 'First Step', titleHi: 'पहला कदम', desc: 'Finish your first test or quiz', descHi: 'पहला टेस्ट या क्विज़ पूरा करें', current: life.tests, target: 1),
-      BadgeInfo(id: 'streak3', emoji: '🔥', title: '3-Day Streak', titleHi: '3 दिन की स्ट्रीक', desc: 'Open the app 3 days in a row', descHi: 'लगातार 3 दिन ऐप खोलें', current: life.maxStreak, target: 3),
-      BadgeInfo(id: 'streak7', emoji: '⚡', title: '7-Day Streak', titleHi: '7 दिन की स्ट्रीक', desc: 'Open the app 7 days in a row', descHi: 'लगातार 7 दिन ऐप खोलें', current: life.maxStreak, target: 7),
-      BadgeInfo(id: 'streak30', emoji: '👑', title: '30-Day Streak', titleHi: '30 दिन की स्ट्रीक', desc: 'Open the app 30 days in a row', descHi: 'लगातार 30 दिन ऐप खोलें', current: life.maxStreak, target: 30),
+      BadgeInfo(id: 'streak3', emoji: '🔥', title: '3-Day Streak', titleHi: '3 दिन की स्ट्रीक', desc: 'Finish your daily goal 3 days in a row', descHi: 'लगातार 3 दिन रोज़ का लक्ष्य पूरा करें', current: life.maxStreak, target: 3),
+      BadgeInfo(id: 'streak7', emoji: '⚡', title: '7-Day Streak', titleHi: '7 दिन की स्ट्रीक', desc: 'Finish your daily goal 7 days in a row', descHi: 'लगातार 7 दिन रोज़ का लक्ष्य पूरा करें', current: life.maxStreak, target: 7),
+      BadgeInfo(id: 'streak30', emoji: '👑', title: '30-Day Streak', titleHi: '30 दिन की स्ट्रीक', desc: 'Finish your daily goal 30 days in a row', descHi: 'लगातार 30 दिन रोज़ का लक्ष्य पूरा करें', current: life.maxStreak, target: 30),
       BadgeInfo(id: 'q100', emoji: '🎯', title: '100 Questions', titleHi: '100 सवाल', desc: 'Answer 100 questions', descHi: '100 सवाल हल करें', current: life.questions, target: 100),
       BadgeInfo(id: 'q500', emoji: '🚀', title: '500 Questions', titleHi: '500 सवाल', desc: 'Answer 500 questions', descHi: '500 सवाल हल करें', current: life.questions, target: 500),
       BadgeInfo(id: 'q1000', emoji: '🏆', title: '1000 Questions', titleHi: '1000 सवाल', desc: 'Answer 1000 questions', descHi: '1000 सवाल हल करें', current: life.questions, target: 1000),

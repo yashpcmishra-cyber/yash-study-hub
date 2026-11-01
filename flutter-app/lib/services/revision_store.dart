@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'study_store.dart';
+import 'xp_store.dart';
 
 // =============================================================================
 //  RevisionStore - "Smart Revision" (spaced repetition).
@@ -183,7 +184,10 @@ class RevisionStore {
         }
       }
       await p.setString(_kSched, jsonEncode(out));
-      if (mastered > 0) await p.setInt(_kMastered, (p.getInt(_kMastered) ?? 0) + mastered);
+      if (mastered > 0) {
+        await p.setInt(_kMastered, (p.getInt(_kMastered) ?? 0) + mastered);
+        await XpStore.add(mastered * 5); // galti pakki karne ka bonus
+      }
       for (final k in toRemove) {
         await StudyStore.removeMistake(k);
       }

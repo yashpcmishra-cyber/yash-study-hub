@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/syllabus_data.dart';
+import 'xp_store.dart';
 
 // =============================================================================
 //  SyllabusStore - Syllabus Tracker ka hisaab: kaun-sa exam chuna aur kaun-se
@@ -63,6 +64,7 @@ class SyllabusStore {
     final p = await SharedPreferences.getInstance();
     final m = _decode(p.getString(_kDone));
     if (done) {
+      if (!m.containsKey(topicId)) await XpStore.add(3); // naya topic poora
       final n = DateTime.now();
       m[topicId] = '${n.year.toString().padLeft(4, '0')}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
     } else {

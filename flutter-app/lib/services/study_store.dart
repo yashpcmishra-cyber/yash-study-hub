@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'activity_log.dart';
 import 'mock_rank_service.dart';
+import 'xp_store.dart';
 
 // =============================================================================
 //  StudyStore - sab "personal study" data sirf STUDENT KE PHONE me rehta hai.
@@ -22,10 +23,21 @@ import 'mock_rank_service.dart';
 //  hain (keepDays).
 // =============================================================================
 
-/// 7 din ki streak. [days] = lagatar kitne din app khola (0 = abhi shuru nahi).
+/// Streak. [days] = lagatar kitne din student ne apna DAILY GOAL poora kiya
+/// (0 = abhi shuru nahi). Sirf app kholne se streak nahi badhti.
 class StreakInfo {
   final int days;
-  const StreakInfo(this.days);
+
+  /// Aaj ka goal poora ho gaya (aaj ki streak gin li gayi).
+  final bool doneToday;
+
+  /// Kitne "Streak Freeze" bache hain. Freeze ek chhute hue din ko bacha leta hai.
+  final int freezes;
+
+  /// Sirf touchToday() se: is baar kitne freeze apne aap kharch hue (0 = koi nahi).
+  final int freezeUsed;
+
+  const StreakInfo(this.days, {this.doneToday = false, this.freezes = 0, this.freezeUsed = 0});
 
   /// 7 dibbon me se kitne bhare (0..7). Din 7 par poore 7, din 8 par phir 1.
   int get filled => days <= 0 ? 0 : ((days - 1) % 7) + 1;
@@ -33,8 +45,11 @@ class StreakInfo {
   /// Kitni baar 7 din ki streak poori hui.
   int get completedWeeks => days ~/ 7;
 
-  /// Aaj hi 7vi streak poori hui?
-  bool get justCompleted => days > 0 && days % 7 == 0;
+  /// Aaj hi 7vi streak poori hui? (Aaj ka goal poora hone par hi.)
+  bool get justCompleted => doneToday && days > 0 && days % 7 == 0;
+
+  /// Streak chal rahi hai par aaj ka goal abhi baaki hai (aaj nahi kiya to kal toot sakti hai).
+  bool get atRisk => days > 0 && !doneToday;
 }
 
 class ExamTarget {
@@ -212,6 +227,14 @@ class StudyStore {
   static const _kLifeHigh = 'ysh3_life_high';
   static const _kLifePerfect = 'ysh3_life_perfect';
   static const _kMaxStreak = 'ysh3_max_streak';
+  // Streak Freeze + "goal poora hua" nishaan (nayi streak: goal se badhti hai).
+  static const _kFreezes = 'ysh4_streak_freezes';
+  static const _kFreezeGift = 'ysh4_freeze_gift';
+  static const _kStreakCredit = 'ysh4_streak_credit_day';
+  static const _kGoalBonusDay = 'ysh4_goal_bonus_day';
+
+  /// Ek saath maximum itne Streak Freeze rakh sakte hain.
+  static const int maxFreezes = 2;
   // Purani (sirf 1 din wali) keys - ab sirf migration ke liye padhi / hatayi jaati hain.
   static const _kQuizDone = 'ysh2_quiz_done';
   static const _kQuizCache = 'ysh2_quiz_cache';
@@ -247,28 +270,92 @@ class StudyStore {
 
   // --------------------------------------------------------------- streak
 
-  /// Aaj ka din gin leta hai (Home khulne par ek baar). Kal khola tha to
-  /// streak +1, warna 1 se dobara shuru.
-  static Future<StreakInfo> touchToday() async {
-    final p = await SharedPreferences.getInstance();
-    final t = today();
-    final last = p.getString(_kStreakLast);
-    var days = p.getInt(_kStreak) ?? 0;
-    if (last != t) {
-      days = (last == yesterday()) ? days + 1 : 1;
-      await p.setString(_kStreakLast, t);
-      await p.setInt(_kStreak, days);
-      if (days > (p.getInt(_kMaxStreak) ?? 0)) await p.setInt(_kMaxStreak, days);
-    }
-    return StreakInfo(days);
+  static DateTime? _parseDay(String? s) {
+    if (s == null || s.length != 10) return null;
+    final parts = s.split('-');
+    if (parts.length != 3) return null;
+    final y = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    final d = int.tryParse(parts[2]);
+    if (y == null || m == null || d == null) return null;
+    return DateTime.utc(y, m, d);
   }
 
-  /// Sirf padhta hai. Streak toot chuki ho (kal-aaj dono nahi khola) to 0.
+  /// [to] - [from] kitne din (aaj - kal = 1). Date samajh na aaye to 0.
+  static int _daysBetween(String from, String to) {
+    final a = _parseDay(from);
+    final b = _parseDay(to);
+    if (a == null || b == null) return 0;
+    return b.difference(a).inDays;
+  }
+
+  /// Chhute hue din dekhta hai: Streak Freeze se bacha leta hai, warna streak 0 kar deta hai.
+  /// Kitne freeze kharch hue wo lautata hai. (Aaj ka din abhi baaki hai, isliye wo "chhuta" nahi gina jaata.)
+  static Future<int> _settleStreak(SharedPreferences p) async {
+    final last = p.getString(_kStreakLast);
+    final days = p.getInt(_kStreak) ?? 0;
+    if (last == null || days <= 0) return 0;
+    final gap = _daysBetween(last, today());
+    if (gap <= 1) return 0; // aaj ya kal tak ka goal ho chuka - streak zinda hai
+    final missed = gap - 1; // poore chhute hue din
+    final freezes = p.getInt(_kFreezes) ?? 0;
+    if (missed <= freezes) {
+      await p.setInt(_kFreezes, freezes - missed);
+      await p.setString(_kStreakLast, yesterday()); // chhute din freeze ne bhar diye
+      return missed;
+    }
+    await p.setInt(_kStreak, 0); // streak toot gayi
+    return 0;
+  }
+
+  /// Home khulne par ek baar chalta hai: chhute din freeze se bachata hai ya streak toot'ne deta hai.
+  /// Ab sirf app kholne se streak NAHI badhti - wo daily goal poora hone par badhti hai.
+  /// (Har naye student ko pehli baar 1 Streak Freeze gift milta hai.)
+  static Future<StreakInfo> touchToday() async {
+    final p = await SharedPreferences.getInstance();
+    if (p.getBool(_kFreezeGift) != true) {
+      await p.setBool(_kFreezeGift, true);
+      final f = p.getInt(_kFreezes) ?? 0;
+      if (f < maxFreezes) await p.setInt(_kFreezes, f + 1);
+    }
+    final used = await _settleStreak(p);
+    final s = await readStreak();
+    if (used > 0) _bump();
+    return StreakInfo(s.days, doneToday: s.doneToday, freezes: s.freezes, freezeUsed: used);
+  }
+
+  /// Sirf padhta hai. Streak toot chuki ho (chhute din freeze se bhi na bhar sakein) to 0.
   static Future<StreakInfo> readStreak() async {
     final p = await SharedPreferences.getInstance();
+    final freezes = p.getInt(_kFreezes) ?? 0;
     final last = p.getString(_kStreakLast);
-    if (last != today() && last != yesterday()) return const StreakInfo(0);
-    return StreakInfo(p.getInt(_kStreak) ?? 0);
+    final days = p.getInt(_kStreak) ?? 0;
+    if (last == null || days <= 0) return StreakInfo(0, freezes: freezes);
+    final gap = _daysBetween(last, today());
+    final alive = gap <= 1 || (gap - 1) <= freezes;
+    if (!alive) return StreakInfo(0, freezes: freezes);
+    return StreakInfo(days, doneToday: gap == 0, freezes: freezes);
+  }
+
+  /// Aaj ka goal poora hua: streak +1 (din me sirf ek baar), XP bonus, aur
+  /// har 7 din par 1 Streak Freeze (maximum [maxFreezes]).
+  static Future<void> _creditStreakDay(SharedPreferences p) async {
+    final t = today();
+    if (p.getString(_kStreakCredit) == t) return; // aaj ki streak pehle hi gin li
+    await p.setString(_kStreakCredit, t);
+    await _settleStreak(p);
+    final last = p.getString(_kStreakLast);
+    if (last == t) return; // purane version me aaj ka din pehle hi gina ja chuka tha
+    final before = p.getInt(_kStreak) ?? 0;
+    final days = (before > 0 && last == yesterday()) ? before + 1 : 1;
+    await p.setInt(_kStreak, days);
+    await p.setString(_kStreakLast, t);
+    if (days > (p.getInt(_kMaxStreak) ?? 0)) await p.setInt(_kMaxStreak, days);
+    if (days % 7 == 0) {
+      final f = p.getInt(_kFreezes) ?? 0;
+      if (f < maxFreezes) await p.setInt(_kFreezes, f + 1);
+    }
+    await XpStore.add(10 + (days > 30 ? 30 : days));
   }
 
   // ----------------------------------------------------------------- goal
@@ -311,6 +398,20 @@ class StudyStore {
     await p.setInt(_kGoalDone, done + n);
     await p.setInt(_kLifeQ, (p.getInt(_kLifeQ) ?? 0) + n);
     await ActivityLog.addQuestions(n); // Weekly Report ke liye din-wise ginti
+    await XpStore.add(n * 2); // har sawal par 2 XP
+    // Aaj ka goal poora hua? -> streak +1, goal bonus XP (din me ek baar).
+    try {
+      final target = await goalTarget();
+      if (done + n >= target) {
+        if (p.getString(_kGoalBonusDay) != t) {
+          await p.setString(_kGoalBonusDay, t);
+          await XpStore.add(25);
+        }
+        await _creditStreakDay(p);
+      }
+    } catch (_) {
+      // Streak / XP ki gadbad se sawal ginna nahi rukna chahiye.
+    }
     _bump();
   }
 
@@ -511,6 +612,11 @@ class StudyStore {
       ));
       await addMistakes(wrong, subject: test.subject.trim(), source: test.title);
       await addGoalProgress(result.correct + result.wrong);
+      // Test poora karne ka XP (khali submit par nahi).
+      if (result.correct + result.wrong > 0) {
+        final pct = result.maxMarks <= 0 ? 0.0 : result.marks / result.maxMarks * 100;
+        await XpStore.add(pct >= 80 ? 30 : 20);
+      }
       _bump();
     } catch (_) {
       // Study data kabhi result screen ko rokna nahi chahiye.
@@ -555,6 +661,7 @@ class StudyStore {
           at: DateTime.now(),
         ));
         await addGoalProgress(correct + wrong);
+        if (correct + wrong > 0) await XpStore.add(15); // Daily Quiz bonus (pehli baar)
       }
       await addMistakes(wrongQs, subject: 'Daily Quiz', source: 'Daily Quiz $day');
       _bump();
@@ -570,15 +677,18 @@ class StudyStore {
   }) async {
     try {
       var answered = 0;
+      var fixed = 0;
       for (var i = 0; i < items.length; i++) {
         final given = i < answers.length ? answers[i] : null;
         if (given == null) continue;
         answered++;
         if (removeCorrectFromMistakes && given == items[i].question.correctIndex) {
           await removeMistake(items[i].key);
+          fixed++;
         }
       }
       await addGoalProgress(answered);
+      if (fixed > 0) await XpStore.add(fixed * 5); // galti sudharne ka bonus
       _bump();
     } catch (_) {}
   }

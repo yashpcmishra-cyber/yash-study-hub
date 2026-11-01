@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'study_store.dart';
+import 'xp_store.dart';
 
 // =============================================================================
 //  StudyTimeStore - Study Timer ka hisaab (din-wise padhai ka time).
@@ -46,6 +47,7 @@ class StudyTimeStore {
       m.removeWhere((k, _) => k.compareTo(oldest) < 0);
       await p.setString(_kDays, jsonEncode(m));
       await p.setInt(_kTotal, (p.getInt(_kTotal) ?? 0) + seconds);
+      await XpStore.addFocusSeconds(seconds); // har poore minute par 1 XP
       _bump();
     } catch (_) {}
   }

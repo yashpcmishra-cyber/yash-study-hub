@@ -50,6 +50,23 @@ class ShareService {
   /// Koi bhi custom message (Word of the Day / My progress) + app download link.
   static Future<void> custom(BuildContext context, String head, String line) => _send(context, head, line);
 
+  /// Image (jaise Score Card) + message + app download link ek saath.
+  /// [imagePath] = phone me bani PNG file ka path.
+  static Future<void> customWithImage(BuildContext context, String head, String line, String imagePath) async {
+    try {
+      final link = await _appLink();
+      await Share.shareXFiles(
+        [XFile(imagePath, mimeType: 'image/png')],
+        text: '$head\n\n$line\n\n\u{1F4F2} App download: $link',
+        subject: '$_appName - $head',
+      );
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Couldn't open share. Try again.")));
+      }
+    }
+  }
+
   /// Free mock test (or a whole free mock folder).
   static Future<void> freeMock(BuildContext context, String title, {bool folder = false}) => _send(
         context,

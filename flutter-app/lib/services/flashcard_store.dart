@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/flashcard_data.dart';
+import 'xp_store.dart';
 
 // =============================================================================
 //  FlashcardStore - kaun se flashcards "yaad hain" (sirf phone me).
@@ -27,7 +28,7 @@ class FlashcardStore {
     final p = await SharedPreferences.getInstance();
     final s = (p.getStringList(_kKnown) ?? const <String>[]).toSet();
     if (value) {
-      s.add(id);
+      if (s.add(id)) await XpStore.add(2); // naya card yaad hua
     } else {
       s.remove(id);
     }
