@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/study_store.dart';
+import 'xp_card.dart';
 
 import '../app_colors.dart';
 
-/// Home screen ka "Study Corner": 7-din streak, exam countdown aur daily goal.
+/// Home screen ka "Study Corner": XP / Level, streak (daily goal se), exam countdown aur daily goal.
 /// (Daily Quiz / Notebook / Progress ke tiles Home ke grid me hain.)
 /// Sab data phone me hai - Firestore se kuch nahi padhta.
 class StudyCornerCard extends StatefulWidget {
@@ -34,7 +35,11 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
 
   Future<void> _init() async {
     try {
-      await StudyStore.touchToday(); // aaj ka din streak me gino
+      // Chhute din dekhta hai: Streak Freeze se bachata hai ya streak toot'ne deta hai.
+      final s = await StudyStore.touchToday();
+      if (s.freezeUsed > 0) {
+        _toast('❄️ Streak Freeze saved your streak! / स्ट्रीक फ्रीज़ ने आपकी स्ट्रीक बचा ली!');
+      }
     } catch (_) {}
     await _reload();
   }
@@ -165,6 +170,8 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const XpCard(),
+          const SizedBox(height: 12),
           _streakRow(),
           const SizedBox(height: 12),
           SizedBox(
@@ -183,49 +190,93 @@ class _StudyCornerCardState extends State<StudyCornerCard> {
     );
   }
 
+  void _streakInfoDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppC.card2,
+        title: Text('How the streak works / स्ट्रीक कैसे चलती है', style: TextStyle(color: AppC.text, fontSize: 16)),
+        content: Text(
+          '🔥 Finish your daily goal every day → streak +1.\n'
+          '❄️ Missed a day? A Streak Freeze saves your streak automatically.\n'
+          '🎁 Every 7 days you earn 1 Streak Freeze (keep up to ${StudyStore.maxFreezes}).\n\n'
+          '🔥 रोज़ का लक्ष्य पूरा करें → स्ट्रीक +1।\n'
+          '❄️ एक दिन छूट गया? स्ट्रीक फ्रीज़ अपने आप स्ट्रीक बचा लेता है।\n'
+          '🎁 हर 7 दिन पर 1 स्ट्रीक फ्रीज़ मिलता है (ज़्यादा से ज़्यादा ${StudyStore.maxFreezes})।',
+          style: TextStyle(color: AppC.text70, fontSize: 13, height: 1.4),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+      ),
+    );
+  }
+
   Widget _streakRow() {
     final s = _streak;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text('🔥', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                s.justCompleted ? '7-day streak complete! 🎉 / 7 दिन की स्ट्रीक पूरी!' : '7-Day Streak / 7 दिन की स्ट्रीक',
-                style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-            ),
-            if (s.completedWeeks > 0)
-              Text('🏆 x${s.completedWeeks}', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 12.5)),
-            const SizedBox(width: 8),
-            Text('${s.filled}/7', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 13)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            for (var i = 1; i <= 7; i++)
+    final String title;
+    if (s.days <= 0) {
+      title = 'Start your streak! / स्ट्रीक शुरू करें!';
+    } else if (s.justCompleted) {
+      title = '${s.days}-day streak complete! 🎉 / ${s.days} दिन की स्ट्रीक पूरी!';
+    } else {
+      title = '${s.days}-day streak / ${s.days} दिन की स्ट्रीक';
+    }
+    final String hint;
+    if (s.doneToday) {
+      hint = 'Today’s goal done ✓ / आज का लक्ष्य पूरा ✓';
+    } else if (s.days > 0) {
+      hint = 'Finish today’s goal to keep your streak! / स्ट्रीक बचाने के लिए आज का लक्ष्य पूरा करें';
+    } else {
+      hint = 'Finish your daily goal to start. / शुरू करने के लिए रोज़ का लक्ष्य पूरा करें';
+    }
+    return GestureDetector(
+      onTap: _streakInfoDialog,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('🔥', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 6),
               Expanded(
-                child: Container(
-                  height: 26,
-                  margin: EdgeInsets.only(right: i == 7 ? 0 : 5),
-                  decoration: BoxDecoration(
-                    color: i <= s.filled ? AppC.gold : AppC.card,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: i <= s.filled ? AppC.accent : AppC.text24),
-                  ),
-                  alignment: Alignment.center,
-                  child: i <= s.filled
-                      ? const Icon(Icons.check, size: 16, color: AppC.onGold)
-                      : Text('$i', style: TextStyle(color: AppC.text38, fontSize: 11)),
-                ),
+                child: Text(title, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14)),
               ),
-          ],
-        ),
-      ],
+              if (s.completedWeeks > 0)
+                Text('🏆 x${s.completedWeeks}', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 12.5)),
+              const SizedBox(width: 8),
+              Text('❄️ ${s.freezes}', style: TextStyle(color: AppC.text70, fontWeight: FontWeight.bold, fontSize: 12.5)),
+              const SizedBox(width: 8),
+              Text('${s.filled}/7', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Padding(
+            padding: const EdgeInsets.only(left: 24),
+            child: Text(hint, style: TextStyle(color: s.atRisk ? AppC.orange : AppC.text70, fontSize: 11, height: 1.3)),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (var i = 1; i <= 7; i++)
+                Expanded(
+                  child: Container(
+                    height: 26,
+                    margin: EdgeInsets.only(right: i == 7 ? 0 : 5),
+                    decoration: BoxDecoration(
+                      color: i <= s.filled ? AppC.gold : AppC.card,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: i <= s.filled ? AppC.accent : AppC.text24),
+                    ),
+                    alignment: Alignment.center,
+                    child: i <= s.filled
+                        ? const Icon(Icons.check, size: 16, color: AppC.onGold)
+                        : Text('$i', style: TextStyle(color: AppC.text38, fontSize: 11)),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
