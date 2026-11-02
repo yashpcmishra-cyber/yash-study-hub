@@ -8,7 +8,7 @@ import '../widgets/state_views.dart';
 import 'quiz_session_screen.dart';
 import '../app_colors.dart';
 
-/// Free MCQs (home grid): exam folders -> subject folders -> one folder per month.
+/// Free MCQs (home grid): exam folders -> subject folders -> one set per week.
 /// Every set has 25 MCQs (Hindi + English). Wrong answers go to the Mistake
 /// Notebook and the answered count goes to today's goal, same as the other quizzes.
 class FreeMcqsScreen extends StatefulWidget {
@@ -58,7 +58,7 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
                   child: Text(
-                    'A new set of 25 MCQs every month: Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, easy to hard, a new set every week). Tap ⓘ on a set to see how it was made.',
+                    'A new set of 25 MCQs every week (Monday): Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, easy to hard). Sets older than 2 months are removed automatically. Tap ⓘ on a set to see how it was made.',
                     style: TextStyle(color: AppC.muted, fontSize: 12.5),
                   ),
                 ),
@@ -67,7 +67,7 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                     margin: const EdgeInsets.only(bottom: 8),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        // The English folder has a single subject, so it opens straight on its month list.
+                        // The English folder has a single subject, so it opens straight on its week list.
                         builder: (_) => e.id == kEnglishFolderId
                             ? _FreeMcqSubjectScreen(index: index, exam: e, subject: kEnglishFolder)
                             : _FreeMcqExamScreen(index: index, exam: e),
@@ -119,7 +119,7 @@ class _FreeMcqExamScreen extends StatelessWidget {
                 leading: Text(s.emoji, style: const TextStyle(fontSize: 22)),
                 title: Text(s.name, style: TextStyle(color: AppC.text)),
                 subtitle: Text(
-                  '${index.setsFor(exam.id, s.id).length} months',
+                  '${index.setsFor(exam.id, s.id).length} sets',
                   style: TextStyle(color: AppC.muted, fontSize: 11),
                 ),
                 trailing: Icon(Icons.chevron_right, color: AppC.muted),
@@ -131,7 +131,7 @@ class _FreeMcqExamScreen extends StatelessWidget {
   }
 }
 
-/// Month folders for one exam + subject. Tapping one opens the 25-question quiz.
+/// Weekly sets for one exam + subject. Tapping one opens the 25-question quiz.
 class _FreeMcqSubjectScreen extends StatefulWidget {
   final FreeMcqIndex index;
   final FreeMcqChoice exam;
@@ -283,7 +283,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
       body: sets.isEmpty
           ? EmptyView(widget.subject.id == kEnglishFolderId
               ? 'The English set for this week is not ready yet. A new set of 25 English MCQs arrives automatically every Monday.'
-              : 'No set for this subject yet.')
+              : 'No set for this subject yet. A new set of 25 MCQs arrives automatically every Monday.')
           : ListView(
               padding: const EdgeInsets.all(14),
               children: [

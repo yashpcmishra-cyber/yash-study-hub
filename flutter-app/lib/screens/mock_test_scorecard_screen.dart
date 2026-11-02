@@ -50,7 +50,8 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
     final rev = widget.revisionItems;
     if (rev != null) {
       // Revision Mock: schedule update + Progress history (galat sawal dobara notebook me nahi jaate).
-      RevisionStore.recordSession(items: rev, answers: widget.answers, scheduled: true, respectSchedule: true);
+      RevisionStore.recordSession(items: rev, answers: widget.answers, scheduled: true, respectSchedule: true)
+          .whenComplete(() => RevisionStore.markMockDone(rev)); // diya hua Mock list se hat jaye
       StudyStore.recordRevisionMock(topic: widget.test.subject, result: _r);
     } else {
       // Study data (sirf phone me): history, galat sawal -> Mistake Notebook, daily goal.
