@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../services/share_service.dart';
-import '../services/study_time_store.dart';
 import '../services/weekly_report_service.dart';
 import '../widgets/state_views.dart';
 
@@ -43,7 +42,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     ShareService.custom(
       context,
       '📈 My weekly report on Yash Study Hub / मेरी साप्ताहिक रिपोर्ट',
-      r.shareText(StudyTimeStore.fmt(r.focusSec)),
+      r.shareText(),
     );
   }
 
@@ -263,7 +262,6 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
 
   Widget _statsGrid(WeeklyReport r) {
     final tiles = <Widget>[
-      _statTile('⏱️', 'Study time / पढ़ाई', StudyTimeStore.fmt(r.focusSec), _delta(r.focusSec, r.prevFocusSec)),
       _statTile('🎯', 'Questions / सवाल', '${r.questions}', _delta(r.questions, r.prevQuestions)),
       _statTile(
         '📝',

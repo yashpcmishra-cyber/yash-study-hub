@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/firestore_service.dart';
 import '../services/mock_rank_service.dart';
+import '../services/study_store.dart';
 import 'mock_test_scorecard_screen.dart';
 import '../widgets/space_background.dart';
 import '../widgets/di_image.dart';
@@ -16,7 +17,13 @@ import '../app_colors.dart';
 /// time dikhta hai aur Hindi toggle chhup jata hai.
 class MockTestAttemptScreen extends StatefulWidget {
   final MockTestModel test;
-  const MockTestAttemptScreen({super.key, required this.test});
+
+  /// Smart Revision ka topic-wise Mock: galat sawal (isi order me, [test.questions]
+  /// ke barabar). Null = normal mock test. Revision mode me kuch bhi Firestore me
+  /// save nahi hota (na score, na rank) - sab sirf phone me.
+  final List<SavedQuestion>? revisionItems;
+
+  const MockTestAttemptScreen({super.key, required this.test, this.revisionItems});
 
   @override
   State<MockTestAttemptScreen> createState() => _MockTestAttemptScreenState();
@@ -151,7 +158,9 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     if (_submitting || !mounted) return;
-    final savedIdentity = (prefs.getString('student_email') ?? prefs.getString('attempt_identity') ?? '').trim();
+    final isRevision = widget.revisionItems != null;
+    // Revision mode me teacher ko score nahi bhejna, isliye naam / email nahi poochhte.
+    final savedIdentity = isRevision ? 'revision' : (prefs.getString('student_email') ?? prefs.getString('attempt_identity') ?? '').trim();
 
     if (auto) {
       setState(() => _submitting = true);
@@ -222,19 +231,21 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     // Teacher ke liye score save karna student ka result kabhi nahi rokta.
     String? note;
     try {
-      await _fs
-          .saveMockAttempt(
-            studentEmail: identity,
-            mockTestId: widget.test.id,
-            mockTestTitle: widget.test.title,
-            score: r.correct,
-            total: widget.test.questions.length,
-            answers: _answers,
-            studentName: studentName,
-            subject: widget.test.subject,
-            folderId: widget.test.folderId,
-          )
-          .timeout(const Duration(seconds: 8));
+      if (!isRevision) {
+        await _fs
+            .saveMockAttempt(
+              studentEmail: identity,
+              mockTestId: widget.test.id,
+              mockTestTitle: widget.test.title,
+              score: r.correct,
+              total: widget.test.questions.length,
+              answers: _answers,
+              studentName: studentName,
+              subject: widget.test.subject,
+              folderId: widget.test.folderId,
+            )
+            .timeout(const Duration(seconds: 8));
+      }
     } on TimeoutException {
       note = 'You seem to be offline \u2014 your score will be sent to your teacher automatically when you are back online.';
     } catch (_) {
@@ -249,6 +260,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
         timeTakenSec: timeTaken,
         autoSubmitted: auto,
         note: note,
+        revisionItems: widget.revisionItems,
       ),
     ));
   }

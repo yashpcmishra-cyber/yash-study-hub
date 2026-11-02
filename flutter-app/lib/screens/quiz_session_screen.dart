@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/mock_rank_service.dart';
-import '../services/study_store.dart';
 import '../widgets/di_image.dart';
 import '../widgets/score_share.dart';
 
 import '../app_colors.dart';
 
 /// Ek-ek sawal ka quiz, har jawab ke turant baad sahi/galat + explanation.
-/// Daily Quiz aur Mistake Notebook ki practice - dono isi screen se chalte hain.
+/// Daily Quiz aur Smart Revision ki practice - dono isi screen se chalte hain.
 /// Natija [onFinished] ko diya jaata hai (wahi goal / notebook update karta hai).
 /// Is screen se Firestore ko kuch nahi chhua jaata.
 class QuizSessionScreen extends StatefulWidget {
   final String title;
   final List<MockQuestion> questions;
   final Future<void> Function(List<int?> answers) onFinished;
-  final String bookmarkSource; // shown as the "source" when a question is bookmarked
 
   const QuizSessionScreen({
     super.key,
     required this.title,
     required this.questions,
     required this.onFinished,
-    this.bookmarkSource = '',
   });
 
   @override
@@ -36,18 +33,9 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
   bool _hindi = false;
   bool _finishing = false;
   bool _done = false;
-  Set<String> _saved = <String>{};
 
   bool get _hasHindi => widget.questions.any((q) => q.textHi.trim().isNotEmpty);
   MockQuestion get _q => widget.questions[_i];
-
-  @override
-  void initState() {
-    super.initState();
-    StudyStore.bookmarkKeys().then((s) {
-      if (mounted) setState(() => _saved = s);
-    });
-  }
 
   void _pick(int oi) {
     if (_picked != null) return;
@@ -74,20 +62,6 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
     if (mounted) setState(() {
       _finishing = false;
       _done = true;
-    });
-  }
-
-  Future<void> _toggleSave() async {
-    final q = _q;
-    final nowSaved = await StudyStore.toggleBookmark(q, source: widget.bookmarkSource);
-    if (!mounted) return;
-    final key = StudyStore.qKey(q);
-    setState(() {
-      if (nowSaved) {
-        _saved = {..._saved, key};
-      } else {
-        _saved = _saved.where((k) => k != key).toSet();
-      }
     });
   }
 
@@ -158,7 +132,6 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
     final passageImg = q.passageImage.trim();
     final explanation = mockExplanation(q, _hindi).trim();
     final answered = _picked != null;
-    final saved = _saved.contains(StudyStore.qKey(q));
 
     return Column(
       children: [
@@ -169,13 +142,6 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
             children: [
               Row(children: [
                 Text('Question ${_i + 1} / $total', style: TextStyle(color: AppC.muted, fontSize: 12)),
-                const Spacer(),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: saved ? 'Saved' : 'Save for later',
-                  icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border, color: saved ? AppC.accent : AppC.text54),
-                  onPressed: _toggleSave,
-                ),
               ]),
               if (passage.isNotEmpty || passageImg.isNotEmpty)
                 Container(
@@ -306,7 +272,7 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
         ),
         const SizedBox(height: 14),
         Text(
-          'Wrong questions were added to the "Mistake Notebook" automatically. / गलत सवाल अपने आप Mistake Notebook में चले गए हैं।',
+          'Wrong questions were added to the "Smart Revision" automatically. / गलत सवाल अपने आप Smart Revision में चले गए हैं।',
           textAlign: TextAlign.center,
           style: TextStyle(color: AppC.muted, fontSize: 12, height: 1.4),
         ),

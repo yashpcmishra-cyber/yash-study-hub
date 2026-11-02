@@ -3,14 +3,12 @@ import '../app_colors.dart';
 import '../services/plan_service.dart';
 import '../services/speed_math_store.dart';
 import '../services/study_store.dart';
-import '../services/study_time_store.dart';
 import '../services/syllabus_store.dart';
 import '../widgets/state_views.dart';
 import 'daily_quiz_screen.dart';
 import 'free_mcqs_screen.dart';
 import 'revision_screen.dart';
 import 'speed_math_screen.dart';
-import 'study_timer_screen.dart';
 import 'syllabus_screen.dart';
 
 /// Aaj ka Plan: phone ke data se roz ke kaam apne aap bante hain, aur jaise-jaise
@@ -31,7 +29,6 @@ class _StudyPlannerScreenState extends State<StudyPlannerScreen> {
   void initState() {
     super.initState();
     StudyStore.changes.addListener(_load);
-    StudyTimeStore.changes.addListener(_load);
     SyllabusStore.changes.addListener(_load);
     SpeedMathStore.changes.addListener(_load);
     _load();
@@ -40,7 +37,6 @@ class _StudyPlannerScreenState extends State<StudyPlannerScreen> {
   @override
   void dispose() {
     StudyStore.changes.removeListener(_load);
-    StudyTimeStore.changes.removeListener(_load);
     SyllabusStore.changes.removeListener(_load);
     SpeedMathStore.changes.removeListener(_load);
     super.dispose();
@@ -57,7 +53,7 @@ class _StudyPlannerScreenState extends State<StudyPlannerScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _plan ??= const PlanSummary(<PlanTask>[], -1, '', 60));
+      setState(() => _plan ??= const PlanSummary(<PlanTask>[], -1, ''));
     }
   }
 
@@ -69,8 +65,6 @@ class _StudyPlannerScreenState extends State<StudyPlannerScreen> {
         return const RevisionScreen();
       case 'goal':
         return const FreeMcqsScreen();
-      case 'focus':
-        return const StudyTimerScreen();
       case 'syllabus':
         return const SyllabusScreen();
       case 'speed':

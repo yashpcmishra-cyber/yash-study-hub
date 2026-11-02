@@ -3,7 +3,6 @@ import '../app_colors.dart';
 import '../services/badge_store.dart';
 import '../services/share_service.dart';
 import '../services/study_store.dart';
-import '../services/study_time_store.dart';
 import '../widgets/state_views.dart';
 
 /// Badges / Achievements: streak, sawal, tests, study time, revision, flashcards
@@ -20,7 +19,6 @@ class _BadgesScreenState extends State<BadgesScreen> {
   List<BadgeInfo>? _badges;
   Set<String> _seenBefore = <String>{};
   LifetimeStats _life = const LifetimeStats();
-  int _focusSec = 0;
 
   @override
   void initState() {
@@ -33,14 +31,12 @@ class _BadgesScreenState extends State<BadgesScreen> {
       final all = await BadgeStore.evaluate();
       final seen = await BadgeStore.seenIds();
       final life = await StudyStore.lifetime();
-      final focus = await StudyTimeStore.totalSeconds();
       await BadgeStore.markSeen(all); // ab ye sab dekh liye gaye
       if (!mounted) return;
       setState(() {
         _badges = all;
         _seenBefore = seen;
         _life = life;
-        _focusSec = focus;
       });
     } catch (_) {
       if (!mounted) return;
@@ -52,7 +48,6 @@ class _BadgesScreenState extends State<BadgesScreen> {
     final line = '🔥 Best streak: ${_life.maxStreak} days\n'
         '🎯 Questions solved: ${_life.questions}\n'
         '📝 Tests & quizzes: ${_life.tests}\n'
-        '⏱️ Study time: ${StudyTimeStore.fmt(_focusSec)}\n'
         '🏅 Badges: $unlocked/$total (${BadgeStore.level(unlocked)})';
     ShareService.custom(context, '🏅 My progress on Yash Study Hub / मेरी प्रोग्रेस', line);
   }

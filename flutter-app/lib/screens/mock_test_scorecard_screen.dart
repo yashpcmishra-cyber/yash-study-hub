@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/mock_rank_service.dart';
+import '../services/revision_store.dart';
 import '../services/study_store.dart';
 import '../widgets/di_image.dart';
 import '../widgets/score_share.dart';
@@ -17,6 +18,11 @@ class MockTestScorecardScreen extends StatefulWidget {
   final bool autoSubmitted; // time khatam hone par khud submit hua
   final String? note; // e.g. "you are offline"
 
+  /// Smart Revision ka topic-wise Mock (null = normal mock test). Revision mode me
+  /// result sirf phone me jaata hai: revision schedule + Progress analysis. Rank /
+  /// leaderboard / Mistake Notebook ki entries nahi badalti.
+  final List<SavedQuestion>? revisionItems;
+
   const MockTestScorecardScreen({
     super.key,
     required this.test,
@@ -24,6 +30,7 @@ class MockTestScorecardScreen extends StatefulWidget {
     this.timeTakenSec = 0,
     this.autoSubmitted = false,
     this.note,
+    this.revisionItems,
   });
 
   @override
@@ -32,27 +39,33 @@ class MockTestScorecardScreen extends StatefulWidget {
 
 class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
   late final MockResult _r;
-  late final Future<MockRankInfo?> _rankFuture;
+  Future<MockRankInfo?>? _rankFuture; // revision mode me null
   late final bool _hasHindi;
   bool _hindi = false;
-  Set<String> _saved = <String>{}; // bookmark kiye sawal (sirf phone me)
 
   @override
   void initState() {
     super.initState();
     _r = MockResult.compute(widget.test, widget.answers);
-    // Study data (sirf phone me): history, galat sawal -> Mistake Notebook, daily goal.
-    StudyStore.recordMockResult(test: widget.test, answers: widget.answers, result: _r);
-    StudyStore.bookmarkKeys().then((s) {
-      if (mounted) setState(() => _saved = s);
-    });
+    final rev = widget.revisionItems;
+    if (rev != null) {
+      // Revision Mock: schedule update + Progress history (galat sawal dobara notebook me nahi jaate).
+      RevisionStore.recordSession(items: rev, answers: widget.answers, scheduled: true, respectSchedule: true);
+      StudyStore.recordRevisionMock(topic: widget.test.subject, result: _r);
+    } else {
+      // Study data (sirf phone me): history, galat sawal -> Mistake Notebook, daily goal.
+      StudyStore.recordMockResult(test: widget.test, answers: widget.answers, result: _r);
+    }
     _hasHindi = mockHasHindi(widget.test);
     // Rank ka kaam alag chalta hai - result turant dikhta hai, rank baad me aata hai.
-    _rankFuture = MockRankService().submitAndGetRank(
-      testId: widget.test.id,
-      marks: _r.marks,
-      timeSec: widget.timeTakenSec,
-    );
+    // Revision Mock me koi rank nahi (ye apni hi galtiyon ka practice hai).
+    if (rev == null) {
+      _rankFuture = MockRankService().submitAndGetRank(
+        testId: widget.test.id,
+        marks: _r.marks,
+        timeSec: widget.timeTakenSec,
+      );
+    }
   }
 
   @override
@@ -98,7 +111,10 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
           ],
           const SizedBox(height: 14),
           Row(children: [
-            _rankTile(),
+            if (widget.revisionItems == null)
+              _rankTile()
+            else
+              _tile('Marks', '${fmtMarks(_r.marks)} / ${fmtMarks(_r.maxMarks)}', AppC.accent),
             const SizedBox(width: 8),
             _tile('Accuracy', '${_r.accuracy.toStringAsFixed(1)}%', AppC.text),
             const SizedBox(width: 8),
@@ -112,7 +128,17 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
             const SizedBox(width: 8),
             _tile('Unattempted', '${_r.unattempted}', AppC.muted),
           ]),
-          _rankNote(),
+          if (widget.revisionItems == null)
+            _rankNote()
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Revision Mock: right answers move up your revision steps, wrong ones come back tomorrow.\nरिवीज़न मॉक: सही जवाब अगले स्टेप पर जाते हैं, गलत कल फिर आएँगे।',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppC.muted, fontSize: 11, height: 1.35),
+              ),
+            ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
             onPressed: _shareScore,
@@ -134,20 +160,25 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
           const SizedBox(height: 8),
           for (var i = 0; i < t.questions.length; i++) _reviewCard(i),
           const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => MockLeaderboardScreen(testId: t.id, testTitle: t.title, refreshOnOpen: true),
-            )),
-            icon: const Text('\u{1F3C6}', style: TextStyle(fontSize: 18)),
-            label: const Text('Leaderboard'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppC.accent,
-              side: BorderSide(color: AppC.accent),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+          if (widget.revisionItems == null) ...[
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => MockLeaderboardScreen(testId: t.id, testTitle: t.title, refreshOnOpen: true),
+              )),
+              icon: const Text('\u{1F3C6}', style: TextStyle(fontSize: 18)),
+              label: const Text('Leaderboard'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppC.accent,
+                side: BorderSide(color: AppC.accent),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst), child: const Text('Back to Home')),
+            const SizedBox(height: 10),
+          ],
+          if (widget.revisionItems == null)
+            ElevatedButton(onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst), child: const Text('Back to Home'))
+          else
+            ElevatedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Back to Smart Revision / वापस रिवीज़न')),
           const SizedBox(height: 10),
         ],
       ),
@@ -209,6 +240,7 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
   }
 
   Widget _rankNote() {
+    if (_rankFuture == null) return const SizedBox.shrink();
     return FutureBuilder<MockRankInfo?>(
       future: _rankFuture,
       builder: (context, snap) {
@@ -295,17 +327,6 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
               Expanded(
                 child: Text('${i + 1}. ${mockText(q, _hindi)}', style: TextStyle(color: AppC.text, fontSize: 14, height: 1.35)),
               ),
-              InkWell(
-                onTap: () => _toggleSave(q),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: Icon(
-                    _saved.contains(StudyStore.qKey(q)) ? Icons.bookmark : Icons.bookmark_border,
-                    color: _saved.contains(StudyStore.qKey(q)) ? AppC.accent : AppC.text54,
-                    size: 22,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -330,19 +351,6 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _toggleSave(MockQuestion q) async {
-    final nowSaved = await StudyStore.toggleBookmark(q, subject: widget.test.subject.trim(), source: widget.test.title);
-    if (!mounted) return;
-    final key = StudyStore.qKey(q);
-    setState(() {
-      if (nowSaved) {
-        _saved = {..._saved, key};
-      } else {
-        _saved = _saved.where((k) => k != key).toSet();
-      }
-    });
   }
 
   Widget _reviewOption(int oi, String text, int correct, int? given) {

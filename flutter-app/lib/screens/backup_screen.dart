@@ -125,7 +125,7 @@ class _BackupScreenState extends State<BackupScreen> {
               Text('अपनी प्रोग्रेस सुरक्षित रखें', style: TextStyle(color: AppC.text70, fontSize: 13)),
               const SizedBox(height: 10),
               Text(
-                'Streak, mistakes, bookmarks, flashcards, revision, study time, syllabus, speed maths and notes are saved on this phone. '
+                'Streak, mistakes, flashcards, revision, study time, syllabus, speed maths and notes are saved on this phone. '
                 'Back them up here so a new phone or reinstall never wipes them.\n\n'
                 'स्ट्रीक, गलतियाँ, बुकमार्क, फ़्लैशकार्ड, रिवीज़न, स्टडी टाइम, सिलेबस, स्पीड मैथ्स और नोट्स इसी फ़ोन में सेव रहते हैं। '
                 'यहाँ बैकअप रखें ताकि नया फ़ोन या रीइंस्टॉल करने पर ये न जाएँ।',

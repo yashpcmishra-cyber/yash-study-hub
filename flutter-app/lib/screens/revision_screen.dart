@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../services/revision_store.dart';
 import '../widgets/state_views.dart';
+import 'mock_test_attempt_screen.dart';
 import 'quiz_session_screen.dart';
 
 /// Smart Revision: Mistake Notebook ke galat sawal 1 -> 3 -> 7 -> 15 din ke gap par
 /// dobara puchhe jaate hain (spaced repetition). 4 baar sahi = sawal pakka.
+/// Topic-wise Mock: har topic (subject) ke saare galat sawal MCQ ki tarah ek
+/// asli Mock Test (timer, question palette, scorecard) me attempt hote hain.
 /// Schedule sirf phone me hai - Firestore ko 0 reads / 0 writes.
 class RevisionScreen extends StatefulWidget {
   const RevisionScreen({super.key});
@@ -16,6 +19,7 @@ class RevisionScreen extends StatefulWidget {
 
 class _RevisionScreenState extends State<RevisionScreen> {
   RevisionOverview? _ov;
+  List<RevisionTopic> _topics = const <RevisionTopic>[];
 
   @override
   void initState() {
@@ -26,8 +30,12 @@ class _RevisionScreenState extends State<RevisionScreen> {
   Future<void> _load() async {
     try {
       final o = await RevisionStore.overview();
+      final topics = await RevisionStore.topics();
       if (!mounted) return;
-      setState(() => _ov = o);
+      setState(() {
+        _ov = o;
+        _topics = topics;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _ov = const RevisionOverview());
@@ -41,9 +49,18 @@ class _RevisionScreenState extends State<RevisionScreen> {
       builder: (_) => QuizSessionScreen(
         title: scheduled ? 'Revision / रिवीज़न' : 'Extra practice / एक्स्ट्रा प्रैक्टिस',
         questions: items.map((e) => e.question).toList(),
-        bookmarkSource: 'Revision',
         onFinished: (answers) => RevisionStore.recordSession(items: items, answers: answers, scheduled: scheduled),
       ),
+    ));
+    if (mounted) _load();
+  }
+
+  /// Topic ke saare galat sawal ka Mock (MCQ format). Result sirf phone me jaata hai.
+  Future<void> _startMock(RevisionTopic t) async {
+    if (t.items.isEmpty || !mounted) return;
+    final test = RevisionStore.buildMock(t.name, t.items);
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => MockTestAttemptScreen(test: test, revisionItems: t.items),
     ));
     if (mounted) _load();
   }
@@ -129,6 +146,17 @@ class _RevisionScreenState extends State<RevisionScreen> {
                 style: TextStyle(color: AppC.muted, fontSize: 11.5),
               ),
             ),
+          if (_topics.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Text('Topic-wise Mock / टॉपिक वाइज़ मॉक', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 4),
+            Text(
+              'All your wrong questions of a topic as one timed mock test (MCQs).\nकिसी टॉपिक के सारे गलत सवाल एक टाइमर वाले मॉक टेस्ट (MCQ) में।',
+              style: TextStyle(color: AppC.muted, fontSize: 11.5, height: 1.35),
+            ),
+            const SizedBox(height: 10),
+            for (final t in _topics) _topicTile(t),
+          ],
           const SizedBox(height: 18),
           Text('Your revision steps / आपके revision स्टेप', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
@@ -161,10 +189,10 @@ class _RevisionScreenState extends State<RevisionScreen> {
             child: Text(
               '💡 How it works: every wrong question comes back after 1, 3, 7 and 15 days. '
               'Answer correctly and it moves to the next step; answer wrong and it starts again tomorrow. '
-              'After 4 correct revisions it is mastered and leaves your notebook.\n\n'
+              'After 4 correct revisions it is mastered and leaves your revision list.\n\n'
               'कैसे काम करता है: हर गलत सवाल 1, 3, 7 और 15 दिन बाद दोबारा आता है। '
               'सही किया तो अगले स्टेप पर, गलत किया तो कल फिर से। '
-              '4 बार सही होने पर सवाल पक्का हो जाता है और नोटबुक से हट जाता है।',
+              '4 बार सही होने पर सवाल पक्का हो जाता है और रिवीज़न लिस्ट से हट जाता है।',
               style: TextStyle(color: AppC.text, fontSize: 12.5, height: 1.4),
             ),
           ),
@@ -173,6 +201,40 @@ class _RevisionScreenState extends State<RevisionScreen> {
             'Saved only on your phone.\nयह डेटा केवल आपके फ़ोन में है।',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppC.muted, fontSize: 11.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _topicTile(RevisionTopic t) {
+    final mins = t.count < 5 ? 5 : t.count;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppC.text, fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(
+                  '${t.count} Qs / सवाल  •  $mins min / मिनट${t.due > 0 ? '  •  ${t.due} due / बाकी' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppC.text70, fontSize: 11.5),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => _startMock(t),
+            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
+            child: const Text('Start Mock'),
           ),
         ],
       ),

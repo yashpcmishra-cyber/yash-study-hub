@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/study_store.dart';
 import '../widgets/state_views.dart';
-import '../widgets/study_time_chart.dart';
-import 'quiz_session_screen.dart';
 
 import '../app_colors.dart';
 
@@ -15,9 +13,10 @@ class _SubjectStat {
   double get accuracy => attempted == 0 ? 0 : correct / attempted * 100;
 }
 
-/// My Progress: pichhle 30 din ke mock tests / quiz ka hisaab - score trend,
-/// subject-wise accuracy aur kamzor subject. Data sirf phone se aata hai
-/// (Firestore ki koi read nahi).
+/// My Progress: sirf ANALYSIS - pichhle 30 din ke mock tests / quiz ka hisaab:
+/// score trend, subject-wise accuracy aur kamzor subject. Yahan koi practice /
+/// action button nahi hai (galtiyon ki practice Smart Revision me hoti hai).
+/// Data sirf phone se aata hai (Firestore ki koi read nahi).
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
 
@@ -27,8 +26,6 @@ class ProgressScreen extends StatefulWidget {
 
 class _ProgressScreenState extends State<ProgressScreen> {
   List<TestRecord>? _records;
-  StreakInfo _streak = const StreakInfo(0);
-  List<SavedQuestion> _mistakes = const [];
 
   @override
   void initState() {
@@ -38,44 +35,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Future<void> _load() async {
     final r = await StudyStore.history();
-    final s = await StudyStore.readStreak();
-    final m = await StudyStore.mistakes();
     if (!mounted) return;
-    setState(() {
-      _records = r;
-      _streak = s;
-      _mistakes = m;
-    });
-  }
-
-  /// Notebook ki galtiyon me se us subject ki galtiyan ("General" = jis test ka subject khali tha).
-  List<SavedQuestion> _mistakesFor(String subject) {
-    final key = subject.trim().toLowerCase();
-    return _mistakes.where((e) {
-      var s = e.subject.trim().toLowerCase();
-      if (s.isEmpty) s = 'general';
-      return s == key;
-    }).toList();
-  }
-
-  /// "Meri kamzori sudharo": sabse kamzor subject ke (max 10) galat sawal ka quiz.
-  /// Sahi kiye sawal notebook se hat jaate hain aur har sudhari galti par XP milta hai.
-  Future<void> _fixWeakness(String subject) async {
-    final items = _mistakesFor(subject).take(10).toList();
-    if (items.isEmpty) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => QuizSessionScreen(
-        title: 'Fix: $subject',
-        questions: items.map((e) => e.question).toList(),
-        bookmarkSource: 'Fix weakness',
-        onFinished: (answers) => StudyStore.recordPractice(
-          items: items,
-          answers: answers,
-          removeCorrectFromMistakes: true,
-        ),
-      ),
-    ));
-    if (mounted) _load();
+    setState(() => _records = r);
   }
 
   @override
@@ -86,14 +47,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       body: records == null
           ? const LoadingView()
           : records.isEmpty
-              ? Column(
-                  children: [
-                    const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 0), child: StudyTimeChart()),
-                    const Expanded(
-                      child: EmptyView('No data yet.\nTake a Mock Test or Daily Quiz \u2014 your progress will show up here.\n\nअभी कोई डेटा नहीं है।\nकोई मॉक टेस्ट या डेली क्विज़ दीजिए, फिर प्रोग्रेस यहाँ दिखेगा।'),
-                    ),
-                  ],
-                )
+              ? const EmptyView('No data yet.\nTake a Mock Test or Daily Quiz \u2014 your analysis will show up here.\n\nअभी कोई डेटा नहीं है।\nकोई मॉक टेस्ट या डेली क्विज़ दीजिए, फिर एनालिसिस यहाँ दिखेगा।')
               : _content(records),
     );
   }
@@ -144,26 +98,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
             const SizedBox(width: 8),
             _tile('Best', '${best.toStringAsFixed(0)}%', AppC.text),
           ]),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppC.card2, borderRadius: BorderRadius.circular(12)),
-            child: Row(children: [
-              const Text('🔥', style: TextStyle(fontSize: 22)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _streak.days == 0
-                      ? 'Finish your daily goal to start your streak.\nस्ट्रीक शुरू करने के लिए रोज़ का लक्ष्य पूरा करें।'
-                      : 'Streak: ${_streak.days} days / दिन  (${_streak.filled}/7)  •  ❄️ ${_streak.freezes}'
-                          '${_streak.completedWeeks > 0 ? '  •  🏆 ${_streak.completedWeeks}x 7 days / 7 दिन पूरे' : ''}',
-                  style: TextStyle(color: AppC.text, fontSize: 13),
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 14),
-          const StudyTimeChart(),
           const SizedBox(height: 18),
           Text('Recent tests score (%) / पिछले टेस्ट का स्कोर (%)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
@@ -207,41 +141,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Widget _weakCard(_SubjectStat weak) {
-    final mine = _mistakesFor(weak.name);
-    final n = mine.length > 10 ? 10 : mine.length;
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: AppC.goldWash, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '💡 Weakest: ${weak.name} (${weak.accuracy.toStringAsFixed(0)}%). Practice this more.\nसबसे कमज़ोर: ${weak.name}। इसमें ज़्यादा अभ्यास करें।',
-            style: TextStyle(color: AppC.text, fontSize: 13, height: 1.35),
-          ),
-          const SizedBox(height: 10),
-          if (n > 0)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _fixWeakness(weak.name),
-                icon: const Icon(Icons.fitness_center, size: 18),
-                label: Text('Fix my weakness: $n questions / मेरी कमज़ोरी सुधारो: $n सवाल'),
-              ),
-            )
-          else
-            Text(
-              'No saved mistakes for this subject right now. Take another test in it, and the questions you get wrong will appear here to practice.\nइस विषय की कोई गलती अभी सेव नहीं है। इसका एक और टेस्ट दें, गलत सवाल यहाँ प्रैक्टिस के लिए आ जाएँगे।',
-              style: TextStyle(color: AppC.text70, fontSize: 11.5, height: 1.35),
-            ),
-          if (n > 0) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Correct answers are removed from your Mistake Notebook, and you earn +5 XP for each one you fix.\nसही किए सवाल Mistake Notebook से हट जाते हैं, हर सुधारी गलती पर +5 XP।',
-              style: TextStyle(color: AppC.text70, fontSize: 11, height: 1.3),
-            ),
-          ],
-        ],
+      child: Text(
+        '💡 Weakest: ${weak.name} (${weak.accuracy.toStringAsFixed(0)}%). Practice this more.\nसबसे कमज़ोर: ${weak.name}। इसमें ज़्यादा अभ्यास करें।',
+        style: TextStyle(color: AppC.text, fontSize: 13, height: 1.35),
       ),
     );
   }

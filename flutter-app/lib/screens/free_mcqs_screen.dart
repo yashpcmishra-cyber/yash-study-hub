@@ -182,8 +182,6 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
         builder: (_) => QuizSessionScreen(
           title: title,
           questions: qs,
-          // English folder: exam and subject are both "English", so do not say it twice.
-          bookmarkSource: widget.exam.id == widget.subject.id ? title : '${widget.exam.name} · $title',
           onFinished: (answers) => _finish(meta, qs, answers),
         ),
       ),

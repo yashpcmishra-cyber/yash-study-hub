@@ -32,7 +32,8 @@ import 'batch_detail_screen.dart';
 import 'my_course_screen.dart';
 import 'queries_screen.dart';
 import 'daily_quiz_screen.dart';
-import 'mistake_notebook_screen.dart';
+import 'revision_screen.dart';
+import '../services/revision_store.dart';
 import 'progress_screen.dart';
 import 'notifications_screen.dart';
 import 'admin/admin_login_screen.dart';
@@ -458,7 +459,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                               dot: !_quizDoneToday,
                             ),
-                            _quickAccessCard('\u{1F4D3}', 'Notebook', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MistakeNotebookScreen()))),
+                            ValueListenableBuilder<int>(
+                              valueListenable: StudyStore.changes,
+                              builder: (context, _, __) => FutureBuilder<int>(
+                                future: RevisionStore.dueCount(),
+                                builder: (context, dueSnap) => _quickAccessCard(
+                                  '\u{1F501}',
+                                  'Smart Revision',
+                                  () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RevisionScreen())),
+                                  dot: (dueSnap.data ?? 0) > 0,
+                                ),
+                              ),
+                            ),
                             _quickAccessCard('\u{1F4CA}', 'Progress', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProgressScreen()))),
                           ],
                         ),
@@ -477,7 +489,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: StudyCornerCard(),
                       ),
 
-                      // Study Tools: Smart Revision, Study Timer, Flashcards, Badges
+                      // Study Tools: Flashcards, Badges
                       // (all data lives on the phone - 0 Firestore reads).
                       const Padding(
                         padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),

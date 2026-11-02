@@ -122,7 +122,6 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       builder: (_) => QuizSessionScreen(
         title: 'Daily Quiz',
         questions: qs,
-        bookmarkSource: 'Daily Quiz ${quiz.day}',
         onFinished: (answers) => StudyStore.recordDailyQuiz(day: quiz.day, questions: qs, answers: answers),
       ),
     ));
@@ -278,7 +277,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           ),
           const SizedBox(height: 14),
           Text(
-            'After every answer you instantly see right/wrong and the explanation. Wrong questions are saved to the Mistake Notebook automatically.\nहर जवाब के बाद सही/गलत और व्याख्या तुरंत दिखती है। गलत सवाल अपने आप Mistake Notebook में सेव हो जाते हैं।',
+            'After every answer you instantly see right/wrong and the explanation. Wrong questions are saved to Smart Revision automatically.\nहर जवाब के बाद सही/गलत और व्याख्या तुरंत दिखती है। गलत सवाल अपने आप Smart Revision में सेव हो जाते हैं।',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppC.muted, fontSize: 12, height: 1.4),
           ),
