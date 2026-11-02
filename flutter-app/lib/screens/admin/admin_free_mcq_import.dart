@@ -23,7 +23,7 @@ class FreeMcqImportResult {
   });
 }
 
-/// Admin only: choose any Free MCQs set(s) (any exam, subject and month) and
+/// Admin only: choose any Free MCQs set(s) (any exam, subject and week) and
 /// copy all their questions (English + Hindi + explanation) into a mock test.
 /// Returns null if the admin closes the sheet without copying.
 Future<FreeMcqImportResult?> showFreeMcqImportSheet(BuildContext context) {
@@ -58,7 +58,7 @@ class _FreeMcqImportSheetState extends State<_FreeMcqImportSheet> {
     return id;
   }
 
-  /// This exam's sets: newest month first, then in the usual subject order.
+  /// This exam's sets: newest week first, then in the usual subject order.
   List<FreeMcqSetMeta> _setsOf(FreeMcqIndex index, String examId) {
     int order(String subjectId) {
       final i = index.subjects.indexWhere((s) => s.id == subjectId);
@@ -67,8 +67,8 @@ class _FreeMcqImportSheetState extends State<_FreeMcqImportSheet> {
 
     final list = index.sets.where((s) => s.examId == examId).toList();
     list.sort((a, b) {
-      final byMonth = b.monthKey.compareTo(a.monthKey);
-      return byMonth != 0 ? byMonth : order(a.subjectId).compareTo(order(b.subjectId));
+      final byPeriod = b.startKey.compareTo(a.startKey);
+      return byPeriod != 0 ? byPeriod : order(a.subjectId).compareTo(order(b.subjectId));
     });
     return list;
   }
@@ -98,7 +98,7 @@ class _FreeMcqImportSheetState extends State<_FreeMcqImportSheet> {
       final subjectIds = chosen.map((s) => s.subjectId).toSet();
       final subject = subjectIds.length == 1 ? _subjectName(index, subjectIds.first) : '';
       final title = chosen.length == 1
-          ? '${_subjectName(index, chosen.first.subjectId)} - ${FreeMcqService.monthLabel(chosen.first.monthKey)}'
+          ? '${_subjectName(index, chosen.first.subjectId)} - ${FreeMcqService.setLabel(chosen.first)}'
           : '';
       if (!mounted) return;
       Navigator.of(context).pop(
@@ -159,7 +159,7 @@ class _FreeMcqImportSheetState extends State<_FreeMcqImportSheet> {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Tick one or more sets (any exam, subject or month). All their questions are added to the test you are building.',
+                      'Tick one or more sets (any exam, subject or week). All their questions are added to the test you are building.',
                       style: TextStyle(color: AppC.muted, fontSize: 12),
                     ),
                   ),
@@ -191,7 +191,7 @@ class _FreeMcqImportSheetState extends State<_FreeMcqImportSheet> {
                                             }
                                           }),
                                   title: Text(
-                                    '${_subjectName(index, s.subjectId)} · ${FreeMcqService.monthLabel(s.monthKey)}',
+                                    '${_subjectName(index, s.subjectId)} · ${FreeMcqService.setLabel(s)}',
                                     style: TextStyle(color: AppC.text, fontSize: 13),
                                   ),
                                   subtitle: Text('${s.count} MCQs', style: TextStyle(color: AppC.muted, fontSize: 11)),
