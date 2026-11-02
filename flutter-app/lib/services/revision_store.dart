@@ -60,6 +60,12 @@ class RevisionStore {
   static const _kSched = 'ysh3_rev_sched';
   static const _kMastered = 'ysh3_rev_mastered';
 
+  /// Jin galat sawalon ka topic-wise Mock ho chuka hai: { sawal ki key : savedAt(ms) }.
+  /// Mock dene ke baad wo sawal Topic-wise Mock list me dobara nahi dikhte. Agar wahi
+  /// sawal baad me phir galat hota hai to savedAt badal jaata hai, isliye wo naye
+  /// Mock me dobara aa jaata hai.
+  static const _kMockDone = 'ysh3_rev_mock_done';
+
   static String _key(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -119,10 +125,48 @@ class RevisionStore {
     return items.take(limit).map((e) => e.saved).toList();
   }
 
+  /// Mock ho chuke sawalon ka record (key -> savedAt ms).
+  static Future<Map<String, int>> _mockDone(SharedPreferences p) async {
+    final raw = _decode(p.getString(_kMockDone));
+    final out = <String, int>{};
+    raw.forEach((k, v) {
+      if (v is num) out[k] = v.toInt();
+    });
+    return out;
+  }
+
+  /// Topic-wise Mock submit hone par: us Mock ke saare sawal "diye gaye" mark ho jaate
+  /// hain, taaki wo Mock list se hat jaye. Mock adhoora chhodne par ye call nahi hota,
+  /// isliye wo Mock tab tak dikhta rehta hai jab tak diya na jaye.
+  static Future<void> markMockDone(List<SavedQuestion> items) async {
+    if (items.isEmpty) return;
+    try {
+      final p = await SharedPreferences.getInstance();
+      final done = await _mockDone(p);
+      for (final e in items) {
+        done[e.key] = e.savedAt.millisecondsSinceEpoch;
+      }
+      // Jo sawal ab notebook me nahi hain unka record saaf kar do (storage chhota rahe).
+      final live = <String, int>{
+        for (final m in await StudyStore.mistakes()) m.key: m.savedAt.millisecondsSinceEpoch,
+      };
+      done.removeWhere((k, v) => live[k] != v);
+      await p.setString(_kMockDone, jsonEncode(done));
+      StudyStore.notifyChanged();
+    } catch (_) {
+      // Mock ka result kabhi is wajah se nahi rukna chahiye.
+    }
+  }
+
   /// Galat sawal topic (subject) ke hisaab se - sabse zyada galtiyon wala topic pehle.
+  /// Jin sawalon ka Mock ho chuka hai wo yahan nahi aate.
   static Future<List<RevisionTopic>> topics() async {
+    final p = await SharedPreferences.getInstance();
+    final done = await _mockDone(p);
     final today = StudyStore.today();
-    final items = await _items();
+    final items = (await _items())
+        .where((e) => done[e.saved.key] != e.saved.savedAt.millisecondsSinceEpoch)
+        .toList();
     final groups = <String, List<RevisionItem>>{};
     final names = <String, String>{};
     for (final e in items) {

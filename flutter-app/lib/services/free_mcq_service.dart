@@ -12,18 +12,19 @@ class FreeMcqChoice {
 }
 
 /// The built-in "English" folder (Banking PO / Clerk English, easy + moderate + hard, ONE new set every week).
-/// It holds ONE subject (english) and no Static GK / Science / GS; every other exam folder keeps its 3 subjects.
+/// It holds ONE subject (english) and no Static GK / Science / GS; every other exam folder keeps its 3 subjects
+/// (they also get one new set every week).
 const String kEnglishFolderId = 'english';
 const FreeMcqChoice kEnglishFolder = FreeMcqChoice(kEnglishFolderId, 'English', '📖');
 
-/// One practice set (a month for GK / Science / GS, a week for English). Only the metadata; the questions are read when opened.
+/// One practice set (a week; older sets built before the weekly switch cover a month). Only the metadata; the questions are read when opened.
 class FreeMcqSetMeta {
   final String id;
   final String examId;
   final String subjectId;
   final String monthKey; // yyyy-MM
-  final String weekKey; // "2026-W44", only for weekly English sets
-  final String periodStart; // yyyy-MM-dd (the Monday), only for weekly English sets
+  final String weekKey; // "2026-W44" (weekly sets)
+  final String periodStart; // yyyy-MM-dd (the Monday of a weekly set)
   final int count;
   final String source;
 
@@ -105,12 +106,13 @@ class FreeMcqIndex {
 
 /// Free MCQs data, with a phone cache so Firestore is read as little as possible.
 ///
-/// Firestore layout (GK / Science / GS written monthly by fetch-free-mcqs.js, English weekly by fetch-free-english.js):
+/// Firestore layout (every folder gets one set per week: GK / Science / GS by fetch-free-weekly.js, English by fetch-free-english.js):
 ///   freeMcqIndex/current          1 doc, read at most once every 12 hours per phone
-///   freeMcqSets/{set id}          1 doc per exam+subject+month (English: per week), read ONCE per phone, then cached
+///   freeMcqSets/{set id}          1 doc per exam+subject+week, read ONCE per phone, then cached
 ///
-/// Retention: Firestore deletes a weekly English set 2 months after its week began, but a set the student has
-/// opened stays on the phone for 3 months (see [_withCachedSets]), so old weeks keep working and cost no reads.
+/// Retention: a set is deleted from Firestore 2 months after its week began, and the phone removes it at the same
+/// time (cached questions, the list entry and the saved score) - see [_withCachedSets]. This clean-up runs on the
+/// phone by itself, so it works even if the server clean-up is late.
 ///
 /// Quiz scores stay on the phone only (no Firestore writes at all for this feature).
 class FreeMcqService {
@@ -121,7 +123,7 @@ class FreeMcqService {
   static const _kDone = 'ysh_fmcq_done_v1'; // {setId: "correct/total"}
   static const Duration _indexTtl = Duration(hours: 12);
   static const int _maxCachedSets = 60; // safety cap (a set is about 20-30 KB)
-  static const int _keepCachedMonths = 3; // a cached set that left Firestore stays this long on the phone
+  static const int _keepCachedMonths = 2; // sets older than this are removed from the phone (same as Firestore)
 
   static const _months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -321,23 +323,63 @@ class FreeMcqService {
     }
   }
 
-  /// yyyy-MM-dd, [_keepCachedMonths] months ago. A cached set that started before this is removed.
+  /// yyyy-MM-dd, [_keepCachedMonths] months ago. A set that started before this is removed from the phone.
   static String _cacheCutoff() {
     final n = DateTime.now();
-    final d = DateTime(n.year, n.month - _keepCachedMonths, n.day);
+    // Same as the server: the day is clamped to the length of the target month (31 Oct - 2 months = 31 Aug, 30 Apr - 2 = 28/29 Feb).
+    final firstOfTarget = DateTime(n.year, n.month - _keepCachedMonths, 1);
+    final lastDay = DateTime(firstOfTarget.year, firstOfTarget.month + 1, 0).day;
+    final d = DateTime(firstOfTarget.year, firstOfTarget.month, n.day < lastDay ? n.day : lastDay);
     return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
-  /// Merges the sets cached on this phone into the Firestore index.
+  /// Start date (yyyy-MM-dd) of a set, worked out from its id ("ssc_gk_2026-W45" or "ssc_gk_2026-10"), or null.
+  static String? _startOfSetId(String id) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final w = RegExp(r'(\d{4})-W(\d{2})$').firstMatch(id);
+    if (w != null) {
+      final year = int.parse(w.group(1)!);
+      final week = int.parse(w.group(2)!);
+      final jan4 = DateTime.utc(year, 1, 4);
+      final week1Monday = jan4.subtract(Duration(days: jan4.weekday - 1));
+      final d = week1Monday.add(Duration(days: (week - 1) * 7));
+      return '${d.year.toString().padLeft(4, '0')}-${two(d.month)}-${two(d.day)}';
+    }
+    final m = RegExp(r'(\d{4})-(\d{2})$').firstMatch(id);
+    return m == null ? null : '${m.group(1)}-${m.group(2)}-01';
+  }
+
+  /// Removes the saved scores of sets older than the cut-off (judged by the set id, so it does not depend on
+  /// the index being complete).
+  static Future<void> _pruneDone(SharedPreferences p, String cutoff) async {
+    final raw = p.getString(_kDone);
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final m = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final before = m.length;
+      m.removeWhere((id, _) {
+        final start = _startOfSetId(id);
+        return start != null && start.compareTo(cutoff) < 0;
+      });
+      if (m.length != before) await p.setString(_kDone, jsonEncode(m));
+    } catch (_) {
+      // A damaged score list is simply left alone.
+    }
+  }
+
+  /// Merges the sets cached on this phone into the Firestore index and applies the 2-month rule.
+  ///  - a set older than [_keepCachedMonths] months is never listed, even if Firestore still has it, and its
+  ///    cached questions and score are deleted from the phone;
   ///  - a cached set that is still in the index: kept as before;
-  ///  - a cached set Firestore has already deleted (weekly English sets go after 2 months): still listed for
-  ///    [_keepCachedMonths] months, opened from the phone with no Firestore read;
-  ///  - anything older, or a cache entry we know nothing about: removed from the phone.
+  ///  - a cached set Firestore has already deleted (but still inside the 2 months): still listed and opened from
+  ///    the phone with no Firestore read;
+  ///  - a cache entry we know nothing about: removed from the phone.
   static Future<FreeMcqIndex> _withCachedSets(SharedPreferences p, FreeMcqIndex index) async {
-    final inIndex = index.sets.map((s) => s.id).toSet();
+    final cutoff = _cacheCutoff();
+    final liveSets = index.sets.where((s) => s.startKey.compareTo(cutoff) >= 0).toList();
+    final inIndex = liveSets.map((s) => s.id).toSet();
     final ids = p.getStringList(_kSetIds) ?? <String>[];
     final metas = _readMetaMap(p);
-    final cutoff = _cacheCutoff();
     final keptIds = <String>[];
     final extras = <FreeMcqSetMeta>[];
     for (final id in ids) {
@@ -365,8 +407,9 @@ class FreeMcqService {
       await p.setStringList(_kSetIds, keptIds);
       await p.setString(_kSetMeta, jsonEncode(metas));
     }
-    if (extras.isEmpty) return index;
-    return FreeMcqIndex(index.exams, index.subjects, [...index.sets, ...extras]);
+    await _pruneDone(p, cutoff);
+    if (extras.isEmpty && liveSets.length == index.sets.length) return index;
+    return FreeMcqIndex(index.exams, index.subjects, [...liveSets, ...extras]);
   }
 
   // ------------------------------------------------------------ scores (phone only)
