@@ -1,7 +1,12 @@
 /**
- * Monthly Free MCQs (free: GitHub Actions + free Gemini key, no Blaze needed).
+ * Free MCQs core (free: GitHub Actions + free Gemini key, no Blaze needed).
  *
- * For every exam x subject it builds ONE practice set of 25 MCQs for the previous
+ * NOTE: the schedule has moved to WEEKLY. fetch-free-weekly.js now builds one set of 25 MCQs per week for every
+ * exam x subject (workflow: fetch-free-weekly.yml) and fetch-free-english.js does the English folder. This file
+ * keeps the shared code (prompts, checks, Gemini calls, writeIndex) that both weekly jobs reuse. Its own monthly
+ * run is now MANUAL ONLY (workflow_dispatch) and is not needed any more.
+ *
+ * Run by hand, for every exam x subject it builds ONE practice set of 25 MCQs for the previous
  * calendar month (or the month in env MONTH=yyyy-MM).
  *
  * LICENCE POLICY (no copyleft, no copied text):
@@ -29,11 +34,11 @@
  *   Current Affairs sets get Check A against the PIB lines, plus Check C.
  *
  * ENGLISH FOLDER (built in, cannot be removed from the app):
- *   The "English" folder is NOT built by this monthly job. It gets ONE set of 25 Banking PO / Clerk English MCQs
+ *   The "English" folder is NOT built by this job. It gets ONE set of 25 Banking PO / Clerk English MCQs
  *   every WEEK (easy + moderate + hard mix) from fetch-free-english.js (workflow: fetch-free-english-weekly.yml).
  *   This file only (a) skips the English folder, (b) keeps its entries in the shared index, and (c) owns
- *   writeIndex(), which the weekly job reuses. Weekly English sets stay in Firestore for ENGLISH_KEEP_MONTHS (2)
- *   months; the app keeps the ones a student opened on the phone for 3 months.
+ *   writeIndex(), which both weekly jobs reuse. EVERY set stays in Firestore for KEEP_MONTHS (2) months and is then
+ *   deleted; the app also removes sets older than 2 months from the phone.
  *
  * Firestore output (read by the app):
  *   freeMcqSets/{examId}_{subjectId}_{yyyy-MM}
@@ -41,7 +46,7 @@
  *   freeMcqIndex/current
  *       { exams[], subjects[], sets[ {id, examId, subjectId, monthKey, count, source, (weekKey, periodStart for English weeks)} ], updatedAt }
  *
- * Storage: only the last KEEP_MONTHS months are kept; caArchive older than ARCHIVE_DAYS is deleted.
+ * Storage: only the last KEEP_MONTHS (2) months are kept; caArchive older than ARCHIVE_DAYS is deleted.
  * Re-runs are cheap: a set that already exists is skipped (FORCE=true rebuilds all).
  *
  * Env: FIREBASE_SERVICE_ACCOUNT, GEMINI_API_KEY   (GitHub secrets)
@@ -58,8 +63,8 @@ const MAX_ROUNDS = 3; // write + check rounds per set (later rounds only top up 
 const MIN_QUESTIONS = QUESTIONS_PER_SET; // fewer verified questions than this = set not published
 const MIN_CA_LINES = 30; // PIB lines needed before the Current Affairs set is built
 const MAX_CA_LINES = 80; // keeps the prompt small
-const KEEP_MONTHS = 3; // this month + 2 earlier months stay in Firestore
-const ENGLISH_KEEP_MONTHS = 2; // weekly English sets older than this are deleted from Firestore (the app keeps opened ones 3 months)
+const KEEP_MONTHS = 2; // RETENTION: every set (weekly or old monthly) whose period started more than 2 months ago is deleted
+const ENGLISH_KEEP_MONTHS = KEEP_MONTHS; // same 2 months for every folder (the app also removes older sets from the phone)
 const ARCHIVE_DAYS = 40; // caArchive docs older than this are deleted
 const PREV_QUESTIONS_IN_PROMPT = 30; // earlier questions shown to Gemini as "do not repeat"
 const PAUSE_BETWEEN_SETS_MS = 3000;
@@ -193,19 +198,20 @@ function avoidBlock(previous) {
   return `\n\nDO NOT repeat or closely paraphrase these earlier questions:\n${previous.map((t) => `- ${t}`).join("\n")}`;
 }
 
-function header({ exam, subject, monthKey }) {
+/** `periodLabel` (weekly sets, e.g. "week 45: 2 Nov - 8 Nov 2026") replaces the month line. */
+function header({ exam, subject, monthKey, periodLabel }) {
   return `EXAM: ${exam.name}
 EXAM FOCUS (2026 syllabus): ${exam.focus}
 SUBJECT: ${subject.name} (${subject.syllabus})
-MONTH: ${monthLabel(monthKey)}
+${periodLabel ? "WEEK" : "MONTH"}: ${periodLabel || monthLabel(monthKey)}
 LEVEL: ${exam.level}`;
 }
 
 /** Current Affairs: questions ONLY from the PIB lines. `blocks` = [{label, text}]. */
-function buildCaPrompt({ exam, subject, monthKey, blocks, previous = [], n = QUESTIONS_ASKED }) {
-  return `You write a monthly practice set of multiple-choice questions for Indian competitive-exam students.
+function buildCaPrompt({ exam, subject, monthKey, periodLabel, blocks, previous = [], n = QUESTIONS_ASKED }) {
+  return `You write a practice set of multiple-choice questions for Indian competitive-exam students.
 
-${header({ exam, subject, monthKey })}
+${header({ exam, subject, monthKey, periodLabel })}
 
 The sources below are verified current-affairs facts from PIB (Government of India).
 Write the questions ONLY from the SOURCES.
@@ -219,10 +225,10 @@ ${sourceBlock(blocks)}`;
 }
 
 /** Static subjects: original questions on stable, textbook-level facts about the listed topics. */
-function buildStaticPrompt({ exam, subject, monthKey, topicList, previous = [], n = QUESTIONS_ASKED }) {
-  return `You write a monthly practice set of multiple-choice questions for Indian competitive-exam students.
+function buildStaticPrompt({ exam, subject, monthKey, periodLabel, topicList, previous = [], n = QUESTIONS_ASKED }) {
+  return `You write a practice set of multiple-choice questions for Indian competitive-exam students.
 
-${header({ exam, subject, monthKey })}
+${header({ exam, subject, monthKey, periodLabel })}
 
 Write ORIGINAL questions on the TOPICS below, using standard textbook-level knowledge.
 
@@ -628,7 +634,7 @@ async function purgeRemovedSubjectSets(db) {
  * `perSet` (default QUESTIONS_PER_SET) are there. Returns the final list, or [] if the set must not be published.
  * `ctx` is { blocks } for Current Affairs (PIB lines) or { topicList } for static subjects.
  */
-async function generateSet({ exam, subject, monthKey, ctx, previous, key, perSet = QUESTIONS_PER_SET, asked = QUESTIONS_ASKED }) {
+async function generateSet({ exam, subject, monthKey, periodLabel = "", ctx, previous, key, perSet = QUESTIONS_PER_SET, asked = QUESTIONS_ASKED }) {
   const grounded = Array.isArray(ctx.blocks);
   const maxSrc = grounded ? ctx.blocks.length : ctx.topicList.length;
   const temperature = grounded ? 0.2 : 0.3;
@@ -641,8 +647,8 @@ async function generateSet({ exam, subject, monthKey, ctx, previous, key, perSet
       const avoid = [...previous, ...kept.map((q) => q.text)]; // earlier months + what this set already has
       const exclude = new Set(avoid.map((t) => t.toLowerCase()));
       const prompt = grounded
-        ? buildCaPrompt({ exam, subject, monthKey, blocks: ctx.blocks, previous: avoid, n })
-        : buildStaticPrompt({ exam, subject, monthKey, topicList: ctx.topicList, previous: avoid, n });
+        ? buildCaPrompt({ exam, subject, monthKey, periodLabel, blocks: ctx.blocks, previous: avoid, n })
+        : buildStaticPrompt({ exam, subject, monthKey, periodLabel, topicList: ctx.topicList, previous: avoid, n });
 
       const cleaned = cleanQuestions(parseAnswer(await callGemini(prompt, key, temperature)), { exclude, maxSrc, want: n });
       console.log(`  round ${round}: ${cleaned.length} well-formed question(s) (asked ${n}).`);
@@ -716,26 +722,26 @@ function ensureEnglishFolder() {
 
 /**
  * Rebuilds freeMcqIndex/current (1 read + 1 write) and deletes the sets that are too old.
- *   - monthly sets (GK / Science / GS): kept for KEEP_MONTHS months counted from `monthKey`
- *   - weekly English sets (they carry `periodStart`): kept for ENGLISH_KEEP_MONTHS months counted from today (IST)
- *   - an English set WITHOUT periodStart is an old monthly English set: removed (English is weekly now)
- * Used by fetch-free-mcqs.js (monthly) and fetch-free-english.js (weekly), so both keep one consistent index.
+ * ONE rule for every folder: a set is deleted once its period (a week, or for an old monthly set its month)
+ * started more than KEEP_MONTHS (2) months before today (IST).
+ *   - an English set WITHOUT periodStart is an old monthly English set: removed (English is weekly)
+ * Used by fetch-free-weekly.js (all folders) and fetch-free-english.js (English), so both keep one consistent index.
+ * `_monthKey` is kept only so older callers keep working.
  */
-async function writeIndex(db, admin, monthKey, built, purged) {
+async function writeIndex(db, admin, _monthKey, built, purged) {
   const idxRef = db.collection("freeMcqIndex").doc("current");
   const keepExams = new Set(EXAMS.map((e) => e.id));
   const keepSubjects = new Set(ALL_SUBJECTS.map((x) => x.id));
   const oldSets = (((await idxRef.get()).data() || {}).sets || []).filter((s) => s && !purged.has(s.id) && keepExams.has(s.examId) && keepSubjects.has(s.subjectId));
   const all = new Map();
   for (const s of [...oldSets, ...built]) if (s && s.id) all.set(s.id, s);
-  const minKey = shiftMonth(monthKey, -(KEEP_MONTHS - 1));
-  const weeklyCutoff = dateMinusMonths(istDateStr(0), ENGLISH_KEEP_MONTHS);
+  const startOf = (s) => String(s.periodStart || `${s.monthKey}-01`);
+  const cutoff = dateMinusMonths(istDateStr(0), KEEP_MONTHS);
   const kept = [];
   const dropped = [];
   for (const s of all.values()) {
-    const weekly = Boolean(s.periodStart);
-    const legacyEnglish = s.examId === "english" && !weekly;
-    const tooOld = legacyEnglish || (weekly ? String(s.periodStart) < weeklyCutoff : String(s.monthKey) < minKey);
+    const legacyEnglish = s.examId === "english" && !s.periodStart;
+    const tooOld = legacyEnglish || startOf(s) < cutoff;
     (tooOld ? dropped : kept).push(s);
   }
   if (dropped.length) {
@@ -746,7 +752,6 @@ async function writeIndex(db, admin, monthKey, built, purged) {
     }
     console.log(`Deleted ${dropped.length} old set(s): ${dropped.map((s) => s.id).join(", ")}`);
   }
-  const startOf = (s) => String(s.periodStart || `${s.monthKey}-01`);
   kept.sort((a, b) => (startOf(a) === startOf(b) ? String(a.id).localeCompare(String(b.id)) : startOf(a) < startOf(b) ? 1 : -1));
   await idxRef.set({
     exams: EXAMS.map(({ id, name, emoji }) => ({ id, name, emoji })),
@@ -908,6 +913,7 @@ module.exports = {
   ensureEnglishFolder,
   ENGLISH_EXAM,
   ENGLISH_KEEP_MONTHS,
+  KEEP_MONTHS,
   STATIC_LICENSE,
   PAUSE_BETWEEN_SETS_MS,
   applyExamsFromFirestore,
@@ -939,6 +945,7 @@ module.exports = {
   numbersCovered,
   generateSet,
   purgeLegacyLicensedSets,
+  purgeRemovedExamSets,
   purgeRemovedSubjectSets,
   shiftMonth,
   monthRange,

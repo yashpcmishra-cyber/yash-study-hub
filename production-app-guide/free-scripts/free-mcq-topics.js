@@ -82,7 +82,7 @@ const POOLS = {
 
 // ---------------------------------------------------------------- helpers
 
-/** Small deterministic random generator, so the same exam+subject+month always picks the same topics. */
+/** Small deterministic random generator, so the same exam+subject+week always picks the same topics. */
 function seededRandom(seedText) {
   let h = 1779033703 ^ seedText.length;
   for (let i = 0; i < seedText.length; i++) {
@@ -108,10 +108,13 @@ function shuffled(arr, rnd) {
   return a;
 }
 
-/** The topics of one set: round-robin over the topic groups, so every set spreads over the syllabus. */
-function pickTopics({ subjectId, examId, monthKey, n = TOPICS_PER_SET }) {
+/**
+ * The topics of one set: round-robin over the topic groups, so every set spreads over the syllabus.
+ * `periodKey` is the week ("2026-W45") of a weekly set; older callers pass `monthKey` ("2026-10").
+ */
+function pickTopics({ subjectId, examId, periodKey, monthKey, n = TOPICS_PER_SET }) {
   const groups = (POOLS[subjectId] || []).filter((g) => !g.exams || g.exams.includes(examId));
-  const rnd = seededRandom(`${examId}|${subjectId}|${monthKey}`);
+  const rnd = seededRandom(`${examId}|${subjectId}|${periodKey || monthKey}`);
   const lists = shuffled(groups, rnd).map((g) => shuffled(g.topics, rnd));
   const out = [];
   for (let round = 0; out.length < n; round++) {
