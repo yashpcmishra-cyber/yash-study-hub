@@ -1,9 +1,8 @@
-name: Monthly Free MCQs (free, PIB archive + Gemini)
+name: Monthly Free MCQs - MANUAL ONLY (replaced by the weekly job)
 
+# GK / Science / GS sets are now built WEEKLY by fetch-free-weekly.yml (and English by fetch-free-english-weekly.yml).
+# The monthly schedule was removed so the two do not both create sets. Use "Run workflow" only if you ever need a monthly set.
 on:
-  schedule:
-    - cron: '30 2 1 * *'   # 1st of every month, 8:00 AM IST - builds LAST month's sets
-    - cron: '30 2 3 * *'   # 3rd of every month - retry (existing sets are skipped)
   workflow_dispatch:
     inputs:
       month:

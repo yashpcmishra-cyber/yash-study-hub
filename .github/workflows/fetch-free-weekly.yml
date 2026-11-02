@@ -1,0 +1,41 @@
+name: Weekly Free MCQs - GK / Science / GS (free, Gemini)
+
+on:
+  schedule:
+    - cron: '30 3 * * 1'   # every Monday, 9:00 AM IST - builds THIS week's sets for every exam folder (English has its own job)
+    - cron: '30 3 * * 3'   # every Wednesday - retry (a set that already exists is skipped)
+    - cron: '30 3 * * 5'   # every Friday - second retry
+  workflow_dispatch:
+    inputs:
+      week:
+        description: 'Week to build: 2026-W45 or any date inside it, 2026-11-02 (blank = this week)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild sets that already exist (true/false)'
+        required: false
+        default: 'false'
+
+# Same group as the English job and the manual monthly job: they all write freeMcqIndex/current, so never run together.
+concurrency:
+  group: fetch-free-mcqs
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node fetch-free-weekly.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          WEEK: ${{ github.event.inputs.week }}
+          FORCE: ${{ github.event.inputs.force }}
