@@ -14,12 +14,12 @@ import 'xp_store.dart';
 //    - 7-din ki streak
 //    - Daily goal (aaj kitne sawal kiye)
 //    - Exam countdown (exam ka naam + date)
-//    - Galtiyan (mistake notebook) aur Saved (bookmark) sawal
+//    - Galtiyan (Smart Revision ke sawal)
 //    - Mock test history (Progress screen ke liye)
 //    - Daily Quiz ke pichhle 7 din ka cache + har din ka "ho gaya" nishaan
 //      (8th din purana quiz phone se bhi hat jaata hai)
 //
-//  Galtiyan / Saved / History me 30 din se purani entries apne aap hat jaati
+//  Galtiyan / History me 30 din se purani entries apne aap hat jaati
 //  hain (keepDays).
 // =============================================================================
 
@@ -69,7 +69,7 @@ class ExamTarget {
   }
 }
 
-/// Mistake notebook / bookmark ki ek entry.
+/// Galat sawal (Smart Revision) ki ek entry.
 class SavedQuestion {
   final String key;
   final MockQuestion question;
@@ -204,7 +204,6 @@ class StudyStore {
   /// Itne din baad purani entries hat jaati hain.
   static const int keepDays = 30;
   static const int _maxMistakes = 100;
-  static const int _maxBookmarks = 100;
   static const int _maxHistory = 60;
   static const int defaultGoal = 25;
   /// The only goal choices. (Daily Quiz itself has at most 10 questions/day;
@@ -219,7 +218,6 @@ class StudyStore {
   static const _kExamName = 'ysh2_exam_name';
   static const _kExamDate = 'ysh2_exam_date';
   static const _kMistakes = 'ysh2_mistakes';
-  static const _kBookmarks = 'ysh2_bookmarks';
   static const _kHistory = 'ysh2_history';
   // Lifetime counters (Badges ke liye) - 30 din baad hatte nahi.
   static const _kLifeQ = 'ysh3_life_q';
@@ -509,35 +507,6 @@ class StudyStore {
     _bump();
   }
 
-  // ----------------------------------------------------------- bookmarks
-
-  static Future<List<SavedQuestion>> bookmarks() => _loadQuestions(_kBookmarks);
-
-  static Future<Set<String>> bookmarkKeys() async => (await bookmarks()).map((e) => e.key).toSet();
-
-  /// Save / unsave. Naya state (true = ab saved hai) lautata hai.
-  static Future<bool> toggleBookmark(MockQuestion q, {String subject = '', String source = ''}) async {
-    final list = await _loadQuestions(_kBookmarks);
-    final k = qKey(q);
-    final had = list.any((e) => e.key == k);
-    if (had) {
-      list.removeWhere((e) => e.key == k);
-    } else {
-      list.insert(0, SavedQuestion(key: k, question: q, savedAt: DateTime.now(), subject: subject, source: source));
-      if (list.length > _maxBookmarks) list.removeRange(_maxBookmarks, list.length);
-    }
-    await _saveQuestions(_kBookmarks, list);
-    _bump();
-    return !had;
-  }
-
-  static Future<void> removeBookmark(String key) async {
-    final list = await _loadQuestions(_kBookmarks);
-    list.removeWhere((e) => e.key == key);
-    await _saveQuestions(_kBookmarks, list);
-    _bump();
-  }
-
   // ------------------------------------------------------------- history
 
   /// Naye se purana.
@@ -558,12 +527,15 @@ class StudyStore {
     }
   }
 
-  static Future<void> _addRecord(TestRecord r) async {
+  static Future<void> _addRecord(TestRecord r, {bool countLifetime = true}) async {
     final list = await history();
     list.insert(0, r);
     if (list.length > _maxHistory) list.removeRange(_maxHistory, list.length);
     final p = await SharedPreferences.getInstance();
     await p.setString(_kHistory, jsonEncode(list.map((e) => e.toMap()).toList()));
+    // Revision Mock ke purane sawal dobara hote hain, isliye badges ke lifetime
+    // aankde (tests / 80% / 100%) nahi badhte - sirf Progress ke analysis me judta hai.
+    if (!countLifetime) return;
     await p.setInt(_kLifeTests, (p.getInt(_kLifeTests) ?? 0) + 1);
     if (r.attempted > 0 && r.scorePercent >= 80) await p.setInt(_kLifeHigh, (p.getInt(_kLifeHigh) ?? 0) + 1);
     if (r.attempted > 0 && r.scorePercent >= 100) await p.setInt(_kLifePerfect, (p.getInt(_kLifePerfect) ?? 0) + 1);
@@ -621,6 +593,28 @@ class StudyStore {
     } catch (_) {
       // Study data kabhi result screen ko rokna nahi chahiye.
     }
+  }
+
+  /// Smart Revision ka topic-wise Mock poora hone par: sirf history me jodta hai
+  /// (Progress ka analysis). Galat sawal notebook me dobara nahi jodta - schedule
+  /// RevisionStore.recordSession sambhalta hai.
+  static Future<void> recordRevisionMock({required String topic, required MockResult result}) async {
+    try {
+      await _addRecord(
+        TestRecord(
+          title: 'Revision Mock: $topic',
+          subject: topic,
+          marks: result.marks,
+          maxMarks: result.maxMarks,
+          correct: result.correct,
+          wrong: result.wrong,
+          skipped: result.unattempted,
+          at: DateTime.now(),
+        ),
+        countLifetime: false,
+      );
+      _bump();
+    } catch (_) {}
   }
 
   /// Daily Quiz poora hone par. Pehli baar (aaj) hi goal / history me gina jaata hai.

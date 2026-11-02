@@ -1,7 +1,6 @@
 import 'revision_store.dart';
 import 'speed_math_store.dart';
 import 'study_store.dart';
-import 'study_time_store.dart';
 import 'syllabus_store.dart';
 
 // =============================================================================
@@ -12,7 +11,7 @@ import 'syllabus_store.dart';
 // =============================================================================
 
 class PlanTask {
-  final String id; // quiz | revision | goal | focus | syllabus | speed
+  final String id; // quiz | revision | goal | syllabus | speed
   final String emoji;
   final String title;
   final String titleHi;
@@ -34,8 +33,7 @@ class PlanSummary {
   final List<PlanTask> tasks;
   final int daysLeft; // exam me kitne din (-1 = exam date nahi daali / nikal gayi)
   final String examName;
-  final int focusTargetMin;
-  const PlanSummary(this.tasks, this.daysLeft, this.examName, this.focusTargetMin);
+  const PlanSummary(this.tasks, this.daysLeft, this.examName);
 
   int get total => tasks.length;
   int get doneCount => tasks.where((t) => t.done).length;
@@ -46,13 +44,6 @@ class PlanSummary {
 class PlanService {
   PlanService._();
 
-  /// Exam jitna paas, padhai ka target utna zyada.
-  static int focusTargetMinutes(int daysLeft) {
-    if (daysLeft >= 0 && daysLeft <= 30) return 120;
-    if (daysLeft > 30 && daysLeft <= 90) return 90;
-    return 60;
-  }
-
   static Future<PlanSummary> build() async {
     final today = StudyStore.today();
 
@@ -61,10 +52,8 @@ class PlanService {
     final rev = await RevisionStore.overview();
     final goalTarget = await StudyStore.goalTarget();
     final goalDone = await StudyStore.goalDoneToday();
-    final focusSec = await StudyTimeStore.secondsOn(today);
     final exam = await StudyStore.readExam();
     final daysLeft = (exam.isSet && exam.daysLeft() >= 0) ? exam.daysLeft() : -1;
-    final focusMin = focusTargetMinutes(daysLeft);
     final sylExam = await SyllabusStore.selectedExam();
     final doneMap = await SyllabusStore.doneMap();
     final sylToday = doneMap.values.where((d) => d == today).length;
@@ -103,16 +92,6 @@ class PlanService {
       sub: '$goalDone / $goalTarget done (Mock tests or Free MCQs)',
       subHi: '$goalDone / $goalTarget पूरे (मॉक टेस्ट या फ्री MCQ)',
       done: goalDone >= goalTarget,
-    ));
-
-    tasks.add(PlanTask(
-      id: 'focus',
-      emoji: '⏱️',
-      title: 'Focus Time: $focusMin min',
-      titleHi: 'फोकस टाइम: $focusMin मिनट',
-      sub: 'Studied ${StudyTimeStore.fmt(focusSec)} today (Study Timer)',
-      subHi: 'आज ${StudyTimeStore.fmt(focusSec)} पढ़ाई की (स्टडी टाइमर)',
-      done: focusSec >= focusMin * 60,
     ));
 
     if (sylExam == null) {
@@ -161,6 +140,6 @@ class PlanService {
       done: speedToday >= 1,
     ));
 
-    return PlanSummary(tasks, daysLeft, exam.name, focusMin);
+    return PlanSummary(tasks, daysLeft, exam.name);
   }
 }

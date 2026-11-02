@@ -12,7 +12,7 @@ import 'study_time_store.dart';
 import 'syllabus_store.dart';
 
 // =============================================================================
-//  BackupService - student ki padhai ka data (streak, mistakes, bookmarks,
+//  BackupService - student ki padhai ka data (streak, mistakes,
 //  flashcards, revision, timer, syllabus, speed maths, notes ...) cloud me
 //  save / wapas laata hai, taaki naya phone ya app reinstall par data na jaye.
 //

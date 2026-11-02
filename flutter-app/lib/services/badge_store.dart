@@ -4,7 +4,6 @@ import 'flashcard_store.dart';
 import 'revision_store.dart';
 import 'speed_math_store.dart';
 import 'study_store.dart';
-import 'study_time_store.dart';
 import 'syllabus_store.dart';
 
 // =============================================================================
@@ -43,12 +42,10 @@ class BadgeStore {
 
   static Future<List<BadgeInfo>> evaluate() async {
     final life = await StudyStore.lifetime();
-    final focusSec = await StudyTimeStore.totalSeconds();
     final mastered = await RevisionStore.masteredCount();
     final cards = await FlashcardStore.knownCount();
     final speedRounds = await SpeedMathStore.totalRounds();
     final sylDone = await SyllabusStore.totalDone();
-    final focusMin = focusSec ~/ 60;
     return [
       BadgeInfo(id: 'first', emoji: '🌱', title: 'First Step', titleHi: 'पहला कदम', desc: 'Finish your first test or quiz', descHi: 'पहला टेस्ट या क्विज़ पूरा करें', current: life.tests, target: 1),
       BadgeInfo(id: 'streak3', emoji: '🔥', title: '3-Day Streak', titleHi: '3 दिन की स्ट्रीक', desc: 'Finish your daily goal 3 days in a row', descHi: 'लगातार 3 दिन रोज़ का लक्ष्य पूरा करें', current: life.maxStreak, target: 3),
@@ -59,8 +56,6 @@ class BadgeStore {
       BadgeInfo(id: 'q1000', emoji: '🏆', title: '1000 Questions', titleHi: '1000 सवाल', desc: 'Answer 1000 questions', descHi: '1000 सवाल हल करें', current: life.questions, target: 1000),
       BadgeInfo(id: 'high80', emoji: '🏅', title: 'Top Scorer', titleHi: 'टॉप स्कोरर', desc: 'Score 80% or more in a test', descHi: 'किसी टेस्ट में 80% या ज़्यादा लाएँ', current: life.highScores, target: 1),
       BadgeInfo(id: 'perfect', emoji: '💯', title: 'Perfect Score', titleHi: 'परफेक्ट स्कोर', desc: 'Score 100% in a test', descHi: 'किसी टेस्ट में 100% लाएँ', current: life.perfectScores, target: 1),
-      BadgeInfo(id: 'focus1h', emoji: '⏱️', title: 'Focus Starter', titleHi: 'फोकस शुरुआत', desc: 'Study 1 hour with the Study Timer (minutes)', descHi: 'स्टडी टाइमर से 1 घंटा पढ़ें (मिनट)', current: focusMin, target: 60),
-      BadgeInfo(id: 'focus10h', emoji: '🧘', title: 'Deep Focus', titleHi: 'डीप फोकस', desc: 'Study 10 hours with the Study Timer (minutes)', descHi: 'स्टडी टाइमर से 10 घंटे पढ़ें (मिनट)', current: focusMin, target: 600),
       BadgeInfo(id: 'rev10', emoji: '🔁', title: 'Revision Hero', titleHi: 'रिवीज़न हीरो', desc: 'Master 10 mistakes with Smart Revision', descHi: 'Smart Revision से 10 गलतियाँ पक्की करें', current: mastered, target: 10),
       BadgeInfo(id: 'cards20', emoji: '🃏', title: 'Flashcard Starter', titleHi: 'फ्लैशकार्ड शुरुआत', desc: 'Learn 20 flashcards', descHi: '20 फ्लैशकार्ड याद करें', current: cards, target: 20),
       BadgeInfo(id: 'cards60', emoji: '🧠', title: 'Flashcard Pro', titleHi: 'फ्लैशकार्ड प्रो', desc: 'Learn 60 flashcards', descHi: '60 फ्लैशकार्ड याद करें', current: cards > kFlashcards.length ? kFlashcards.length : cards, target: 60),

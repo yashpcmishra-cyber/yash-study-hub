@@ -1,7 +1,6 @@
 import 'activity_log.dart';
 import 'speed_math_store.dart';
 import 'study_store.dart';
-import 'study_time_store.dart';
 import 'syllabus_store.dart';
 
 // =============================================================================
@@ -19,12 +18,9 @@ class WeekTip {
 class WeeklyReport {
   final List<DateTime> dates; // purana -> aaj (7)
   final List<int> questionsPerDay;
-  final List<int> focusSecPerDay;
   final List<bool> active;
   final int questions;
   final int prevQuestions;
-  final int focusSec;
-  final int prevFocusSec;
   final int tests; // tests + daily quiz
   final double avgScore; // -1 = is hafte koi test nahi
   final double accuracy; // -1 = koi test nahi
@@ -43,12 +39,9 @@ class WeeklyReport {
   const WeeklyReport({
     required this.dates,
     required this.questionsPerDay,
-    required this.focusSecPerDay,
     required this.active,
     required this.questions,
     required this.prevQuestions,
-    required this.focusSec,
-    required this.prevFocusSec,
     required this.tests,
     required this.avgScore,
     required this.accuracy,
@@ -76,12 +69,11 @@ class WeeklyReport {
   }
 
   /// WhatsApp / Telegram par bhejne wala text.
-  String shareText(String studyFmt) {
+  String shareText() {
     final testLine = tests == 0 ? '📝 Tests & quizzes: 0' : '📝 Tests & quizzes: $tests (avg ${avgScore.round()}%)';
     return '📅 $rangeLabel\n'
         '⭐ Weekly score: $score/100 ($title)\n'
         '✅ Active days: $activeDays/7\n'
-        '⏱️ Study time: $studyFmt\n'
         '🎯 Questions: $questions\n'
         '$testLine\n'
         '📚 Syllabus topics done: $topics\n'
@@ -99,8 +91,6 @@ class _Sub {
 class WeeklyReportService {
   WeeklyReportService._();
 
-  static const int _weeklyFocusTargetSec = 7 * 3600; // roz 1 ghanta
-
   static Future<WeeklyReport> build() async {
     final newestFirst = ActivityLog.lastDays(7);
     final days = newestFirst.reversed.toList(); // purana -> aaj
@@ -115,17 +105,6 @@ class WeeklyReportService {
     final qPerDay = days.map((d) => qMap[d] ?? 0).toList();
     final questions = qPerDay.fold<int>(0, (a, b) => a + b);
     final prevQuestions = prevQMap.values.fold<int>(0, (a, b) => a + b);
-
-    // padhai ka time
-    final focusPerDay = <int>[];
-    for (final d in days) {
-      focusPerDay.add(await StudyTimeStore.secondsOn(d));
-    }
-    var prevFocus = 0;
-    for (final d in prevDays) {
-      prevFocus += await StudyTimeStore.secondsOn(d);
-    }
-    final focusSec = focusPerDay.fold<int>(0, (a, b) => a + b);
 
     // tests / quiz
     final start = dates.first;
@@ -176,7 +155,7 @@ class WeeklyReportService {
     final active = <bool>[];
     for (var i = 0; i < 7; i++) {
       final d = days[i];
-      active.add(qPerDay[i] > 0 || focusPerDay[i] > 0 || testDays.contains(d) || topicDays.contains(d) || speedDayRounds.contains(d));
+      active.add(qPerDay[i] > 0 || testDays.contains(d) || topicDays.contains(d) || speedDayRounds.contains(d));
     }
     final activeDays = active.where((a) => a).length;
 
@@ -184,11 +163,10 @@ class WeeklyReportService {
     final goal = await StudyStore.goalTarget();
 
     // weekly score (0..100)
-    final focusPart = (focusSec / _weeklyFocusTargetSec).clamp(0.0, 1.0).toDouble();
     final qTarget = 7 * goal;
     final qPart = qTarget <= 0 ? 0.0 : (questions / qTarget).clamp(0.0, 1.0).toDouble();
     final testPart = (tests / 2).clamp(0.0, 1.0).toDouble();
-    final score = (activeDays / 7 * 40 + focusPart * 25 + qPart * 25 + testPart * 10).round().clamp(0, 100).toInt();
+    final score = (activeDays / 7 * 50 + qPart * 35 + testPart * 15).round().clamp(0, 100).toInt();
 
     String emoji;
     String title;
@@ -220,9 +198,6 @@ class WeeklyReportService {
     if (activeDays < 4) {
       tips.add(const WeekTip('Study at least 5 days a week to build a habit.', 'आदत बनाने के लिए हफ़्ते में कम से कम 5 दिन पढ़ें।'));
     }
-    if (focusSec < 7 * 45 * 60) {
-      tips.add(const WeekTip('Aim for 1 hour of Study Timer focus every day.', 'रोज़ स्टडी टाइमर से 1 घंटा फोकस करने का लक्ष्य रखें।'));
-    }
     if (tests == 0) {
       tips.add(const WeekTip('Take at least one mock test or quiz to measure yourself.', 'खुद को परखने के लिए कम से कम 1 मॉक टेस्ट या क्विज़ दें।'));
     }
@@ -242,12 +217,9 @@ class WeeklyReportService {
     return WeeklyReport(
       dates: dates,
       questionsPerDay: qPerDay,
-      focusSecPerDay: focusPerDay,
       active: active,
       questions: questions,
       prevQuestions: prevQuestions,
-      focusSec: focusSec,
-      prevFocusSec: prevFocus,
       tests: tests,
       avgScore: avgScore,
       accuracy: accuracy,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/models.dart';
 import 'study_store.dart';
 import 'xp_store.dart';
 
@@ -37,6 +38,16 @@ class RevisionOverview {
     this.nextDue,
     this.mastered = 0,
   });
+}
+
+/// Ek topic (subject) ke saare galat sawal - topic-wise Revision Mock ke liye.
+class RevisionTopic {
+  final String name; // subject ka naam (khali subject = "General")
+  final List<SavedQuestion> items; // jo sawal aaj due hain wo pehle
+  final int due; // inme se aaj kitne due hain
+  const RevisionTopic(this.name, this.items, this.due);
+
+  int get count => items.length;
 }
 
 class RevisionStore {
@@ -108,6 +119,49 @@ class RevisionStore {
     return items.take(limit).map((e) => e.saved).toList();
   }
 
+  /// Galat sawal topic (subject) ke hisaab se - sabse zyada galtiyon wala topic pehle.
+  static Future<List<RevisionTopic>> topics() async {
+    final today = StudyStore.today();
+    final items = await _items();
+    final groups = <String, List<RevisionItem>>{};
+    final names = <String, String>{};
+    for (final e in items) {
+      final raw = e.saved.subject.trim();
+      final name = raw.isEmpty ? 'General' : raw;
+      final k = name.toLowerCase();
+      names.putIfAbsent(k, () => name);
+      groups.putIfAbsent(k, () => <RevisionItem>[]).add(e);
+    }
+    final out = <RevisionTopic>[];
+    groups.forEach((k, list) {
+      list.sort(_byDue);
+      out.add(RevisionTopic(
+        names[k] ?? k,
+        list.map((e) => e.saved).toList(),
+        list.where((e) => e.due.compareTo(today) <= 0).length,
+      ));
+    });
+    out.sort((a, b) => b.count.compareTo(a.count));
+    return out;
+  }
+
+  /// Topic ke galat sawalon se ek asli Mock Test banata hai (MCQ format): har galat
+  /// sawal ek MCQ, har sawal ke liye 1 minute ka timer, +1 sahi par, negative nahi.
+  /// Ye sirf phone me banta hai - Firestore me kuch save nahi hota.
+  static MockTestModel buildMock(String topic, List<SavedQuestion> items) {
+    final qs = items.map((e) => e.question).toList();
+    return MockTestModel(
+      id: 'revision-${topic.toLowerCase().replaceAll(RegExp(r'\s+'), '-')}',
+      folderId: '',
+      title: 'Revision Mock: $topic',
+      questions: qs,
+      durationMinutes: qs.length < 5 ? 5 : qs.length,
+      marksPerQuestion: 1,
+      negativeMarks: 0,
+      subject: topic,
+    );
+  }
+
   static Future<int> dueCount() async {
     final t = StudyStore.today();
     final items = await _items();
@@ -145,10 +199,13 @@ class RevisionStore {
 
   /// Revision session khatam hone par. [scheduled] = false ho (extra practice)
   /// to schedule nahi badalta, sirf goal me sawal gine jaate hain.
+  /// [respectSchedule] = true (topic-wise Mock): galat jawab hamesha step 1 par
+  /// bhejta hai, par sahi jawab sirf unhi sawalon ko aage badhata hai jo due the.
   static Future<void> recordSession({
     required List<SavedQuestion> items,
     required List<int?> answers,
     required bool scheduled,
+    bool respectSchedule = false,
   }) async {
     try {
       final p = await SharedPreferences.getInstance();
@@ -160,6 +217,7 @@ class RevisionStore {
       }
       var answered = 0;
       var mastered = 0;
+      final today = StudyStore.today();
       final toRemove = <String>[];
       for (var i = 0; i < items.length; i++) {
         final given = i < answers.length ? answers[i] : null;
@@ -171,6 +229,8 @@ class RevisionStore {
         final ms = it.saved.savedAt.millisecondsSinceEpoch;
         final correct = given == items[i].question.correctIndex;
         if (correct) {
+          // Mock me jo sawal abhi due nahi tha, uska schedule nahi badalta (gap bana rahe).
+          if (respectSchedule && it.due.compareTo(today) > 0) continue;
           final next = it.box + 1;
           if (next >= intervals.length) {
             mastered++;
