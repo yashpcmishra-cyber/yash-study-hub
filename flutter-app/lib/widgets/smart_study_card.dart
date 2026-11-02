@@ -7,7 +7,6 @@ import '../screens/weekly_report_screen.dart';
 import '../services/plan_service.dart';
 import '../services/speed_math_store.dart';
 import '../services/study_store.dart';
-import '../services/study_time_store.dart';
 import '../services/syllabus_store.dart';
 import '../services/weekly_report_service.dart';
 
@@ -33,7 +32,6 @@ class _SmartStudyCardState extends State<SmartStudyCard> {
   void initState() {
     super.initState();
     StudyStore.changes.addListener(_reload);
-    StudyTimeStore.changes.addListener(_reload);
     SyllabusStore.changes.addListener(_reload);
     SpeedMathStore.changes.addListener(_reload);
     _reload();
@@ -42,7 +40,6 @@ class _SmartStudyCardState extends State<SmartStudyCard> {
   @override
   void dispose() {
     StudyStore.changes.removeListener(_reload);
-    StudyTimeStore.changes.removeListener(_reload);
     SyllabusStore.changes.removeListener(_reload);
     SpeedMathStore.changes.removeListener(_reload);
     super.dispose();

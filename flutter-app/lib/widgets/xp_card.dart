@@ -44,7 +44,6 @@ class _XpCardState extends State<XpCard> {
       ['📰', 'Daily Quiz / डेली क्विज़', '+15'],
       ['🎯', 'Daily goal done / रोज़ का लक्ष्य पूरा', '+25'],
       ['🔥', 'Streak day / स्ट्रीक का दिन', '+11 … +40'],
-      ['⏱️', 'Study Timer / स्टडी टाइमर', '+1 / min'],
       ['🔁', 'Fix a mistake / गलती सुधारी', '+5'],
       ['⚡', 'Speed Maths round / राउंड', '+5'],
       ['🃏', 'New flashcard learned / नया कार्ड', '+2'],
