@@ -6,8 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppTheme {
   AppTheme._();
 
-  /// true = Light theme, false = Dark theme (default).
-  static final ValueNotifier<bool> light = ValueNotifier<bool>(false);
+  /// true = Light theme (default), false = Dark theme.
+  /// Jis student ne pehle kabhi theme badli hai, uski choice saved rehti hai.
+  static final ValueNotifier<bool> light = ValueNotifier<bool>(true);
 
   static bool get isLight => light.value;
 
@@ -26,9 +27,10 @@ class AppTheme {
     }
     try {
       final prefs = await SharedPreferences.getInstance();
-      light.value = prefs.getBool(_prefKey) ?? false;
+      // Kabhi choice nahi ki -> Light (default).
+      light.value = prefs.getBool(_prefKey) ?? true;
     } catch (_) {
-      // Padh nahi paya to Dark theme hi rahegi.
+      // Padh nahi paya to Light theme hi rahegi.
     }
   }
 
