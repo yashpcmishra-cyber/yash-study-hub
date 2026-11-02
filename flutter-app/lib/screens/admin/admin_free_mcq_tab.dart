@@ -267,7 +267,7 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
         padding: const EdgeInsets.all(14),
         children: [
           Text(
-            'Exam folders of the Free MCQs section. Students see these folders; each one gets 3 subjects (Static GK, General Science, General Studies) with a new 25-question set every WEEK. The "English" folder is built in: it gets only 25 Banking PO / Clerk English MCQs every week (easy + moderate + hard, no GK / Science / GS) and cannot be removed. Sets older than 2 months are deleted automatically (database and students' phones).',
+            'Exam folders of the Free MCQs section. Students see these folders; each one gets 3 subjects (Static GK, General Science, General Studies) with a new 25-question set every WEEK. The "English" folder is built in: it gets only 25 Banking PO / Clerk English MCQs every week (easy + moderate + hard, no GK / Science / GS) and cannot be removed. Sets older than 2 months are deleted automatically (database and students\u2019 phones).',
             style: TextStyle(color: AppC.muted, fontSize: 12.5),
           ),
           const SizedBox(height: 12),
