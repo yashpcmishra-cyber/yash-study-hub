@@ -676,6 +676,35 @@ class FirestoreService {
     return agg.count ?? 0;
   }
 
+  // ---- Registered students (App + Web signups, counts only) ----
+  // Both the App and the Web sign-up write students/{uid}. `source` says where
+  // the account was created ('app' / 'web'); `createdAt` says when. Students
+  // created before this field existed have neither, so "App" is worked out as
+  // total - web instead of being counted directly.
+  Future<void> markSignupSource(String uid, String source) => _db
+      .collection('students')
+      .doc(uid)
+      .set({'source': source, 'createdAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+
+  Future<int> studentCount() async {
+    final agg = await _db.collection('students').count().get();
+    return agg.count ?? 0;
+  }
+
+  Future<int> studentCountFromSource(String source) async {
+    final agg = await _db.collection('students').where('source', isEqualTo: source).count().get();
+    return agg.count ?? 0;
+  }
+
+  Future<int> studentsSignedUpSince(DateTime since) async {
+    final agg = await _db
+        .collection('students')
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+        .count()
+        .get();
+    return agg.count ?? 0;
+  }
+
   // ---- PDF folders (Free PDFs vs Paid Batch PDFs) ----
   // batchId given = the folders shown inside that paid batch. A folder can
   // be in up to 3 batches (field `batchIds`); folders made before that only
