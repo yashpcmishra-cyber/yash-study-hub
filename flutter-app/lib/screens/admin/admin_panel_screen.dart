@@ -236,6 +236,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   late final Stream<List<BannerModel>> _bannersStream = _fs.streamBanners();
   late Future<int> _installFuture;
   late Future<List<int>> _activeFuture; // [active today, last 7 days, last 30 days]
+  late Future<List<int>> _studentsFuture; // [total, web, today, 7 days, 30 days] signups
 
   File? _batchIconFile;
   File? _appLogoFile;
@@ -276,6 +277,20 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     _tabs = TabController(length: 12, vsync: this);
     _installFuture = _fs.installCount();
     _activeFuture = _loadActiveCounts();
+    _studentsFuture = _loadStudentCounts();
+  }
+
+  // Registered students: [total, web signups, signed up today, last 7 days, last 30 days].
+  // App signups = total - web (older accounts have no `source` field).
+  Future<List<int>> _loadStudentCounts() {
+    final n = DateTime.now();
+    return Future.wait([
+      _fs.studentCount(),
+      _fs.studentCountFromSource('web'),
+      _fs.studentsSignedUpSince(DateTime(n.year, n.month, n.day)),
+      _fs.studentsSignedUpSince(DateTime(n.year, n.month, n.day - 6)),
+      _fs.studentsSignedUpSince(DateTime(n.year, n.month, n.day - 29)),
+    ]);
   }
 
   // Phones that opened the app today / in the last 7 days / in the last 30 days
@@ -559,10 +574,60 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     void refresh() => setState(() {
           _installFuture = _fs.installCount();
           _activeFuture = _loadActiveCounts();
+          _studentsFuture = _loadStudentCounts();
         });
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        DepthCard(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: FutureBuilder<List<int>>(
+              future: _studentsFuture,
+              builder: (context, snap) {
+                final loading = snap.connectionState != ConnectionState.done;
+                final ok = !loading && !snap.hasError && snap.data != null;
+                String v(int i) => loading ? '...' : (ok ? '${snap.data![i]}' : '?');
+                // App signups = total - web (older accounts have no source tag).
+                final appCount = ok ? '${(snap.data![0] - snap.data![1]).clamp(0, 1 << 31)}' : (loading ? '...' : '?');
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Icon(Icons.how_to_reg, color: AppC.accent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Registered students (App + Web)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  ]),
+                  const SizedBox(height: 14),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    statColumn(v(0), 'Total'),
+                    statColumn(appCount, 'From App'),
+                    statColumn(v(1), 'From Web'),
+                  ]),
+                  const SizedBox(height: 14),
+                  Text('New signups', style: TextStyle(color: AppC.muted, fontSize: 12)),
+                  const SizedBox(height: 8),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    statColumn(v(2), 'Today'),
+                    statColumn(v(3), 'Last 7 days'),
+                    statColumn(v(4), 'Last 30 days'),
+                  ]),
+                  if (snap.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text('Could not load the count: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 11)),
+                    ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Counts only, no personal info. Accounts made before this update have no date, so they are in Total but not in "New signups". / पुराने अकाउंट Total में गिने जाते हैं, "New signups" में नहीं।',
+                    style: TextStyle(color: AppC.muted, fontSize: 11),
+                  ),
+                ]);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         DepthCard(
           child: Padding(
             padding: const EdgeInsets.all(16),
