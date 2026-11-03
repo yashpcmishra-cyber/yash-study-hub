@@ -73,6 +73,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     try {
       final uid = _auth.currentUser!.uid;
       await _fs.saveStudentProfile(StudentModel(uid: uid, name: name, email: email, profileComplete: false));
+      // Tag where this account came from (Admin Panel > Stats: App vs Web signups).
+      await _fs.markSignupSource(uid, 'app');
     } catch (_) {
       // Not fatal — ProfileScreen will just start from blank fields.
     }
