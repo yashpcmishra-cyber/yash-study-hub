@@ -47,6 +47,22 @@ class NotifyPrefs {
     return true;
   }
 
+  /// Choice sirf phone mein yaad rakho (subscribe/unsubscribe ki koshish nahi).
+  /// Signup ke waqt internet slow ho to bhi choice kho nahi jaati - agli app
+  /// start par resubscribeSaved() use subscribe kar deta hai.
+  static Future<void> remember(String topic, bool on) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final s = (p.getStringList(_kTopics) ?? <String>[]).toSet();
+      if (on) {
+        s.add(topic);
+      } else {
+        s.remove(topic);
+      }
+      await p.setStringList(_kTopics, s.toList());
+    } catch (_) {}
+  }
+
   /// App start par: saved topics dobara subscribe (kuch fail ho to agli baar phir try hoga).
   static Future<void> resubscribeSaved() async {
     final saved = await load();
