@@ -4,8 +4,8 @@
  *
  * 1) Student notifications: checks Firestore for any notification the admin
  *    sent that hasn't been pushed yet, sends it to the "all_students" topic
- *    (or to the "exam_<id>" topic when the admin picked one exam), then marks
- *    it "sent" so it's never sent twice.
+ *    (or to one "exam_..." topic when the admin picked a single exam), then
+ *    marks it "sent" so it's never sent twice.
  * 2) Admin alert: when a student sends a new query (a doubt), sends ONE push
  *    to the "admin_alerts" topic (only the admin's phone is subscribed, from
  *    Admin Panel) and marks those queries "adminNotified" so they are never
@@ -31,24 +31,17 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
 const MAX_ATTEMPTS = 5;
-// Exam groups = FCM topics exam_<id>. Keep in sync with kExamGroups in the app
-// (flutter-app/lib/services/exam_topics.dart).
-const EXAM_IDS = ["ssc", "banking", "railway", "up"];
-
-// "all" (or a missing field, like on old notifications) -> every student.
-// An exam id -> only students who chose that exam at signup / in Profile.
+// The admin can send a notification to ONE exam only. The app saves that choice
+// in the notification's "topic" field (for example "exam_bank_po"). Students
+// subscribe to these topics in the app (signup / Profile / Notifications >
+// settings). An empty or missing "topic" (all old notifications) means EVERY
+// student, through the "all_students" topic.
 function topicFor(data) {
-  const audience = String(data.audience || "all").trim().toLowerCase();
-  if (audience === "all" || audience === "") return "all_students";
-  if (EXAM_IDS.includes(audience)) return `exam_${audience}`;
-  throw new Error(`Unknown audience "${audience}"`);
+  const topic = String(data.topic || "").trim();
+  if (topic === "") return "all_students";
+  if (/^exam_[a-z0-9_]+$/.test(topic)) return topic;
+  throw new Error(`Unknown topic "${topic}"`);
 }
-// Only queries from the last 2 days are announced, so old unanswered queries
-// never trigger a confusing alert.
-const QUERY_WINDOW_MS = 48 * 60 * 60 * 1000;
-// Same idea for grant requests (7 days), so an old forgotten request can
-// never trigger a confusing alert.
-const REQUEST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function sendStudentNotifications() {
   const snap = await db.collection("notifications").where("sent", "==", false).get();
