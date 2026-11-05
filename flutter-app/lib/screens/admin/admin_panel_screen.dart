@@ -6,9 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../services/admin_session.dart';
 import '../../services/auth_service.dart';
-import '../../services/exam_topics.dart';
 import '../../services/firestore_service.dart';
 import '../../services/image_upload_service.dart';
+import '../../data/notify_topics.dart';
 import '../../models/models.dart';
 import '../../utils/open_link.dart';
 import '../../widgets/depth_card.dart';
@@ -257,7 +257,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   final _grantMonthsCtrl = TextEditingController(); // Manual grant: months override, empty = batch default
   final _notifyTitleCtrl = TextEditingController();
   final _notifyBodyCtrl = TextEditingController();
-  String _notifyAudience = 'all'; // 'all' ya exam id (ssc / banking / railway / up)
+  String _notifyTopic = ''; // khali = sabhi students, warna exam topic (exam_bank_po ...)
   final _brandAppNameCtrl = TextEditingController();
   final _brandTaglineCtrl = TextEditingController();
   final _brandUpiCtrl = TextEditingController();
@@ -1498,7 +1498,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
       return;
     }
     try {
-      await _fs.sendNotification(title, body, audience: _notifyAudience).timeout(const Duration(seconds: 12));
+      await _fs.sendNotification(title, body, topic: _notifyTopic).timeout(const Duration(seconds: 12));
       _notifyTitleCtrl.clear();
       _notifyBodyCtrl.clear();
       _snack('Saved \u2014 students\u2019 phones will get the push notification shortly. / सेव हो गया \u2014 छात्रों के फ़ोन पर पुश नोटिफ़िकेशन जल्द पहुँच जाएगा।');
@@ -1514,15 +1514,15 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         Text('Send a notification to students\u2019 phones', style: TextStyle(color: AppC.muted, fontSize: 12)),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          value: _notifyAudience,
+          value: _notifyTopic,
           dropdownColor: AppC.card,
           style: TextStyle(color: AppC.text),
           decoration: InputDecoration(labelText: 'Send to / किसे भेजें', labelStyle: TextStyle(color: AppC.muted)),
           items: [
-            const DropdownMenuItem(value: 'all', child: Text('All students / सभी छात्र')),
-            for (final g in kExamGroups) DropdownMenuItem(value: g.id, child: Text('${g.emoji} ${g.en} students')),
+            const DropdownMenuItem(value: '', child: Text('All students / सभी छात्र')),
+            for (final g in kExamTopics) DropdownMenuItem(value: g.id, child: Text('${g.emoji} ${g.en} students')),
           ],
-          onChanged: (v) => setState(() => _notifyAudience = v ?? 'all'),
+          onChanged: (v) => setState(() => _notifyTopic = v ?? ''),
         ),
         const SizedBox(height: 6),
         TextField(controller: _notifyTitleCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Notification title', labelStyle: TextStyle(color: AppC.muted))),
@@ -1530,7 +1530,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         const SizedBox(height: 10),
         ElevatedButton(
           onPressed: _sendNotification,
-          child: Text(_notifyAudience == 'all' ? 'Send to all students' : 'Send to ${kExamGroups.firstWhere((g) => g.id == _notifyAudience).en} students'),
+          child: Text(_notifyTopic.isEmpty ? 'Send to all students' : 'Send to ${examLabelForTopic(_notifyTopic) ?? 'selected'} students'),
         ),
         const SizedBox(height: 10),
         Text(
