@@ -448,6 +448,8 @@ class StudentModel {
   final String qualification;
   final bool profileComplete;
   final DateTime? createdAt;
+  // Notification ke liye chune hue exams: ssc / banking / railway / up
+  final List<String> exams;
 
   StudentModel({
     required this.uid,
@@ -459,6 +461,7 @@ class StudentModel {
     this.qualification = '',
     this.profileComplete = false,
     this.createdAt,
+    this.exams = const [],
   });
 
   factory StudentModel.fromMap(String uid, Map<String, dynamic> m) => StudentModel(
@@ -471,6 +474,7 @@ class StudentModel {
         qualification: m['qualification'] ?? '',
         profileComplete: m['profileComplete'] == true,
         createdAt: _dt(m['createdAt']),
+        exams: m['exams'] is List ? (m['exams'] as List).map((e) => e.toString()).toList() : const [],
       );
 
   Map<String, dynamic> toMap() => {
@@ -481,6 +485,7 @@ class StudentModel {
         'gender': gender,
         'qualification': qualification,
         'profileComplete': profileComplete,
+        'exams': exams,
       };
 
   StudentModel copyWith({
@@ -490,6 +495,7 @@ class StudentModel {
     String? gender,
     String? qualification,
     bool? profileComplete,
+    List<String>? exams,
   }) =>
       StudentModel(
         uid: uid,
@@ -501,6 +507,7 @@ class StudentModel {
         qualification: qualification ?? this.qualification,
         profileComplete: profileComplete ?? this.profileComplete,
         createdAt: createdAt,
+        exams: exams ?? this.exams,
       );
 }
 
@@ -509,14 +516,17 @@ class NotificationModel {
   final String title;
   final String body;
   final DateTime? sentAt;
+  // 'all' ya exam id (ssc / banking / railway / up). Purani notifications mein field nahi hota = 'all'.
+  final String audience;
 
-  NotificationModel({required this.id, required this.title, required this.body, this.sentAt});
+  NotificationModel({required this.id, required this.title, required this.body, this.sentAt, this.audience = 'all'});
 
   factory NotificationModel.fromMap(String id, Map<String, dynamic> m) => NotificationModel(
         id: id,
         title: m['title'] ?? '',
         body: m['body'] ?? '',
         sentAt: _dt(m['sentAt']),
+        audience: (m['audience'] ?? 'all').toString(),
       );
 }
 
