@@ -4,6 +4,7 @@ import '../../app_globals.dart';
 import '../../models/models.dart';
 import '../../services/account_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/exam_topics.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/open_link.dart';
 import '../auth/login_screen.dart';
@@ -45,6 +46,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _state;
   String? _gender;
   String? _qualification;
+  List<String> _exams = [];
+  bool _examsTouched = false;
   String _email = '';
   bool _loading = true;
   bool _saving = false;
@@ -75,6 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _district.text = profile.district;
           _state = profile.state.isNotEmpty ? profile.state : null;
           _gender = profile.gender.isNotEmpty ? profile.gender : null;
+          _exams = List<String>.from(profile.exams);
           if (profile.qualification.isNotEmpty) {
             if (kQualifications.contains(profile.qualification)) {
               _qualification = profile.qualification;
@@ -88,6 +92,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       // Offline — form just starts blank/last-known; Save will retry.
     }
+    // Cloud mein exams na mile to is phone par saved choice lo.
+    if (_exams.isEmpty) _exams = List<String>.from(await ExamTopics.load());
     if (!mounted) return;
     setState(() => _loading = false);
   }
@@ -98,6 +104,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final qualMissingOther = _qualification == 'Other' && _qualOther.text.trim().isEmpty;
     if (name.isEmpty || _state == null || district.isEmpty || _gender == null || _qualification == null || qualMissingOther) {
       setState(() => _error = 'Please fill in all fields. / सारी जानकारी भरें।');
+      return;
+    }
+    if (widget.isSetup && _exams.isEmpty) {
+      setState(() => _error = 'Please choose at least one exam. / कम से कम एक परीक्षा चुनें।');
       return;
     }
     setState(() {
@@ -116,7 +126,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         gender: _gender!,
         qualification: qual,
         profileComplete: true,
+        exams: _exams,
       ));
+      // Exam topics (notifications) badlo - sirf tab jab student ne chuna/badla ho.
+      if (widget.isSetup || _examsTouched) await ExamTopics.setExams(_exams, syncCloud: false);
       await syncLocalStudentIdentity(_email, name);
       if (!mounted) return;
       if (widget.isSetup) {
@@ -298,6 +311,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 14),
                         TextField(controller: _qualOther, style: TextStyle(color: AppC.text), decoration: _dec('Please specify', Icons.edit_outlined)),
                       ],
+                      const SizedBox(height: 18),
+                      Text(widget.isSetup ? 'Your exam(s) * / आपकी परीक्षा *' : 'Your exam(s) / आपकी परीक्षा', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      const SizedBox(height: 2),
+                      Text('You will get notifications for these exams only. / आपको इन्हीं परीक्षाओं की नोटिफ़िकेशन मिलेंगी।', style: TextStyle(color: AppC.muted, fontSize: 11.5)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          for (final g in kExamGroups)
+                            FilterChip(
+                              label: Text('${g.emoji} ${g.en}', style: TextStyle(color: AppC.text, fontSize: 12.5)),
+                              selected: _exams.contains(g.id),
+                              selectedColor: AppC.goldWash2,
+                              backgroundColor: AppC.chip,
+                              checkmarkColor: AppC.text,
+                              onSelected: (v) => setState(() {
+                                _examsTouched = true;
+                                if (v) {
+                                  if (!_exams.contains(g.id)) _exams.add(g.id);
+                                } else {
+                                  _exams.remove(g.id);
+                                }
+                              }),
+                            ),
+                        ],
+                      ),
                       if (_error != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 16),
