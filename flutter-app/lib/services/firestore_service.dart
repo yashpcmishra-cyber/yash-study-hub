@@ -744,9 +744,15 @@ class FirestoreService {
   // "sent: false" lets the free GitHub Actions script (or the paid Cloud
   // Function, if you deploy that instead) find this and push it via FCM,
   // then flip it to true so it's never sent twice.
-  // audience: 'all' (sab students) ya exam id: ssc / banking / railway / up
-  Future<void> sendNotification(String title, String body, {String audience = 'all'}) =>
-      _db.collection('notifications').add({'title': title, 'body': body, 'audience': audience, 'sent': false, 'sentAt': FieldValue.serverTimestamp()});
+  // [topic] khali = sabhi students; 'exam_...' = sirf us exam ke students
+  // (send-notifications.js usi FCM topic par bhejta hai).
+  Future<void> sendNotification(String title, String body, {String topic = ''}) => _db.collection('notifications').add({
+        'title': title,
+        'body': body,
+        if (topic.isNotEmpty) 'topic': topic,
+        'sent': false,
+        'sentAt': FieldValue.serverTimestamp(),
+      });
 
   Stream<List<NotificationModel>> streamNotifications() {
     // App only shows the last 1 day of notifications. This is just a display
