@@ -9,8 +9,12 @@ import 'app_globals.dart';
 import 'firebase_options.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/app_monitor.dart';
+import 'services/exam_topics.dart';
 import 'services/firestore_service.dart';
+import 'services/remote_flags.dart';
 import 'widgets/landscape_frame.dart';
+import 'widgets/maintenance_gate.dart';
 import 'widgets/space_background.dart';
 
 void _openNotificationsScreen() {
@@ -69,6 +73,9 @@ Future<void> _setupNotifications() async {
     // message to this topic and it reaches every student's phone. No need
     // to manage individual device tokens.
     await messaging.subscribeToTopic('all_students');
+    // Student ne signup / profile mein jo exam(s) chune, un sabke topics
+    // (exam_ssc, exam_banking, exam_railway, exam_up) bhi subscribe karo.
+    await ExamTopics.resubscribe();
   } catch (_) {
     // e.g. no internet on first launch — it is tried again on the next launch.
   }
@@ -117,6 +124,10 @@ Future<void> main() async {
     runApp(StartupErrorApp(error: e.toString()));
     return;
   }
+  // Crash reports + Analytics, aur Remote Config (maintenance / feature switches).
+  // Dono apne andar try/catch hain aur network ka intezaar nahi karte.
+  await AppMonitor.init();
+  await RemoteFlags.init();
   await _checkLaunchedFromNotification();
   // Fire-and-forget: these do network calls and must not delay the first
   // frame.
@@ -192,6 +203,7 @@ class YashStudyHubApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: appNavigatorKey,
       scaffoldMessengerKey: appMessengerKey,
+      navigatorObservers: [AppMonitor.observer], // Analytics: screen views
       // Space background poori app ke peeche (taare, chaand, asteroids).
       // Screens ka background transparent hai, isliye ye sab par dikhta hai.
       // Light theme me ye saaf safed background ban jaata hai.
@@ -202,7 +214,8 @@ class YashStudyHubApp extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               const SpaceBackground(),
-              child ?? const SizedBox.shrink(),
+              // Maintenance patti (Remote Config) poori app ke upar.
+              MaintenanceGate(child: child ?? const SizedBox.shrink()),
               // Light theme: status bar wali jagah bhi navy (top patti ka hissa).
               const _TopBarStrip(),
             ],
