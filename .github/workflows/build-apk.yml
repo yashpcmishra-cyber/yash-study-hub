@@ -167,10 +167,13 @@ jobs:
         # continue-on-error: if this FULL build fails, the next step rebuilds
         # in SAFE MODE so you still get a working APK (see tools/safe_mode.py).
         id: full_build
+        # NOTE: --obfuscate / --split-debug-info were removed on purpose. With them,
+        # Firebase Crashlytics shows unreadable crash traces and Analytics shows
+        # scrambled screen names. To go back, add them again after "--release".
         continue-on-error: true
         env:
           IMAGE_UPLOAD_TOKEN: ${{ secrets.IMAGE_UPLOAD_TOKEN }}
-        run: flutter build apk --release --obfuscate --split-debug-info=build/symbols --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
+        run: flutter build apk --release --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
 
       # Safety net. Runs ONLY when the full build above failed. Switches off
       # the two newest add-ons (in-app PDF viewer + Firebase google-services)
@@ -216,7 +219,7 @@ jobs:
               for p in changed:
                   print(" ", p)
           PYEOF
-          flutter build apk --release --obfuscate --split-debug-info=build/symbols --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
+          flutter build apk --release --dart-define=IMAGE_UPLOAD_TOKEN="$IMAGE_UPLOAD_TOKEN"
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
