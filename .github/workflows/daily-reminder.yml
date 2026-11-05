@@ -1,0 +1,29 @@
+name: Daily Study Reminder (free, no Blaze needed)
+
+on:
+  schedule:
+    - cron: '30 13 * * *'   # 7:00 PM India time (GitHub may run it a few minutes late)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-reminder
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node send-daily-reminder.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
