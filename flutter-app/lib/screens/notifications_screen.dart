@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/content_seen_store.dart';
+import '../services/exam_topics.dart';
 import '../services/firestore_service.dart';
 import '../models/models.dart';
 import '../widgets/depth_card.dart';
@@ -28,7 +29,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         builder: (context, snap) {
           if (snap.hasError) return ErrorView(error: snap.error);
           if (!snap.hasData) return const LoadingView();
-          final items = snap.data!;
+          // Sirf sabke liye wali + mere chune hue exam wali notifications.
+          final items = ExamTopics.visibleTo(snap.data!);
           if (items.isEmpty) return const EmptyView('No notifications yet');
           // The student is looking at the list = these are seen
           // (clears the red dot on the Home bell). List is newest first.

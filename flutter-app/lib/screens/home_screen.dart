@@ -7,6 +7,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_globals.dart';
 import '../services/content_seen_store.dart';
+import '../services/app_monitor.dart';
+import '../services/exam_topics.dart';
+import '../services/remote_flags.dart';
 import '../services/firestore_service.dart';
 import '../services/queries_service.dart';
 import '../services/query_seen_store.dart';
@@ -131,6 +134,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadSeen();
     ContentSeenStore.seen.addListener(_onSeenChanged);
     ContentSeenStore.load();
+    // Remote Config badle (feature on/off) to tiles dobara bane.
+    RemoteFlags.changes.addListener(_onSeenChanged);
+    // Jisne abhi tak exam nahi chuna usse ek baar poochho (notifications ke liye).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ExamTopics.askIfNeeded(context);
+    });
     _loadStudentName();
     _loadQuizDone();
     StudyStore.changes.addListener(_loadQuizDone);
@@ -148,6 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     ContentSeenStore.seen.removeListener(_onSeenChanged);
+    RemoteFlags.changes.removeListener(_onSeenChanged);
     StudyStore.changes.removeListener(_loadQuizDone);
     super.dispose();
   }
@@ -168,6 +178,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _goTab(int i) {
     if (i == 2) _seenGrid('pdfs');
     setState(() => _tab = i);
+    // Analytics: bottom tabs bhi 'screens' ki ginti mein aate hain.
+    const tabNames = ['HomeTab', 'NewsTab', 'PdfLibraryTab', 'CurrentAffairsTab', 'ProfileTab'];
+    if (i >= 0 && i < tabNames.length) AppMonitor.screen(tabNames[i]);
   }
 
   // The app logo at the top-left of the header doubles as the hidden Admin
@@ -408,6 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisSpacing: gap,
                           childAspectRatio: cellW / cellH,
                           children: [
+                            if (RemoteFlags.on('feature_mock_tests'))
                             _quickAccessCard(
                               '📝',
                               'Mock Tests',
@@ -417,17 +431,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                               dot: ContentSeenStore.unread('mocks', upd?.mocks),
                             ),
+                            if (RemoteFlags.on('feature_pdf_library'))
                             _quickAccessCard(
                               '📚',
                               'PDF Library',
                               () => _goTab(2),
                               dot: ContentSeenStore.unread('pdfs', upd?.pdfs),
                             ),
+                            if (RemoteFlags.on('feature_free_mcqs'))
                             _quickAccessCard(
                               '\u{2705}',
                               'Free MCQs',
                               () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FreeMcqsScreen())),
                             ),
+                            if (RemoteFlags.on('feature_batches'))
                             _quickAccessCard(
                               '🎓',
                               'Paid Batches',
@@ -450,6 +467,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 dot: QuerySeenStore.hasUnread(qSnap.data ?? const <QueryModel>[], _seenReplies),
                               ),
                             ),
+                            if (RemoteFlags.on('feature_daily_quiz'))
                             _quickAccessCard(
                               '\u{1F9E0}',
                               'Daily Quiz',
