@@ -28,6 +28,7 @@ What it does (safe to run again and again):
      is generated from lib/firebase_options.dart, so there is one source of
      truth). If anything about the Gradle files looks unexpected, step 5b is
      skipped completely - nothing is half-applied.
+  5c. Crashlytics: adds the Firebase Crashlytics Gradle plugin (crash reports) on top of 5b.
   6. STABLE SIGNING: if the CI workflow has already written
      android/key.properties (from the ANDROID_KEYSTORE_BASE64 /
      ANDROID_KEYSTORE_PASSWORD secrets), release builds are signed with that
@@ -56,6 +57,7 @@ MIN_SDK = 23
 COMPAT_SDK = 36  # file_picker's flutter_plugin_android_lifecycle dependency now requires >=36
 
 
+CRASHLYTICS_PLUGIN_VERSION = "3.0.7"  # Firebase Crashlytics Gradle plugin (needs AGP 8.1+ and google-services 4.4.1+)
 GMS_PLUGIN_VERSION = "4.4.2"  # 4.3.x can crash under AGP 8+; 4.4.x is the AGP-8-safe line
 KOTLIN_VERSION = "2.2.20"  # confirmed minimum from Flutter's own "Kotlin version too old" build warning
 
@@ -163,6 +165,57 @@ def setup_google_services(root, android_dir, app_gradle_path):
     with open(app_gradle_path, "w", encoding="utf-8") as f:
         f.write(app_text)
     return "done (google-services.json created + plugin %s applied)" % GMS_PLUGIN_VERSION
+
+
+def setup_crashlytics(android_dir, app_gradle_path):
+    """Step 5c. Adds the Firebase Crashlytics Gradle plugin right after the
+    google-services plugin (same all-or-nothing style as setup_google_services:
+    if anything looks unexpected nothing is changed and the app still builds,
+    crash reports just will not be uploaded)."""
+    settings_path = None
+    for name in ("settings.gradle", "settings.gradle.kts"):
+        candidate = os.path.join(android_dir, name)
+        if os.path.isfile(candidate):
+            settings_path = candidate
+            break
+    if settings_path is None:
+        return "skipped (android/settings.gradle not found)"
+
+    with open(settings_path, encoding="utf-8") as f:
+        settings_text = f.read()
+    with open(app_gradle_path, encoding="utf-8") as f:
+        app_text = f.read()
+
+    if "com.google.firebase.crashlytics" in settings_text and "com.google.firebase.crashlytics" in app_text:
+        return "already set up"
+    if "com.google.gms.google-services" not in settings_text or "com.google.gms.google-services" not in app_text:
+        return "skipped (google-services is not set up, and Crashlytics needs it)"
+
+    m_settings = re.search(
+        r'\n([ \t]*)id\s*(\()?\s*["\']com\.google\.gms\.google-services["\']\s*\)?\s+version\s+["\'][^"\']+["\']\s+apply\s+false',
+        settings_text,
+    )
+    m_app = re.search(r'\n([ \t]*)id[ \t]*(\()?[ \t]*["\']com\.google\.gms\.google-services["\'][ \t]*\)?', app_text)
+    if not m_settings or not m_app:
+        return "skipped (the Gradle files look different from the expected layout)"
+
+    def line_for(match, with_version):
+        indent, paren = match.group(1), match.group(2)
+        body = 'id("com.google.firebase.crashlytics")' if paren else 'id "com.google.firebase.crashlytics"'
+        if with_version:
+            body += ' version "%s" apply false' % CRASHLYTICS_PLUGIN_VERSION
+        return "\n" + indent + body
+
+    if "com.google.firebase.crashlytics" not in settings_text:
+        settings_text = settings_text[: m_settings.end()] + line_for(m_settings, True) + settings_text[m_settings.end():]
+    if "com.google.firebase.crashlytics" not in app_text:
+        app_text = app_text[: m_app.end()] + line_for(m_app, False) + app_text[m_app.end():]
+
+    with open(settings_path, "w", encoding="utf-8") as f:
+        f.write(settings_text)
+    with open(app_gradle_path, "w", encoding="utf-8") as f:
+        f.write(app_text)
+    return "done (Crashlytics plugin %s applied)" % CRASHLYTICS_PLUGIN_VERSION
 
 
 def patch_legacy_plugin_compat(root):
@@ -633,6 +686,12 @@ def main():
     except Exception as exc:  # never break the whole build because of an optional step
         gms_status = "skipped (%s)" % exc
 
+    # 5c) Crashlytics (crash reports) - only on top of a working google-services setup
+    try:
+        crash_status = setup_crashlytics(os.path.join(root, "android"), gradle)
+    except Exception as exc:
+        crash_status = "skipped (%s)" % exc
+
     signing_status = setup_release_signing(gradle, is_kts)
     proguard_status = fix_proguard_config(gradle)
     compile_sdk_status = bump_compile_sdk(gradle, is_kts)
@@ -650,6 +709,7 @@ def main():
     print("  launcher icon  -> %s" % ("logo set (%d sizes, %d from new ic_launcher_* files)" % (icons_done, icons_new_named) if icons_done else "left as the default Flutter icon (tools/icons missing)"))
     print("  notification icon -> %s" % ("set (%d sizes)" % notify_done if notify_done else "not set (tools/notify_icons missing)"))
     print("  google-services   -> %s" % gms_status)
+    print("  crashlytics       -> %s" % crash_status)
     if not n_app or not (n_min or already_ok):
         print("")
         print("MANUAL STEP: open android/app/build.gradle and set:")

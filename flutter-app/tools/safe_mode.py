@@ -9,7 +9,8 @@ off only the add-ons that are new/risky for the build:
   1. the in-app PDF viewer (needs the `webview_flutter` plugin) - PDFs then
      open in the browser / Drive app, exactly like before;
   2. the Firebase google-services Gradle plugin (push notifications when the
-     app is closed) - notifications still work while the app is open.
+     app is closed) and the Crashlytics Gradle plugin - notifications still
+     work while the app is open; crash reports are not uploaded.
 
 Everything else stays the same. Run from the flutter-app folder:
 
@@ -69,7 +70,7 @@ def main():
         path = os.path.join(android, rel)
         if os.path.isfile(path):
             text = read(path)
-            new = "\n".join(line for line in text.split("\n") if "com.google.gms.google-services" not in line)
+            new = "\n".join(line for line in text.split("\n") if "com.google.gms.google-services" not in line and "com.google.firebase.crashlytics" not in line)
             if new != text:
                 write(path, new)
                 removed += 1
