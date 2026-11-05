@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../app_globals.dart';
 import '../../models/models.dart';
 import '../../services/account_service.dart';
+import '../../data/notify_topics.dart';
 import '../../services/auth_service.dart';
 import '../../services/exam_topics.dart';
 import '../../services/firestore_service.dart';
@@ -320,7 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         spacing: 8,
                         runSpacing: 4,
                         children: [
-                          for (final g in kExamGroups)
+                          for (final g in kExamTopics)
                             FilterChip(
                               label: Text('${g.emoji} ${g.en}', style: TextStyle(color: AppC.text, fontSize: 12.5)),
                               selected: _exams.contains(g.id),
