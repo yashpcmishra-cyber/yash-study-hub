@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../services/admin_session.dart';
 import '../../services/auth_service.dart';
+import '../../services/exam_topics.dart';
 import '../../services/firestore_service.dart';
 import '../../services/image_upload_service.dart';
 import '../../models/models.dart';
@@ -256,6 +257,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   final _grantMonthsCtrl = TextEditingController(); // Manual grant: months override, empty = batch default
   final _notifyTitleCtrl = TextEditingController();
   final _notifyBodyCtrl = TextEditingController();
+  String _notifyAudience = 'all'; // 'all' ya exam id (ssc / banking / railway / up)
   final _brandAppNameCtrl = TextEditingController();
   final _brandTaglineCtrl = TextEditingController();
   final _brandUpiCtrl = TextEditingController();
@@ -1496,7 +1498,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
       return;
     }
     try {
-      await _fs.sendNotification(title, body).timeout(const Duration(seconds: 12));
+      await _fs.sendNotification(title, body, audience: _notifyAudience).timeout(const Duration(seconds: 12));
       _notifyTitleCtrl.clear();
       _notifyBodyCtrl.clear();
       _snack('Saved \u2014 students\u2019 phones will get the push notification shortly. / सेव हो गया \u2014 छात्रों के फ़ोन पर पुश नोटिफ़िकेशन जल्द पहुँच जाएगा।');
@@ -1509,12 +1511,27 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Send a notification to all students\u2019 phones', style: TextStyle(color: AppC.muted, fontSize: 12)),
+        Text('Send a notification to students\u2019 phones', style: TextStyle(color: AppC.muted, fontSize: 12)),
         const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: _notifyAudience,
+          dropdownColor: AppC.card,
+          style: TextStyle(color: AppC.text),
+          decoration: InputDecoration(labelText: 'Send to / किसे भेजें', labelStyle: TextStyle(color: AppC.muted)),
+          items: [
+            const DropdownMenuItem(value: 'all', child: Text('All students / सभी छात्र')),
+            for (final g in kExamGroups) DropdownMenuItem(value: g.id, child: Text('${g.emoji} ${g.en} students')),
+          ],
+          onChanged: (v) => setState(() => _notifyAudience = v ?? 'all'),
+        ),
+        const SizedBox(height: 6),
         TextField(controller: _notifyTitleCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Notification title', labelStyle: TextStyle(color: AppC.muted))),
         TextField(controller: _notifyBodyCtrl, maxLines: 3, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'Message', labelStyle: TextStyle(color: AppC.muted))),
         const SizedBox(height: 10),
-        ElevatedButton(onPressed: _sendNotification, child: const Text('Send to all students')),
+        ElevatedButton(
+          onPressed: _sendNotification,
+          child: Text(_notifyAudience == 'all' ? 'Send to all students' : 'Send to ${kExamGroups.firstWhere((g) => g.id == _notifyAudience).en} students'),
+        ),
         const SizedBox(height: 10),
         Text(
           'It appears in the app\u2019s Notifications list straight away. The push to phones is sent automatically by the free GitHub automation. / फ़ोन पर पुश नोटिफ़िकेशन फ्री GitHub ऑटोमेशन अपने आप भेजता है।',
