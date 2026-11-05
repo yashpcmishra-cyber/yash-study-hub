@@ -448,7 +448,7 @@ class StudentModel {
   final String qualification;
   final bool profileComplete;
   final DateTime? createdAt;
-  // Notification ke liye chune hue exams: ssc / banking / railway / up
+  // Notification ke liye chune hue exams (topic ids, jaise exam_bank_po)
   final List<String> exams;
 
   StudentModel({
@@ -516,17 +516,17 @@ class NotificationModel {
   final String title;
   final String body;
   final DateTime? sentAt;
-  // 'all' ya exam id (ssc / banking / railway / up). Purani notifications mein field nahi hota = 'all'.
-  final String audience;
+  // FCM topic: khali = sabhi students; 'exam_...' = sirf us exam ke students.
+  final String topic;
 
-  NotificationModel({required this.id, required this.title, required this.body, this.sentAt, this.audience = 'all'});
+  NotificationModel({required this.id, required this.title, required this.body, this.sentAt, this.topic = ''});
 
   factory NotificationModel.fromMap(String id, Map<String, dynamic> m) => NotificationModel(
         id: id,
         title: m['title'] ?? '',
         body: m['body'] ?? '',
         sentAt: _dt(m['sentAt']),
-        audience: (m['audience'] ?? 'all').toString(),
+        topic: (m['topic'] ?? '').toString(),
       );
 }
 
