@@ -1,8 +1,10 @@
+import 'dart:math' show max;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../app_globals.dart';
 import '../utils/open_link.dart';
+import 'remote_flags.dart';
 
 /// Shows an "Update available" pop-up when a newer APK has been published.
 ///
@@ -32,13 +34,14 @@ class UpdateChecker {
           .doc('appVersion')
           .get()
           .timeout(const Duration(seconds: 8));
-      final data = snap.data();
-      if (data == null) return;
+      final data = snap.data() ?? const <String, dynamic>{};
 
       final latest = (data['latestBuild'] as num?)?.toInt() ?? 0;
-      final minimum = (data['minBuild'] as num?)?.toInt() ?? 0;
+      // Remote Config se bhi force-update chalta hai: dono mein jo bada ho wahi lagta hai.
+      final minimum = max((data['minBuild'] as num?)?.toInt() ?? 0, RemoteFlags.number('force_update_min_build'));
       final url = ((data['apkUrl'] as String?) ?? '').trim();
-      final message = ((data['message'] as String?) ?? '').trim();
+      final rcMessage = RemoteFlags.text('force_update_message');
+      final message = rcMessage.isNotEmpty ? rcMessage : ((data['message'] as String?) ?? '').trim();
       if (current <= 0 || url.isEmpty) return;
 
       final force = current < minimum;
