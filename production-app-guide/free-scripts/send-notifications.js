@@ -4,8 +4,8 @@
  *
  * 1) Student notifications: checks Firestore for any notification the admin
  *    sent that hasn't been pushed yet, sends it to the "all_students" topic
- *    (or, if the admin picked one exam, to that exam's "exam_..." topic),
- *    then marks it "sent" so it's never sent twice.
+ *    (or to the "exam_<id>" topic when the admin picked one exam), then marks
+ *    it "sent" so it's never sent twice.
  * 2) Admin alert: when a student sends a new query (a doubt), sends ONE push
  *    to the "admin_alerts" topic (only the admin's phone is subscribed, from
  *    Admin Panel) and marks those queries "adminNotified" so they are never
@@ -31,20 +31,24 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
 const MAX_ATTEMPTS = 5;
+// Exam groups = FCM topics exam_<id>. Keep in sync with kExamGroups in the app
+// (flutter-app/lib/services/exam_topics.dart).
+const EXAM_IDS = ["ssc", "banking", "railway", "up"];
+
+// "all" (or a missing field, like on old notifications) -> every student.
+// An exam id -> only students who chose that exam at signup / in Profile.
+function topicFor(data) {
+  const audience = String(data.audience || "all").trim().toLowerCase();
+  if (audience === "all" || audience === "") return "all_students";
+  if (EXAM_IDS.includes(audience)) return `exam_${audience}`;
+  throw new Error(`Unknown audience "${audience}"`);
+}
 // Only queries from the last 2 days are announced, so old unanswered queries
 // never trigger a confusing alert.
 const QUERY_WINDOW_MS = 48 * 60 * 60 * 1000;
 // Same idea for grant requests (7 days), so an old forgotten request can
 // never trigger a confusing alert.
 const REQUEST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-
-// Admin ne "Send to" me kisi exam ko chuna ho to doc me `topic` field hoti hai
-// (jaise exam_ssc_cgl). Sirf "exam_" se shuru hone wale safe naam hi maane jaate
-// hain; baaki sab case me notification sabhi students (all_students) ko jaati hai.
-function topicFor(data) {
-  const t = typeof data.topic === "string" ? data.topic : "";
-  return /^exam_[a-z0-9_]{1,40}$/.test(t) ? t : "all_students";
-}
 
 async function sendStudentNotifications() {
   const snap = await db.collection("notifications").where("sent", "==", false).get();
@@ -66,7 +70,7 @@ async function sendStudentNotifications() {
         android: { priority: "high" },
       });
       await doc.ref.update({ sent: true, sentAt: admin.firestore.FieldValue.serverTimestamp() });
-      console.log(`Sent: ${data.title}`);
+      console.log(`Sent (${topicFor(data)}): ${data.title}`);
     } catch (err) {
       console.error(`Failed to send "${data.title}":`, err.message);
       try {
