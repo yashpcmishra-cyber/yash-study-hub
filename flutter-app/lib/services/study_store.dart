@@ -208,7 +208,7 @@ class StudyStore {
   static const int defaultGoal = 25;
   /// The only goal choices. (Daily Quiz itself has at most 10 questions/day;
   /// the rest of the goal is filled by Free MCQs, Mock Tests and practice.)
-  static const List<int> goalOptions = [25, 35, 50, 75, 100];
+  static const List<int> goalOptions = [25, 35, 50, 75, 100, 150, 200];
 
   static const _kStreak = 'ysh2_streak';
   static const _kStreakLast = 'ysh2_streak_last';
