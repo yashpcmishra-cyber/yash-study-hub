@@ -16,6 +16,7 @@ import 'services/remote_flags.dart';
 import 'widgets/landscape_frame.dart';
 import 'widgets/maintenance_gate.dart';
 import 'widgets/space_background.dart';
+import 'widgets/study_timer_mini_bar.dart';
 
 void _openNotificationsScreen() {
   appNavigatorKey.currentState?.push(
@@ -218,6 +219,8 @@ class YashStudyHubApp extends StatelessWidget {
               MaintenanceGate(child: child ?? const SizedBox.shrink()),
               // Light theme: status bar wali jagah bhi navy (top patti ka hissa).
               const _TopBarStrip(),
+              // Study Timer chal raha ho to har screen par chhota timer pill.
+              const StudyTimerMiniBar(),
             ],
           ),
         ),
