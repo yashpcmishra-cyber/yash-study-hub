@@ -48,6 +48,7 @@ class _XpCardState extends State<XpCard> {
       ['⚡', 'Speed Maths round / राउंड', '+5'],
       ['🃏', 'New flashcard learned / नया कार्ड', '+2'],
       ['📚', 'Syllabus topic done / टॉपिक पूरा', '+3'],
+      ['⏱️', 'Study Timer / स्टडी टाइमर', '+1 / min'],
     ];
     showDialog<void>(
       context: context,
