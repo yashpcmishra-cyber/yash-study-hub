@@ -3,14 +3,20 @@ import '../app_colors.dart';
 import '../data/flashcard_data.dart';
 import '../screens/badges_screen.dart';
 import '../screens/flashcards_screen.dart';
+import '../screens/saved_questions_screen.dart';
+import '../screens/study_calendar_screen.dart';
 import '../screens/study_timer_screen.dart';
+import '../screens/typing_test_screen.dart';
 import '../services/badge_store.dart';
+import '../services/bookmark_store.dart';
+import '../services/calendar_store.dart';
 import '../services/flashcard_store.dart';
 import '../services/study_store.dart';
 import '../services/study_time_store.dart';
 import '../services/study_timer_service.dart';
+import '../services/typing_store.dart';
 
-/// Home ka "Study Tools" card: Flashcards, Badges.
+/// Home ka "Study Tools" card: Flashcards, Badges, Study Timer, Typing Test, Saved Questions, Study Calendar.
 /// Sab data phone me hai - Firestore se kuch nahi padhta / likhta.
 class StudyToolsCard extends StatefulWidget {
   const StudyToolsCard({super.key});
@@ -25,6 +31,9 @@ class _StudyToolsCardState extends State<StudyToolsCard> {
   int _badgeTotal = 0;
   int _newBadges = 0;
   int _todayStudySec = 0;
+  int _bestWpm = 0;
+  int _savedQ = 0;
+  int _activeDays = 0;
 
   @override
   void initState() {
@@ -32,6 +41,8 @@ class _StudyToolsCardState extends State<StudyToolsCard> {
     StudyStore.changes.addListener(_reload);
     FlashcardStore.changes.addListener(_reload);
     StudyTimeStore.changes.addListener(_reload);
+    TypingStore.changes.addListener(_reload);
+    BookmarkStore.changes.addListener(_reload);
     StudyTimerService.instance.addListener(_onTimer);
     StudyTimerService.instance.init();
     _reload();
@@ -42,6 +53,8 @@ class _StudyToolsCardState extends State<StudyToolsCard> {
     StudyStore.changes.removeListener(_reload);
     FlashcardStore.changes.removeListener(_reload);
     StudyTimeStore.changes.removeListener(_reload);
+    TypingStore.changes.removeListener(_reload);
+    BookmarkStore.changes.removeListener(_reload);
     StudyTimerService.instance.removeListener(_onTimer);
     super.dispose();
   }
@@ -57,6 +70,9 @@ class _StudyToolsCardState extends State<StudyToolsCard> {
       final known = await FlashcardStore.knownCount();
       final badges = await BadgeStore.evaluate();
       final fresh = await BadgeStore.newCount(badges);
+      final wpm = await TypingStore.bestOverall();
+      final savedQ = await BookmarkStore.count();
+      final activeDays = await CalendarStore.activeDaysInMonth(DateTime.now());
       if (!mounted) return;
       setState(() {
         _known = known;
@@ -64,6 +80,9 @@ class _StudyToolsCardState extends State<StudyToolsCard> {
         _badgeTotal = badges.length;
         _newBadges = fresh;
         _todayStudySec = today;
+        _bestWpm = wpm;
+        _savedQ = savedQ;
+        _activeDays = activeDays;
       });
     } catch (_) {
       // card chhupa nahi, bas purani values dikhti rahengi
@@ -86,6 +105,9 @@ class _StudyToolsCardState extends State<StudyToolsCard> {
       final t = StudyTimeStore.fmt(_todayStudySec);
       timerSub = 'Today: $t\nआज: $t';
     }
+    final typingSub = _bestWpm == 0 ? 'Test your speed\nस्पीड जाँचें' : 'Best: $_bestWpm WPM\nबेस्ट: $_bestWpm WPM';
+    final savedSub = _savedQ == 0 ? 'Tap ⭐ in any quiz\nक्विज़ में ⭐ दबाएँ' : '$_savedQ saved\n$_savedQ सेव';
+    final calSub = _activeDays == 0 ? 'See your study days\nपढ़ाई के दिन देखें' : '$_activeDays days this month\nइस माह $_activeDays दिन';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -109,6 +131,16 @@ class _StudyToolsCardState extends State<StudyToolsCard> {
           Row(
             children: [
               _tile('⏱️', 'Study Timer', timerSub, () => _open(const StudyTimerScreen()), dot: timer.running),
+              const SizedBox(width: 10),
+              _tile('⌨️', 'Typing Test', typingSub, () => _open(const TypingTestScreen())),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _tile('⭐', 'Saved Questions', savedSub, () => _open(const SavedQuestionsScreen())),
+              const SizedBox(width: 10),
+              _tile('🗓️', 'Study Calendar', calSub, () => _open(const StudyCalendarScreen())),
             ],
           ),
         ],

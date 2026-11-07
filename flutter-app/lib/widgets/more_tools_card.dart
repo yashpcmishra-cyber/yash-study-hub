@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../screens/backup_screen.dart';
+import '../screens/calculators_screen.dart';
 import '../screens/important_days_screen.dart';
 import '../screens/notes_screen.dart';
 import '../services/notes_store.dart';
 
-/// Home ka "More Tools" card: My Notes, Important Days, Cloud Backup.
+/// Home ka "More Tools" card: My Notes, Important Days, Cloud Backup, Calculators.
 /// (Ready Reckoner chart Speed Maths screen ke andar hai, taaki do jaise tile na ho.)
 /// Sab data phone me hai (Backup ko chhodkar, jo sirf button dabane par chalta hai).
 class MoreToolsCard extends StatefulWidget {
@@ -71,7 +72,9 @@ class _MoreToolsCardState extends State<MoreToolsCard> {
           const SizedBox(height: 10),
           Row(
             children: [
-              _tile('☁️', 'Cloud Backup', 'Save your progress on the cloud\nप्रोग्रेस क्लाउड पर सुरक्षित रखें', () => _open(const BackupScreen())),
+              _tile('☁️', 'Cloud Backup', 'Save on the cloud\nक्लाउड पर सेव करें', () => _open(const BackupScreen())),
+              const SizedBox(width: 10),
+              _tile('🧮', 'Calculators', '% • EMI • Age\n% • EMI • आयु', () => _open(const CalculatorsScreen())),
             ],
           ),
         ],
