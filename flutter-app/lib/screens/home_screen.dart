@@ -23,6 +23,7 @@ import '../widgets/banner_carousel.dart';
 import '../widgets/study_corner_card.dart';
 import '../widgets/study_tools_card.dart';
 import '../widgets/smart_study_card.dart';
+import '../widgets/exam_boost_card.dart';
 import '../widgets/daily_gyan_card.dart';
 import '../widgets/more_tools_card.dart';
 import 'pdf_library_screen.dart';
@@ -520,6 +521,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
                         child: SmartStudyCard(),
                       ),
+
+                      // Exam Boost: Reasoning Drill, GK Flash Quiz, Exam Tracker, Score Journal
+                      // (all data lives on the phone - 0 Firestore reads).
+                      // Remote Config 'feature_exam_boost' = false karne par ye card chhup jaata hai.
+                      if (RemoteFlags.on('feature_exam_boost'))
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
+                          child: ExamBoostCard(),
+                        ),
 
                       // More Tools: My Notes, Important Days, Cloud Backup.
                       const Padding(
