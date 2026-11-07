@@ -1,11 +1,14 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/flashcard_data.dart';
+import 'bookmark_store.dart';
+import 'calendar_store.dart';
 import 'flashcard_store.dart';
 import 'revision_store.dart';
 import 'speed_math_store.dart';
 import 'study_store.dart';
 import 'study_time_store.dart';
 import 'syllabus_store.dart';
+import 'typing_store.dart';
 
 // =============================================================================
 //  BadgeStore - Achievements. Sab kuch phone ke data se nikalta hai
@@ -48,6 +51,9 @@ class BadgeStore {
     final speedRounds = await SpeedMathStore.totalRounds();
     final sylDone = await SyllabusStore.totalDone();
     final studyHours = (await StudyTimeStore.totalSeconds()) ~/ 3600; // Study Timer ke ghante
+    final typingBest = await TypingStore.bestOverall(); // Typing Test ka best WPM
+    final savedQs = await BookmarkStore.count(); // Saved Questions
+    final activeDays = await CalendarStore.totalActiveDays(); // Study Calendar
     return [
       BadgeInfo(id: 'first', emoji: '🌱', title: 'First Step', titleHi: 'पहला कदम', desc: 'Finish your first test or quiz', descHi: 'पहला टेस्ट या क्विज़ पूरा करें', current: life.tests, target: 1),
       BadgeInfo(id: 'streak3', emoji: '🔥', title: '3-Day Streak', titleHi: '3 दिन की स्ट्रीक', desc: 'Finish your daily goal 3 days in a row', descHi: 'लगातार 3 दिन रोज़ का लक्ष्य पूरा करें', current: life.maxStreak, target: 3),
@@ -67,6 +73,10 @@ class BadgeStore {
       BadgeInfo(id: 'syl50', emoji: '🎓', title: 'Syllabus Master', titleHi: 'सिलेबस मास्टर', desc: 'Complete 50 topics in Syllabus Tracker', descHi: 'सिलेबस ट्रैकर में 50 टॉपिक पूरे करें', current: sylDone, target: 50),
       BadgeInfo(id: 'focus5', emoji: '⏱️', title: 'Focus Starter', titleHi: 'फोकस शुरुआत', desc: 'Study 5 hours with the Study Timer', descHi: 'स्टडी टाइमर से 5 घंटे पढ़ें', current: studyHours, target: 5),
       BadgeInfo(id: 'focus25', emoji: '🧘', title: 'Deep Focus', titleHi: 'डीप फोकस', desc: 'Study 25 hours with the Study Timer', descHi: 'स्टडी टाइमर से 25 घंटे पढ़ें', current: studyHours, target: 25),
+      BadgeInfo(id: 'type25', emoji: '⌨️', title: 'Typist', titleHi: 'टाइपिस्ट', desc: 'Type 25 WPM in the Typing Test (80%+ accuracy)', descHi: 'टाइपिंग टेस्ट में 25 WPM लाएँ (80%+ एक्यूरेसी)', current: typingBest, target: 25),
+      BadgeInfo(id: 'type40', emoji: '🚀', title: 'Speed Typist', titleHi: 'स्पीड टाइपिस्ट', desc: 'Type 40 WPM in the Typing Test (80%+ accuracy)', descHi: 'टाइपिंग टेस्ट में 40 WPM लाएँ (80%+ एक्यूरेसी)', current: typingBest, target: 40),
+      BadgeInfo(id: 'saved10', emoji: '⭐', title: 'Question Collector', titleHi: 'सवाल संग्रहकर्ता', desc: 'Save 10 questions with the ⭐', descHi: '⭐ से 10 सवाल सेव करें', current: savedQs, target: 10),
+      BadgeInfo(id: 'cal20', emoji: '🗓️', title: 'Consistent', titleHi: 'निरंतर', desc: 'Study on 20 different days (Study Calendar)', descHi: '20 अलग-अलग दिन पढ़ाई करें (स्टडी कैलेंडर)', current: activeDays, target: 20),
     ];
   }
 

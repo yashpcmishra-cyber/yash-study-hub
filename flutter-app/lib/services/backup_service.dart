@@ -4,12 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'bookmark_store.dart';
 import 'flashcard_store.dart';
 import 'notes_store.dart';
 import 'speed_math_store.dart';
 import 'study_store.dart';
 import 'study_time_store.dart';
 import 'syllabus_store.dart';
+import 'typing_store.dart';
 
 // =============================================================================
 //  BackupService - student ki padhai ka data (streak, mistakes,
@@ -159,6 +161,8 @@ class BackupService {
       SyllabusStore.changes.value = SyllabusStore.changes.value + 1;
       SpeedMathStore.changes.value = SpeedMathStore.changes.value + 1;
       NotesStore.changes.value = NotesStore.changes.value + 1;
+      BookmarkStore.changes.value = BookmarkStore.changes.value + 1;
+      TypingStore.changes.value = TypingStore.changes.value + 1;
       return BackupResult(true, 'Restored ✓ ($n items) / डेटा वापस आ गया ✓');
     } catch (e) {
       if (e is FormatException || e is FileSystemException || e is ArgumentError) {
