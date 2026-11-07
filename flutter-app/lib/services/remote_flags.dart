@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 ///   feature_free_mcqs       (Boolean)  false -> Free MCQs tile hat jaaye
 ///   feature_batches         (Boolean)  false -> Paid Batches tile hat jaaye
 ///   feature_daily_quiz      (Boolean)  false -> Daily Quiz tile hat jaaye
+///   feature_exam_boost      (Boolean)  false -> Home se Exam Boost card hat jaaye
 ///   force_update_min_build  (Number)   iss se purane build wale phone update karne par majboor
 ///   force_update_message    (String)   update pop-up ka message
 ///
@@ -33,6 +34,7 @@ class RemoteFlags {
     'feature_free_mcqs': true,
     'feature_batches': true,
     'feature_daily_quiz': true,
+    'feature_exam_boost': true,
     'force_update_min_build': 0,
     'force_update_message': '',
   };
