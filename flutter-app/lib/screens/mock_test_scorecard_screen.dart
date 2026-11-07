@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
+import '../services/bookmark_store.dart';
 import '../services/mock_rank_service.dart';
 import '../services/revision_store.dart';
 import '../services/study_store.dart';
@@ -42,10 +43,46 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
   Future<MockRankInfo?>? _rankFuture; // revision mode me null
   late final bool _hasHindi;
   bool _hindi = false;
+  Set<String> _saved = <String>{}; // ⭐ saved questions ki keys
+
+  Future<void> _loadSaved() async {
+    try {
+      final k = await BookmarkStore.keys();
+      if (mounted) setState(() => _saved = k);
+    } catch (_) {
+      // star khali dikhega, review chalta rahega
+    }
+  }
+
+  Future<void> _toggleSave(MockQuestion q) async {
+    final k = BookmarkStore.keyOf(q);
+    try {
+      final r = await BookmarkStore.toggle(q, source: widget.test.title);
+      if (!mounted) return;
+      setState(() {
+        if (r == BookmarkResult.saved) {
+          _saved = {..._saved, k};
+        } else if (r == BookmarkResult.removed) {
+          _saved = _saved.where((e) => e != k).toSet();
+        }
+      });
+      final msg = r == BookmarkResult.saved
+          ? '⭐ Saved to Saved Questions / सेव हो गया'
+          : r == BookmarkResult.removed
+              ? 'Removed from Saved Questions / हटा दिया'
+              : 'Saved Questions is full (300). Remove some first. / सीमा पूरी (300)।';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+    } catch (_) {
+      // save na ho paye to bhi review nahi rukna chahiye
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _loadSaved();
     _r = MockResult.compute(widget.test, widget.answers);
     final rev = widget.revisionItems;
     if (rev != null) {
@@ -327,6 +364,18 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text('${i + 1}. ${mockText(q, _hindi)}', style: TextStyle(color: AppC.text, fontSize: 14, height: 1.35)),
+              ),
+              InkWell(
+                onTap: () => _toggleSave(q),
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 2, 4),
+                  child: Icon(
+                    _saved.contains(BookmarkStore.keyOf(q)) ? Icons.star : Icons.star_border,
+                    color: _saved.contains(BookmarkStore.keyOf(q)) ? AppC.amber : AppC.text54,
+                    size: 22,
+                  ),
+                ),
               ),
             ],
           ),

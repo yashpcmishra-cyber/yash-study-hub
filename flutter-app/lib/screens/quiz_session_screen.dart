@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
+import '../services/bookmark_store.dart';
 import '../services/mock_rank_service.dart';
 import '../widgets/di_image.dart';
 import '../widgets/score_share.dart';
@@ -33,6 +34,48 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
   bool _hindi = false;
   bool _finishing = false;
   bool _done = false;
+  Set<String> _saved = <String>{}; // ⭐ saved questions ki keys
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSaved();
+  }
+
+  Future<void> _loadSaved() async {
+    try {
+      final k = await BookmarkStore.keys();
+      if (mounted) setState(() => _saved = k);
+    } catch (_) {
+      // star khali dikhega, quiz chalta rahega
+    }
+  }
+
+  Future<void> _toggleSave() async {
+    final q = _q;
+    final k = BookmarkStore.keyOf(q);
+    try {
+      final r = await BookmarkStore.toggle(q, source: widget.title);
+      if (!mounted) return;
+      setState(() {
+        if (r == BookmarkResult.saved) {
+          _saved = {..._saved, k};
+        } else if (r == BookmarkResult.removed) {
+          _saved = _saved.where((e) => e != k).toSet();
+        }
+      });
+      final msg = r == BookmarkResult.saved
+          ? '⭐ Saved to Saved Questions / सेव हो गया'
+          : r == BookmarkResult.removed
+              ? 'Removed from Saved Questions / हटा दिया'
+              : 'Saved Questions is full (300). Remove some first. / सीमा पूरी (300)।';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+    } catch (_) {
+      // save na ho paye to bhi quiz nahi rukna chahiye
+    }
+  }
 
   bool get _hasHindi => widget.questions.any((q) => q.textHi.trim().isNotEmpty);
   MockQuestion get _q => widget.questions[_i];
@@ -132,6 +175,7 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
     final passageImg = q.passageImage.trim();
     final explanation = mockExplanation(q, _hindi).trim();
     final answered = _picked != null;
+    final isSaved = _saved.contains(BookmarkStore.keyOf(q));
 
     return Column(
       children: [
@@ -142,6 +186,16 @@ class _QuizSessionScreenState extends State<QuizSessionScreen> {
             children: [
               Row(children: [
                 Text('Question ${_i + 1} / $total', style: TextStyle(color: AppC.muted, fontSize: 12)),
+                const Spacer(),
+                IconButton(
+                  tooltip: isSaved ? 'Remove from saved' : 'Save this question',
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    isSaved ? Icons.star : Icons.star_border,
+                    color: isSaved ? AppC.amber : AppC.text54,
+                  ),
+                  onPressed: _toggleSave,
+                ),
               ]),
               if (passage.isNotEmpty || passageImg.isNotEmpty)
                 Container(
