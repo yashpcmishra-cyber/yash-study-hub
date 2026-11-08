@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../screens/backup_screen.dart';
 import '../screens/calculators_screen.dart';
+import '../screens/exam_checklist_screen.dart';
 import '../screens/important_days_screen.dart';
 import '../screens/notes_screen.dart';
+import '../screens/omr_practice_screen.dart';
+import '../services/checklist_store.dart';
 import '../services/notes_store.dart';
 
-/// Home ka "More Tools" card: My Notes, Important Days, Cloud Backup, Calculators.
+/// Home ka "More Tools" card: My Notes, Important Days, Cloud Backup, Calculators,
+/// OMR Practice, Exam Checklist.
 /// (Ready Reckoner chart Speed Maths screen ke andar hai, taaki do jaise tile na ho.)
 /// Sab data phone me hai (Backup ko chhodkar, jo sirf button dabane par chalta hai).
 class MoreToolsCard extends StatefulWidget {
@@ -18,25 +22,34 @@ class MoreToolsCard extends StatefulWidget {
 
 class _MoreToolsCardState extends State<MoreToolsCard> {
   int _notes = 0;
+  int _checkDone = 0;
+  int _checkTotal = 0;
 
   @override
   void initState() {
     super.initState();
     NotesStore.changes.addListener(_reload);
+    ChecklistStore.changes.addListener(_reload);
     _reload();
   }
 
   @override
   void dispose() {
     NotesStore.changes.removeListener(_reload);
+    ChecklistStore.changes.removeListener(_reload);
     super.dispose();
   }
 
   Future<void> _reload() async {
     try {
       final n = await NotesStore.count();
+      final c = await ChecklistStore.counts();
       if (!mounted) return;
-      setState(() => _notes = n);
+      setState(() {
+        _notes = n;
+        _checkDone = c[0];
+        _checkTotal = c[1];
+      });
     } catch (_) {
       // purani value dikhti rahegi
     }
@@ -50,6 +63,7 @@ class _MoreToolsCardState extends State<MoreToolsCard> {
   @override
   Widget build(BuildContext context) {
     final notesSub = _notes == 0 ? 'Write & save\nलिखें और सेव करें' : '$_notes saved\n$_notes नोट सेव';
+    final checkSub = _checkDone == 0 ? 'Admit card, ID, pens\nएडमिट कार्ड, ID, पेन' : '$_checkDone / $_checkTotal ready\n$_checkDone / $_checkTotal तैयार';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -74,7 +88,15 @@ class _MoreToolsCardState extends State<MoreToolsCard> {
             children: [
               _tile('☁️', 'Cloud Backup', 'Save on the cloud\nक्लाउड पर सेव करें', () => _open(const BackupScreen())),
               const SizedBox(width: 10),
-              _tile('🧮', 'Calculators', '% • EMI • Age\n% • EMI • आयु', () => _open(const CalculatorsScreen())),
+              _tile('🧮', 'Calculators', '35+ tools • Marks • GST\n35+ टूल • अंक • GST', () => _open(const CalculatorsScreen())),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _tile('🎯', 'OMR Practice', 'Timed answer sheet\nटाइमर वाली OMR शीट', () => _open(const OmrPracticeScreen())),
+              const SizedBox(width: 10),
+              _tile('✅', 'Exam Checklist', checkSub, () => _open(const ExamChecklistScreen())),
             ],
           ),
         ],
