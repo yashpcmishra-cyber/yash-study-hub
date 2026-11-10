@@ -1,0 +1,29 @@
+name: Show signing fingerprint
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  show:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Print SHA-256 of the release key
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$KS_B64" | base64 -d > ks.jks
+          keytool -list -v -keystore ks.jks -alias upload -storepass "$KS_PASS" | grep -E "Alias name|SHA256:|Valid from" | tee out.txt
+          {
+            echo '### Release key fingerprint'
+            echo '```'
+            cat out.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          rm -f ks.jks
