@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
-import '../data/flashcard_data.dart';
 import '../screens/exam_tracker_screen.dart';
 import '../screens/gk_flash_quiz_screen.dart';
 import '../screens/reasoning_drill_screen.dart';
-import '../screens/score_journal_screen.dart';
 import '../services/drill_store.dart';
 import '../services/exam_tracker_store.dart';
-import '../services/score_journal_store.dart';
 
-/// Home ka "Exam Boost" card: Reasoning Drill, GK Flash Quiz, Exam Tracker, Score Journal.
+/// Home ka "Exam Boost" card: Reasoning Drill, GK Flash Quiz, Exam Tracker.
 /// Sab data phone me hai - Firestore se kuch nahi padhta / likhta.
 class ExamBoostCard extends StatefulWidget {
   const ExamBoostCard({super.key});
@@ -21,15 +18,12 @@ class ExamBoostCard extends StatefulWidget {
 class _ExamBoostCardState extends State<ExamBoostCard> {
   int _drillsToday = 0;
   ExamTrackSummary _exams = const ExamTrackSummary(0, '', 0, false);
-  int _scoreCount = 0;
-  int _scoreAvg = 0;
 
   @override
   void initState() {
     super.initState();
     DrillStore.changes.addListener(_reload);
     ExamTrackerStore.changes.addListener(_reload);
-    ScoreJournalStore.changes.addListener(_reload);
     _reload();
   }
 
@@ -37,7 +31,6 @@ class _ExamBoostCardState extends State<ExamBoostCard> {
   void dispose() {
     DrillStore.changes.removeListener(_reload);
     ExamTrackerStore.changes.removeListener(_reload);
-    ScoreJournalStore.changes.removeListener(_reload);
     super.dispose();
   }
 
@@ -45,13 +38,10 @@ class _ExamBoostCardState extends State<ExamBoostCard> {
     try {
       final today = await DrillStore.sessionsToday();
       final exams = await ExamTrackerStore.summary();
-      final stats = await ScoreJournalStore.quickStats();
       if (!mounted) return;
       setState(() {
         _drillsToday = today;
         _exams = exams;
-        _scoreCount = stats[0];
-        _scoreAvg = stats[1];
       });
     } catch (_) {
       // card chhupa nahi, bas purani values dikhti rahengi
@@ -68,7 +58,7 @@ class _ExamBoostCardState extends State<ExamBoostCard> {
     final drillSub = _drillsToday == 0
         ? 'Endless new questions\nअनगिनत नए सवाल'
         : 'Today: $_drillsToday drills\nआज: $_drillsToday ड्रिल';
-    final gkSub = 'From ${kFlashcards.length} flashcards\n${kFlashcards.length} फ्लैशकार्ड से';
+    final gkSub = 'Quick GK MCQ quiz\nझटपट GK MCQ क्विज़';
     String examSub;
     var examDot = false;
     if (_exams.count == 0) {
@@ -84,9 +74,6 @@ class _ExamBoostCardState extends State<ExamBoostCard> {
     } else {
       examSub = '${_exams.count} tracked\n${_exams.count} ट्रैक हो रहे';
     }
-    final scoreSub = _scoreCount == 0
-        ? 'Log your test scores\nटेस्ट स्कोर लिखें'
-        : 'Avg $_scoreAvg% • $_scoreCount tests\nऔसत $_scoreAvg% • $_scoreCount टेस्ट';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -111,7 +98,7 @@ class _ExamBoostCardState extends State<ExamBoostCard> {
             children: [
               _tile('🗂️', 'Exam Tracker', examSub, () => _open(const ExamTrackerScreen()), dot: examDot),
               const SizedBox(width: 10),
-              _tile('📓', 'Score Journal', scoreSub, () => _open(const ScoreJournalScreen())),
+              const Expanded(child: SizedBox()),
             ],
           ),
         ],
