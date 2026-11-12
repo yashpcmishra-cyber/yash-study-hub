@@ -52,7 +52,11 @@ class FirestoreService {
     final k = 'ysh_fq_$key';
     final running = _inflight[k];
     if (running != null) return running;
-    final f = _cachedGetRun(k, q, ttl, markers, force).whenComplete(() => _inflight.remove(k));
+    // NOTE: the callback must NOT return a value. remove() returns this very future, and
+    // whenComplete() waits for a returned future, so it would wait for itself forever.
+    final f = _cachedGetRun(k, q, ttl, markers, force).whenComplete(() {
+      _inflight.remove(k);
+    });
     _inflight[k] = f;
     return f;
   }
@@ -123,7 +127,18 @@ class FirestoreService {
     }
 
     if (!cache) return q.snapshots().map(shape);
-    return Stream<List<T>>.fromFuture(_cachedGet(key, q, ttl: ttl, markers: markers, force: force).then(shape));
+    // One download, but safe to listen to more than once (a screen may re-subscribe to the same stream).
+    final result = _cachedGet(key, q, ttl: ttl, markers: markers, force: force).then(shape);
+    result.then((_) {}, onError: (Object _) {}); // marks an unlistened error as handled
+    return Stream<List<T>>.multi((c) {
+      result.then((v) {
+        c.add(v);
+        c.close();
+      }, onError: (Object e, StackTrace st) {
+        c.addError(e, st);
+        c.close();
+      });
+    });
   }
 
   // ---- small helpers ----
