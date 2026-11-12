@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../app_colors.dart';
+import '../../models/models.dart';
+import '../../services/firestore_service.dart';
 import '../../services/free_mcq_service.dart';
 import '../../widgets/depth_card.dart';
+import 'admin_free_to_mock_dialog.dart';
 
 /// Admin Panel tab: add / edit / remove / reorder the EXAM folders shown in
 /// the student-side "Free MCQs" section (SSC, UPSSSC, Railway ...).
@@ -23,6 +26,7 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
 
   List<Map<String, String>> _exams = [];
   List<Map<String, dynamic>> _sets = [];
+  FreeMcqSettings _settings = const FreeMcqSettings();
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -66,10 +70,18 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
           if (s is Map) sets.add(Map<String, dynamic>.from(s));
         }
       }
+      var settings = const FreeMcqSettings();
+      try {
+        final sSnap = await _db.collection('appConfig').doc('freeMcq').get().timeout(const Duration(seconds: 10));
+        settings = FreeMcqSettings.fromMap(sSnap.data());
+      } catch (_) {
+        // defaults are shown
+      }
       if (!mounted) return;
       setState(() {
         _exams = _parseExams(data['exams']);
         _sets = sets;
+        _settings = settings;
         _loading = false;
       });
     } catch (e) {
@@ -213,10 +225,15 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
       ),
     );
     if (sure != true) return;
+    await _removeNow(exam);
+  }
 
+  /// Removes the exam folder and its sets (no question asked). Used by "Remove" and by "Move to Mock Tests".
+  Future<bool> _removeNow(Map<String, String> exam) async {
+    final id = exam['id']!;
     // 1) Take the folder out of the index first, so students stop seeing it.
     final ok = await _mutate((cur) => cur.where((e) => e['id'] != id).toList(), dropSetsOfExam: id);
-    if (!ok) return;
+    if (!ok) return false;
 
     // 2) Then delete its set documents (the weekly script also cleans up any leftovers).
     try {
@@ -233,6 +250,104 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
     }
     _snack('Removed "${exam['name']}"');
     await _load();
+    return true;
+  }
+
+  /// Settings (timer / marks / negative) of every Free MCQ test.
+  Future<void> _editSettings() async {
+    final r = await showFreeMcqSettingsDialog(context, _settings);
+    if (r == null) return;
+    try {
+      await FreeMcqService().saveSettings(r);
+      if (!mounted) return;
+      setState(() => _settings = r);
+      _snack('Saved');
+    } catch (e) {
+      _snack('Could not save: $e');
+    }
+  }
+
+  /// Copy / move one exam folder of the Free MCQs into the Mock Tests section (and / or paid batches).
+  Future<void> _copyToMocks(Map<String, String> exam) async {
+    if (_busy) return;
+    final examId = exam['id']!;
+    final examName = exam['name'] ?? '';
+    final fs = FirestoreService();
+    FreeMcqIndex? index;
+    var batches = <BatchModel>[];
+    var mockFolders = <MockTestFolderModel>[];
+    setState(() => _busy = true);
+    try {
+      index = await FreeMcqService().loadIndex(force: true);
+      batches = await fs.streamBatches().first.timeout(const Duration(seconds: 12));
+      mockFolders = await fs.streamMockFolders().first.timeout(const Duration(seconds: 12));
+    } catch (_) {
+      if (mounted) setState(() => _busy = false);
+      _snack('Could not load the data \u2014 check your internet and try again.');
+      return;
+    }
+    if (mounted) setState(() => _busy = false);
+    if (!mounted) return;
+    if (index == null) {
+      _snack('Free MCQs are not ready yet.');
+      return;
+    }
+    final examSets = index.setsForExam(examId);
+    if (examSets.isEmpty) {
+      _snack('"$examName" has no sets yet. Copy it after its first weekly sets are made.');
+      return;
+    }
+    final subjectIds = examSets.map((s) => s.subjectId).toSet();
+    final subjects = examId == kEnglishFolderId ? <FreeMcqChoice>[] : index.subjects.where((s) => subjectIds.contains(s.id)).toList();
+
+    final wanted = examName.trim().toLowerCase();
+    final sameNameIn = <String>{};
+    for (final f in mockFolders) {
+      if (f.examName.trim().toLowerCase() != wanted) continue;
+      if (f.isFree) {
+        sameNameIn.add(kCopyFreeDest);
+      } else {
+        sameNameIn.addAll(f.batchIds);
+      }
+    }
+
+    final choice = await showFreeToMockDialog(
+      context,
+      examName: examName,
+      setCount: examSets.length,
+      subjects: subjects,
+      batches: batches,
+      canMove: examId != kEnglishFolderId,
+      sameNameIn: sameNameIn,
+      settings: index.settings,
+    );
+    if (choice == null || !mounted) return;
+
+    setState(() => _busy = true);
+    _snack('${choice.move ? 'Moving' : 'Copying'} "$examName" to Mock Tests ... please wait');
+    try {
+      final res = await fs.copyFreeMcqExamToMocks(
+        exam: FreeMcqChoice(examId, examName, exam['emoji'] ?? ''),
+        index: index,
+        destinations: choice.destinations,
+        settings: choice.settings,
+        onlySubjectId: choice.subjectId,
+      );
+      if (mounted) setState(() => _busy = false);
+      final skipNote = res.skipped > 0 ? ' (${res.skipped} already there, skipped)' : '';
+      if (choice.move) {
+        // Only now remove it from Free MCQs: everything was copied without an error.
+        final removed = await _removeNow(exam);
+        _snack(removed
+            ? 'Moved "$examName": ${res.added} tests added to Mock Tests$skipNote.'
+            : 'Copied ${res.added} tests, but could not remove the folder from Free MCQs. Remove it by hand.');
+      } else {
+        _snack('Copied "$examName": ${res.added} tests added$skipNote.');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _busy = false);
+      _snack('Copy failed: $e');
+    }
   }
 
   Future<({String emoji, String name})?> _showExamDialog({required String title, required String emoji, required String name}) {
@@ -271,6 +386,22 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
             style: TextStyle(color: AppC.muted, fontSize: 12.5),
           ),
           const SizedBox(height: 12),
+          DepthCard(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: Icon(Icons.timer_outlined, color: AppC.gold),
+              title: Text('Test settings (like Mock Tests)', style: TextStyle(color: AppC.text, fontSize: 14)),
+              subtitle: Text(
+                '${_settings.durationMinutes > 0 ? '${_settings.durationMinutes} min' : 'No timer'} \u2022 +${_fmtNum(_settings.marksPerQuestion)} per correct \u2022 \u2212${_fmtNum(_settings.negativeMarks)} per wrong',
+                style: TextStyle(color: AppC.muted, fontSize: 11.5),
+              ),
+              trailing: IconButton(
+                tooltip: 'Edit test settings',
+                icon: Icon(Icons.edit, size: 20, color: AppC.gold),
+                onPressed: _busy ? null : _editSettings,
+              ),
+            ),
+          ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: AppC.gold, foregroundColor: Colors.black),
             onPressed: _busy ? null : _add,
@@ -290,32 +421,57 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
           for (var i = 0; i < _exams.length; i++)
             DepthCard(
               margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: Text(_exams[i]['emoji']!.isEmpty ? '📘' : _exams[i]['emoji']!, style: const TextStyle(fontSize: 22)),
-                title: Text(_exams[i]['name']!, style: TextStyle(color: AppC.text)),
-                subtitle: Text('${_setCount(_exams[i]['id']!)} sets', style: TextStyle(color: AppC.muted, fontSize: 11)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 8, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      tooltip: 'Move up',
-                      icon: Icon(Icons.arrow_upward, size: 20, color: AppC.muted),
-                      onPressed: (_busy || i == 0) ? null : () => _move(i, -1),
+                    // Title gets the full width; the buttons sit in their own row below it.
+                    Row(
+                      children: [
+                        Text(_exams[i]['emoji']!.isEmpty ? '📘' : _exams[i]['emoji']!, style: const TextStyle(fontSize: 22)),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_exams[i]['name']!, style: TextStyle(color: AppC.text, fontSize: 16)),
+                              const SizedBox(height: 2),
+                              Text('${_setCount(_exams[i]['id']!)} sets', style: TextStyle(color: AppC.muted, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      tooltip: 'Move down',
-                      icon: Icon(Icons.arrow_downward, size: 20, color: AppC.muted),
-                      onPressed: (_busy || i == _exams.length - 1) ? null : () => _move(i, 1),
-                    ),
-                    IconButton(
-                      tooltip: 'Edit',
-                      icon: Icon(Icons.edit, size: 20, color: AppC.gold),
-                      onPressed: _busy ? null : () => _edit(_exams[i]),
-                    ),
-                    IconButton(
-                      tooltip: 'Remove',
-                      icon: Icon(Icons.delete_outline, size: 22, color: AppC.red),
-                      onPressed: (_busy || _exams[i]['id'] == kEnglishFolderId) ? null : () => _remove(_exams[i]),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          tooltip: 'Move up',
+                          icon: Icon(Icons.arrow_upward, size: 20, color: AppC.muted),
+                          onPressed: (_busy || i == 0) ? null : () => _move(i, -1),
+                        ),
+                        IconButton(
+                          tooltip: 'Move down',
+                          icon: Icon(Icons.arrow_downward, size: 20, color: AppC.muted),
+                          onPressed: (_busy || i == _exams.length - 1) ? null : () => _move(i, 1),
+                        ),
+                        IconButton(
+                          tooltip: 'Copy / Move to Mock Tests',
+                          icon: Icon(Icons.drive_file_move_outline, size: 22, color: AppC.sky),
+                          onPressed: _busy ? null : () => _copyToMocks(_exams[i]),
+                        ),
+                        IconButton(
+                          tooltip: 'Edit',
+                          icon: Icon(Icons.edit, size: 20, color: AppC.gold),
+                          onPressed: _busy ? null : () => _edit(_exams[i]),
+                        ),
+                        IconButton(
+                          tooltip: 'Remove',
+                          icon: Icon(Icons.delete_outline, size: 22, color: AppC.red),
+                          onPressed: (_busy || _exams[i]['id'] == kEnglishFolderId) ? null : () => _remove(_exams[i]),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -325,6 +481,8 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
       ),
     );
   }
+
+  static String _fmtNum(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 }
 
 class _ExamDialog extends StatefulWidget {
