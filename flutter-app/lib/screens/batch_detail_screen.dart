@@ -26,9 +26,9 @@ class BatchDetailScreen extends StatefulWidget {
 class _BatchDetailScreenState extends State<BatchDetailScreen> {
   final _fs = FirestoreService();
   late final Stream<AppConfigModel> _cfgStream = _fs.streamAppConfig();
-  late final Stream<List<VideoFolderModel>> _videoFoldersStream = _fs.streamVideoFolders(widget.batch.id);
-  late final Stream<List<PdfFolderModel>> _pdfFoldersStream = _fs.streamFolders(type: 'batch', batchId: widget.batch.id);
-  late final Stream<List<MockTestFolderModel>> _mockFoldersStream = _fs.streamMockFoldersForBatch(widget.batch.id);
+  late final Stream<List<VideoFolderModel>> _videoFoldersStream = _fs.streamVideoFolders(widget.batch.id, cache: true);
+  late final Stream<List<PdfFolderModel>> _pdfFoldersStream = _fs.streamFolders(type: 'batch', batchId: widget.batch.id, cache: true);
+  late final Stream<List<MockTestFolderModel>> _mockFoldersStream = _fs.streamMockFoldersForBatch(widget.batch.id, cache: true);
 
   bool _checked = false;
   bool _unlocked = false;
@@ -537,7 +537,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                                 title: Text(f.name, style: TextStyle(color: AppC.text)),
                                 children: [
                                   StreamBuilder<List<VideoModel>>(
-                                    stream: _fs.streamVideosInFolder(f.id),
+                                    stream: _fs.streamVideosInFolder(f.id, cache: true),
                                     builder: (context, videoSnap) {
                                       if (videoSnap.hasError) return Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load videos.", style: TextStyle(color: AppC.muted, fontSize: 12)));
                                       if (!videoSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
@@ -579,7 +579,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                                 title: Text(f.name, style: TextStyle(color: AppC.text)),
                                 children: [
                                   StreamBuilder<List<PdfModel>>(
-                                    stream: _fs.streamPdfsInFolder(f.id),
+                                    stream: _fs.streamPdfsInFolder(f.id, cache: true),
                                     builder: (context, pdfSnap) {
                                       if (pdfSnap.hasError) return Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load PDFs.", style: TextStyle(color: AppC.muted, fontSize: 12)));
                                       if (!pdfSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
@@ -663,7 +663,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                     title: Text(f.examName, style: TextStyle(color: AppC.text)),
                     children: [
                       StreamBuilder<List<MockTestModel>>(
-                        stream: _fs.streamMockTests(f.id),
+                        stream: _fs.streamMockTests(f.id, cache: true),
                         builder: (context, testSnap) {
                           if (testSnap.hasError) return Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load tests.", style: TextStyle(color: AppC.muted, fontSize: 12)));
                           if (!testSnap.hasData) return const Padding(padding: EdgeInsets.all(12), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));

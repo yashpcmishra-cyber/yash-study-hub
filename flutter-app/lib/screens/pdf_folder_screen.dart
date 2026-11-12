@@ -23,13 +23,13 @@ class _PdfFolderScreenState extends State<PdfFolderScreen> {
   @override
   void initState() {
     super.initState();
-    _stream = _fs.streamPdfsInFolder(widget.folder.id);
+    _stream = _fs.streamPdfsInFolder(widget.folder.id, cache: true);
   }
 
   // Pull-down-to-refresh — separate from normal scrolling. Flutter only
   // fires this on an over-scroll gesture at the very top of the list.
   Future<void> _refresh() async {
-    setState(() => _stream = _fs.streamPdfsInFolder(widget.folder.id));
+    setState(() => _stream = _fs.streamPdfsInFolder(widget.folder.id, cache: true, force: true));
     await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 

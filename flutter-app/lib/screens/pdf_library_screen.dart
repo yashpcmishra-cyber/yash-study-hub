@@ -46,11 +46,11 @@ class _FreeFoldersTabState extends State<_FreeFoldersTab> {
   @override
   void initState() {
     super.initState();
-    _stream = _fs.streamFolders(type: 'free');
+    _stream = _fs.streamFolders(type: 'free', cache: true);
   }
 
   Future<void> _refresh() async {
-    setState(() => _stream = _fs.streamFolders(type: 'free'));
+    setState(() => _stream = _fs.streamFolders(type: 'free', cache: true, force: true));
     await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 
@@ -111,11 +111,11 @@ class _BatchFoldersTabState extends State<_BatchFoldersTab> {
   @override
   void initState() {
     super.initState();
-    _stream = _fs.streamBatches();
+    _stream = _fs.streamBatches(cache: true);
   }
 
   Future<void> _refresh() async {
-    setState(() => _stream = _fs.streamBatches());
+    setState(() => _stream = _fs.streamBatches(cache: true, force: true));
     await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 
@@ -180,7 +180,7 @@ class _BatchFoldersTabState extends State<_BatchFoldersTab> {
                   title: Text(b.title, style: TextStyle(color: AppC.text)),
                   children: [
                     StreamBuilder<List<PdfFolderModel>>(
-                      stream: _fs.streamFolders(type: 'batch', batchId: b.id),
+                      stream: _fs.streamFolders(type: 'batch', batchId: b.id, cache: true),
                       builder: (context, fsnap) {
                         if (fsnap.hasError) {
                           return Padding(padding: EdgeInsets.all(12), child: Text("Couldn't load folders.", style: TextStyle(color: AppC.muted, fontSize: 12)));

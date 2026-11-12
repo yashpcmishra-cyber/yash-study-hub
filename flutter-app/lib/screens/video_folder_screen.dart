@@ -23,11 +23,11 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
   @override
   void initState() {
     super.initState();
-    _stream = _fs.streamVideosInFolder(widget.folder.id);
+    _stream = _fs.streamVideosInFolder(widget.folder.id, cache: true);
   }
 
   Future<void> _refresh() async {
-    setState(() => _stream = _fs.streamVideosInFolder(widget.folder.id));
+    setState(() => _stream = _fs.streamVideosInFolder(widget.folder.id, cache: true, force: true));
     await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 

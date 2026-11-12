@@ -31,7 +31,7 @@ class MockTestListScreen extends StatefulWidget {
 
 class _MockTestListScreenState extends State<MockTestListScreen> {
   final _fs = FirestoreService();
-  late final Stream<List<MockTestModel>> _stream = _fs.streamMockTests(widget.folder.id);
+  late final Stream<List<MockTestModel>> _stream = _fs.streamMockTests(widget.folder.id, cache: true);
 
   Widget _testCard(MockTestModel t) {
     return DepthCard(

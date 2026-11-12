@@ -24,12 +24,12 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   void initState() {
     super.initState();
-    _stream = _fs.streamNews(widget.categories);
+    _stream = _fs.streamNews(widget.categories, cache: true);
   }
 
   // News is live (it updates by itself); pulling down just reconnects it.
   Future<void> _refresh() async {
-    setState(() => _stream = _fs.streamNews(widget.categories));
+    setState(() => _stream = _fs.streamNews(widget.categories, cache: true, force: true));
     await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 

@@ -28,7 +28,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
   @override
   void initState() {
     super.initState();
-    _stream = _fs.streamBatches();
+    _stream = _fs.streamBatches(cache: true);
     _loadEmail();
   }
 
@@ -53,7 +53,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
 
   Future<void> _refresh() async {
     setState(() {
-      _stream = _fs.streamBatches();
+      _stream = _fs.streamBatches(cache: true, force: true);
       _grantedCheckedFor = ''; // force a re-check
     });
     await Future<void>.delayed(const Duration(milliseconds: 600));

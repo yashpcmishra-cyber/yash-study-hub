@@ -30,20 +30,20 @@ class _VideoClassesScreenState extends State<VideoClassesScreen> {
     _initStreams();
   }
 
-  void _initStreams() {
+  void _initStreams({bool force = false}) {
     // Main list: the query "source == youtube_auto" is explicitly allowed by
     // the Firestore rules for every logged-in student, so it never fails.
-    _videosStream = _fs.streamAutoFetchedVideos(limit: 10);
+    _videosStream = _fs.streamAutoFetchedVideos(limit: 10, cache: true, force: force);
     // Extra: free videos the admin added by hand without a folder. If the
     // rules refuse this query for a student it is simply skipped (no error
     // screen), see build().
-    _looseStream = _fs.streamFreeVideos(limitYoutubeAuto: 0);
-    _foldersStream = _fs.streamFreeVideoFolders();
+    _looseStream = _fs.streamFreeVideos(limitYoutubeAuto: 0, cache: true, force: force);
+    _foldersStream = _fs.streamFreeVideoFolders(cache: true, force: force);
     _counts.clear();
   }
 
   Future<void> _refresh() async {
-    setState(_initStreams);
+    setState(() => _initStreams(force: true));
     await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 

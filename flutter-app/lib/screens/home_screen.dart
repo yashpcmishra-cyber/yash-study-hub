@@ -71,9 +71,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _initStreams() {
     _cfgStream = _fs.streamAppConfig();
-    _bannersStream = _fs.streamBanners();
+    _bannersStream = _fs.streamBanners(cache: true);
     _latestVideosStream = _fs.streamLatestVideos();
-    _fallbackVideosStream = _fs.streamAutoFetchedVideos();
+    _fallbackVideosStream = _fs.streamAutoFetchedVideos(cache: true);
     _updatesStream = _fs.streamContentUpdates();
     _notifTimeStream = _fs.streamLatestNotificationTime();
     final uid = FirebaseAuth.instance.currentUser?.uid;

@@ -21,11 +21,11 @@ class _MockTestsScreenState extends State<MockTestsScreen> {
   @override
   void initState() {
     super.initState();
-    _stream = _fs.streamFreeMockFolders();
+    _stream = _fs.streamFreeMockFolders(cache: true);
   }
 
   Future<void> _refresh() async {
-    setState(() => _stream = _fs.streamFreeMockFolders());
+    setState(() => _stream = _fs.streamFreeMockFolders(cache: true, force: true));
     await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 

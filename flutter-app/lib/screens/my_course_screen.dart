@@ -29,7 +29,7 @@ class _MyCourseScreenState extends State<MyCourseScreen> {
   @override
   void initState() {
     super.initState();
-    _stream = _fs.streamBatches();
+    _stream = _fs.streamBatches(cache: true);
   }
 
   Future<void> _loadGranted(List<BatchModel> batches, {bool force = false}) async {
@@ -43,7 +43,7 @@ class _MyCourseScreenState extends State<MyCourseScreen> {
 
   Future<void> _refresh() async {
     setState(() {
-      _stream = _fs.streamBatches();
+      _stream = _fs.streamBatches(cache: true, force: true);
       _checkedKey = '';
     });
     await Future<void>.delayed(const Duration(milliseconds: 600));
