@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
@@ -8,6 +9,122 @@ import 'free_mcq_service.dart';
 
 class FirestoreService {
   final _db = FirebaseFirestore.instance;
+
+  // ---- Fewer Firestore reads: "cache-first" list reads for STUDENT screens ----
+  // A live listener (snapshots()) is billed again for every document each time
+  // the screen is opened after a while. For lists that rarely change, the
+  // student screens call these methods with `cache: true` instead:
+  //   * the list is downloaded ONCE and kept in Firestore's own offline cache;
+  //   * for the next [ttl] it is served from that cache (0 reads);
+  //   * it is downloaded again when the TTL is over, when the admin added new
+  //     content (the "new content" time stamps in appConfig/main, which the Home
+  //     screen already listens to, so checking them costs nothing), or when the
+  //     student pulls to refresh (`force: true`).
+  // The Admin Panel never passes `cache`, so it always stays live.
+  static final Map<String, Future<QuerySnapshot<Map<String, dynamic>>>> _inflight = {};
+
+  // Newest "new content" time stamp among [fields], read from the local copy of
+  // appConfig/main (no billed read). 0 = unknown.
+  Future<int> _marker(List<String> fields) async {
+    if (fields.isEmpty) return 0;
+    try {
+      final d = await _db.collection('appConfig').doc('main').get(GetOptions(source: Source.cache));
+      final data = d.data();
+      if (data == null) return 0;
+      var best = 0;
+      for (final f in fields) {
+        final v = data[f];
+        if (v is Timestamp && v.millisecondsSinceEpoch > best) best = v.millisecondsSinceEpoch;
+      }
+      return best;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> _cachedGet(
+    String key,
+    Query<Map<String, dynamic>> q, {
+    Duration ttl = const Duration(hours: 2),
+    List<String> markers = const [],
+    bool force = false,
+  }) {
+    final k = 'ysh_fq_$key';
+    final running = _inflight[k];
+    if (running != null) return running;
+    final f = _cachedGetRun(k, q, ttl, markers, force).whenComplete(() => _inflight.remove(k));
+    _inflight[k] = f;
+    return f;
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> _cachedGetRun(
+    String k,
+    Query<Map<String, dynamic>> q,
+    Duration ttl,
+    List<String> markers,
+    bool force,
+  ) async {
+    SharedPreferences? p;
+    try {
+      p = await SharedPreferences.getInstance();
+    } catch (_) {
+      p = null;
+    }
+    final marker = await _marker(markers);
+    if (!force && p != null) {
+      try {
+        final raw = p.getString(k);
+        if (raw != null) {
+          final m = jsonDecode(raw) as Map<String, dynamic>;
+          final age = DateTime.now().millisecondsSinceEpoch - ((m['t'] as num?)?.toInt() ?? 0);
+          final seen = (m['m'] as num?)?.toInt() ?? 0;
+          if (age >= 0 && age < ttl.inMilliseconds && marker <= seen) {
+            final cached = await q.get(GetOptions(source: Source.cache));
+            // Same number of documents as the last download = the cache is complete.
+            if (cached.docs.length == ((m['n'] as num?)?.toInt() ?? -1)) return cached;
+          }
+        }
+      } catch (_) {
+        // fall through to the server
+      }
+    }
+    try {
+      final snap = await q.get().timeout(const Duration(seconds: 12));
+      if (p != null) {
+        try {
+          await p.setString(k, jsonEncode({'t': DateTime.now().millisecondsSinceEpoch, 'm': marker, 'n': snap.docs.length}));
+        } catch (_) {}
+      }
+      return snap;
+    } catch (_) {
+      // Offline / slow: show what the phone already has, if anything.
+      try {
+        final cached = await q.get(GetOptions(source: Source.cache));
+        if (cached.docs.isNotEmpty) return cached;
+      } catch (_) {}
+      rethrow;
+    }
+  }
+
+  // Live list (Admin Panel, default) or cache-first list (students, cache: true).
+  Stream<List<T>> _listStream<T>({
+    required String key,
+    required Query<Map<String, dynamic>> q,
+    required T Function(String id, Map<String, dynamic> data) build,
+    List<T> Function(List<T> list)? post,
+    bool cache = false,
+    bool force = false,
+    Duration ttl = const Duration(hours: 2),
+    List<String> markers = const [],
+  }) {
+    List<T> shape(QuerySnapshot<Map<String, dynamic>> snap) {
+      final list = snap.docs.map((d) => build(d.id, d.data())).toList();
+      return post == null ? list : post(list);
+    }
+
+    if (!cache) return q.snapshots().map(shape);
+    return Stream<List<T>>.fromFuture(_cachedGet(key, q, ttl: ttl, markers: markers, force: force).then(shape));
+  }
 
   // ---- small helpers ----
 
@@ -122,11 +239,19 @@ class FirestoreService {
   // ---- Batches ----
   // The admin's hand-made order first, then anything never arranged (oldest
   // first). See compareOrderThenCreated.
-  Stream<List<BatchModel>> streamBatches() => _db.collection('batches').snapshots().map((snap) {
-        final list = snap.docs.map((d) => BatchModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
-        return list;
-      });
+  Stream<List<BatchModel>> streamBatches({bool cache = false, bool force = false}) => _listStream<BatchModel>(
+        key: 'batches',
+        q: _db.collection('batches'),
+        build: BatchModel.fromMap,
+        post: (list) {
+          list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
+          return list;
+        },
+        cache: cache,
+        force: force,
+        ttl: const Duration(hours: 3),
+        markers: const ['newBatchesAt'],
+      );
 
   // One batch by id (used when a Home banner is tapped). null = deleted.
   Future<BatchModel?> getBatch(String id) async {
@@ -271,24 +396,27 @@ class FirestoreService {
   // limitYoutubeAuto: when set (students' Video Classes screen), only the
   // newest N auto-fetched YouTube-channel videos are kept. Videos the admin
   // added by hand are never cut. The Admin panel leaves it null = sees all.
-  Stream<List<VideoModel>> streamFreeVideos({int? limitYoutubeAuto}) => _db
-          .collection('videos')
-          .where('batchId', isEqualTo: null)
-          .snapshots()
-          .map((snap) {
-        final list = snap.docs
-            .map((d) => VideoModel.fromMap(d.id, d.data()))
-            .where((v) => !v.hidden)
-            .toList();
-        list.sort(compareVideosNewestFirst);
-        if (limitYoutubeAuto == null) return list;
-        var autoSeen = 0;
-        return list.where((v) {
-          if (v.source != 'youtube_auto') return true;
-          autoSeen++;
-          return autoSeen <= limitYoutubeAuto;
-        }).toList();
-      });
+  Stream<List<VideoModel>> streamFreeVideos({int? limitYoutubeAuto, bool cache = false, bool force = false}) => _listStream<VideoModel>(
+        key: 'freeVideos',
+        q: _db.collection('videos').where('batchId', isEqualTo: null),
+        build: VideoModel.fromMap,
+        post: (all) {
+          final list = all.where((v) => !v.hidden).toList();
+          list.sort(compareVideosNewestFirst);
+          if (limitYoutubeAuto == null) return list;
+          var autoSeen = 0;
+          return list.where((v) {
+            if (v.source != 'youtube_auto') return true;
+            autoSeen++;
+            return autoSeen <= limitYoutubeAuto;
+          }).toList();
+        },
+        cache: cache,
+        force: force,
+        // The hourly YouTube script adds videos without a "new content" stamp, so refresh hourly.
+        ttl: const Duration(hours: 1),
+        markers: const ['newVideosAt'],
+      );
 
   // Newest 10 auto-fetched YouTube videos for the Home strip. The GitHub
   // script keeps a ready-made "latest 10" list in appConfig/latestVideos
@@ -316,19 +444,19 @@ class FirestoreService {
   // Fallback for the Home strip if the script hasn't written
   // appConfig/latestVideos yet: pulls a handful of auto-fetched videos and
   // sorts them newest first on the phone.
-  Stream<List<VideoModel>> streamAutoFetchedVideos({int limit = 10}) => _db
-          .collection('videos')
-          .where('source', isEqualTo: 'youtube_auto')
-          .limit(50)
-          .snapshots()
-          .map((snap) {
-        final list = snap.docs
-            .map((d) => VideoModel.fromMap(d.id, d.data()))
-            .where((v) => !v.hidden)
-            .toList();
-        list.sort(compareVideosNewestFirst);
-        return list.take(limit).toList();
-      });
+  Stream<List<VideoModel>> streamAutoFetchedVideos({int limit = 10, bool cache = false, bool force = false}) => _listStream<VideoModel>(
+        key: 'autoVideos',
+        q: _db.collection('videos').where('source', isEqualTo: 'youtube_auto').limit(50),
+        build: VideoModel.fromMap,
+        post: (all) {
+          final list = all.where((v) => !v.hidden).toList();
+          list.sort(compareVideosNewestFirst);
+          return list.take(limit).toList();
+        },
+        cache: cache,
+        force: force,
+        ttl: const Duration(hours: 1),
+      );
 
   Future<void> addVideo(VideoModel v) async {
     await _db.collection('videos').add({...v.toMap(), 'createdAt': FieldValue.serverTimestamp()});
@@ -354,17 +482,22 @@ class FirestoreService {
 
   // ---- Video folders (one batch per folder; batchId == 'free' for the
   // free Video Classes section) ----
-  Stream<List<VideoFolderModel>> streamVideoFolders(String batchId) => _db
-          .collection('videoFolders')
-          .where('batchId', isEqualTo: batchId)
-          .snapshots()
-          .map((snap) {
-        final list = snap.docs.map((d) => VideoFolderModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.name, b.name));
-        return list;
-      });
+  Stream<List<VideoFolderModel>> streamVideoFolders(String batchId, {bool cache = false, bool force = false}) => _listStream<VideoFolderModel>(
+        key: 'videoFolders_$batchId',
+        q: _db.collection('videoFolders').where('batchId', isEqualTo: batchId),
+        build: VideoFolderModel.fromMap,
+        post: (list) {
+          list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.name, b.name));
+          return list;
+        },
+        cache: cache,
+        force: force,
+        ttl: const Duration(hours: 6),
+        markers: const ['newVideosAt', 'newBatchesAt'],
+      );
 
-  Stream<List<VideoFolderModel>> streamFreeVideoFolders() => streamVideoFolders(kFreeVideoBatchId);
+  Stream<List<VideoFolderModel>> streamFreeVideoFolders({bool cache = false, bool force = false}) =>
+      streamVideoFolders(kFreeVideoBatchId, cache: cache, force: force);
 
   Future<void> addVideoFolder(VideoFolderModel f) =>
       _db.collection('videoFolders').add({...f.toMap(), 'createdAt': FieldValue.serverTimestamp()});
@@ -396,28 +529,31 @@ class FirestoreService {
     return agg.count ?? 0;
   }
 
-  Stream<List<VideoModel>> streamVideosInFolder(String folderId) => _db
-          .collection('videos')
-          .where('folderId', isEqualTo: folderId)
-          .snapshots()
-          .map((snap) {
-        final list = snap.docs
-            .map((d) => VideoModel.fromMap(d.id, d.data()))
-            .where((v) => !v.hidden)
-            .toList();
-        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
-        return list;
-      });
+  Stream<List<VideoModel>> streamVideosInFolder(String folderId, {bool cache = false, bool force = false}) => _listStream<VideoModel>(
+        key: 'videosIn_$folderId',
+        q: _db.collection('videos').where('folderId', isEqualTo: folderId),
+        build: VideoModel.fromMap,
+        post: (all) {
+          final list = all.where((v) => !v.hidden).toList();
+          list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
+          return list;
+        },
+        cache: cache,
+        force: force,
+        ttl: const Duration(hours: 6),
+        markers: const ['newVideosAt', 'newBatchesAt'],
+      );
 
   // ---- News ----
-  Stream<List<NewsItemModel>> streamNews(List<String> categories) {
-    return _db
-        .collection('newsItems')
-        .where('category', whereIn: categories)
-        .orderBy('pubDate', descending: true)
-        .limit(30)
-        .snapshots()
-        .map((snap) => snap.docs.map((d) => NewsItemModel.fromMap(d.id, d.data())).toList());
+  Stream<List<NewsItemModel>> streamNews(List<String> categories, {bool cache = false, bool force = false}) {
+    return _listStream<NewsItemModel>(
+      key: 'news_${categories.join(',')}',
+      q: _db.collection('newsItems').where('category', whereIn: categories).orderBy('pubDate', descending: true).limit(30),
+      build: NewsItemModel.fromMap,
+      cache: cache,
+      force: force,
+      ttl: const Duration(minutes: 30),
+    );
   }
 
   // ---- Daily current-affairs one-liners (auto-filled from PIB) ----
@@ -710,18 +846,26 @@ class FirestoreService {
   // batchId given = the folders shown inside that paid batch. A folder can
   // be in up to 3 batches (field `batchIds`); folders made before that only
   // have the single `batchId`, so both are matched (OR query).
-  Stream<List<PdfFolderModel>> streamFolders({required String type, String? batchId}) {
+  Stream<List<PdfFolderModel>> streamFolders({required String type, String? batchId, bool cache = false, bool force = false}) {
     final Query<Map<String, dynamic>> q = batchId != null
         ? _db.collection('pdfFolders').where(Filter.or(
               Filter('batchIds', arrayContains: batchId),
               Filter('batchId', isEqualTo: batchId),
             ))
         : _db.collection('pdfFolders').where('type', isEqualTo: type);
-    return q.snapshots().map((snap) {
-      final list = snap.docs.map((d) => PdfFolderModel.fromMap(d.id, d.data())).toList();
-      list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.name, b.name));
-      return list;
-    });
+    return _listStream<PdfFolderModel>(
+      key: 'pdfFolders_${type}_${batchId ?? ''}',
+      q: q,
+      build: PdfFolderModel.fromMap,
+      post: (list) {
+        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.name, b.name));
+        return list;
+      },
+      cache: cache,
+      force: force,
+      ttl: const Duration(hours: 6),
+      markers: const ['newPdfsAt', 'newBatchesAt'],
+    );
   }
 
   // Switch the monthly auto MCQ PDFs on / off for one FREE folder.
@@ -731,15 +875,19 @@ class FirestoreService {
   Future<void> addFolder(PdfFolderModel f) =>
       _db.collection('pdfFolders').add({...f.toMap(), 'createdAt': FieldValue.serverTimestamp()});
 
-  Stream<List<PdfModel>> streamPdfsInFolder(String folderId) => _db
-          .collection('pdfs')
-          .where('folderId', isEqualTo: folderId)
-          .snapshots()
-          .map((snap) {
-        final list = snap.docs.map((d) => PdfModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
-        return list;
-      });
+  Stream<List<PdfModel>> streamPdfsInFolder(String folderId, {bool cache = false, bool force = false}) => _listStream<PdfModel>(
+        key: 'pdfsIn_$folderId',
+        q: _db.collection('pdfs').where('folderId', isEqualTo: folderId),
+        build: PdfModel.fromMap,
+        post: (list) {
+          list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
+          return list;
+        },
+        cache: cache,
+        force: force,
+        ttl: const Duration(hours: 6),
+        markers: const ['newPdfsAt', 'newBatchesAt'],
+      );
 
   // ---- Notifications ----
   // "sent: false" lets the free GitHub Actions script (or the paid Cloud
@@ -770,29 +918,41 @@ class FirestoreService {
   }
 
   // ---- Mock Tests ----
-  Stream<List<MockTestFolderModel>> streamMockFolders() => _db.collection('mockTestFolders').snapshots().map((snap) {
-        final list = snap.docs.map((d) => MockTestFolderModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.examName, b.examName));
-        return list;
-      });
+  Stream<List<MockTestFolderModel>> streamMockFolders({bool cache = false, bool force = false}) => _listStream<MockTestFolderModel>(
+        key: 'mockFoldersAll',
+        q: _db.collection('mockTestFolders'),
+        build: MockTestFolderModel.fromMap,
+        post: (list) {
+          list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.examName, b.examName));
+          return list;
+        },
+        cache: cache,
+        force: force,
+        ttl: const Duration(hours: 6),
+        markers: const ['newMocksAt', 'newBatchesAt'],
+      );
 
   Future<void> addMockFolder(String examName) =>
       _db.collection('mockTestFolders').add({'examName': examName, 'batchIds': <String>[], 'createdAt': FieldValue.serverTimestamp()});
 
   // Only the FREE folders (no batch) - for the public Mock Tests screen.
-  Stream<List<MockTestFolderModel>> streamFreeMockFolders() =>
-      streamMockFolders().map((list) => list.where((f) => f.batchIds.isEmpty).toList());
+  Stream<List<MockTestFolderModel>> streamFreeMockFolders({bool cache = false, bool force = false}) =>
+      streamMockFolders(cache: cache, force: force).map((list) => list.where((f) => f.batchIds.isEmpty).toList());
 
   // Folders added to one paid batch (shown in that batch's "Mocks" tab).
-  Stream<List<MockTestFolderModel>> streamMockFoldersForBatch(String batchId) => _db
-          .collection('mockTestFolders')
-          .where('batchIds', arrayContains: batchId)
-          .snapshots()
-          .map((snap) {
-        final list = snap.docs.map((d) => MockTestFolderModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.examName, b.examName));
-        return list;
-      });
+  Stream<List<MockTestFolderModel>> streamMockFoldersForBatch(String batchId, {bool cache = false, bool force = false}) => _listStream<MockTestFolderModel>(
+        key: 'mockFoldersBatch_$batchId',
+        q: _db.collection('mockTestFolders').where('batchIds', arrayContains: batchId),
+        build: MockTestFolderModel.fromMap,
+        post: (list) {
+          list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.examName, b.examName));
+          return list;
+        },
+        cache: cache,
+        force: force,
+        ttl: const Duration(hours: 6),
+        markers: const ['newMocksAt', 'newBatchesAt'],
+      );
 
   // Admin: which paid batches a folder belongs to ([] = free).
   Future<void> setMockFolderBatches(String folderId, List<String> batchIds) async {
@@ -811,15 +971,20 @@ class FirestoreService {
     await _db.collection('mockTestFolders').doc(id).delete();
   }
 
-  Stream<List<MockTestModel>> streamMockTests(String folderId) => _db
-          .collection('mockTests')
-          .where('folderId', isEqualTo: folderId)
-          .snapshots()
-          .map((snap) {
-        final list = snap.docs.map((d) => MockTestModel.fromMap(d.id, d.data())).toList();
-        list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
-        return list;
-      });
+  Stream<List<MockTestModel>> streamMockTests(String folderId, {bool cache = false, bool force = false}) => _listStream<MockTestModel>(
+        key: 'mockTests_$folderId',
+        q: _db.collection('mockTests').where('folderId', isEqualTo: folderId),
+        build: MockTestModel.fromMap,
+        post: (list) {
+          list.sort((a, b) => compareOrderThenCreated(a.order, b.order, a.createdAt, b.createdAt, a.title, b.title));
+          return list;
+        },
+        cache: cache,
+        force: force,
+        // Mock tests are big documents (all questions), so this is the most valuable list to cache.
+        ttl: const Duration(hours: 3),
+        markers: const ['newMocksAt', 'newBatchesAt'],
+      );
 
   Future<void> saveMockTest(MockTestModel t) async {
     if (t.id.isEmpty) {
@@ -926,11 +1091,14 @@ class FirestoreService {
   }
 
   // ---- Home banners (16:9 auto-scroll carousel, Admin Panel -> Banners) ----
-  Stream<List<BannerModel>> streamBanners() => _db
-      .collection('banners')
-      .orderBy('order')
-      .snapshots()
-      .map((snap) => snap.docs.map((d) => BannerModel.fromMap(d.id, d.data())).toList());
+  Stream<List<BannerModel>> streamBanners({bool cache = false, bool force = false}) => _listStream<BannerModel>(
+        key: 'banners',
+        q: _db.collection('banners').orderBy('order'),
+        build: BannerModel.fromMap,
+        cache: cache,
+        force: force,
+        ttl: const Duration(hours: 6),
+      );
 
   // Auto-assigns the next order (current max + 1) so new banners land at
   // the end of the slider instead of the admin having to pick a number.
