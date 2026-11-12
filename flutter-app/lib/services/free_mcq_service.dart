@@ -81,13 +81,51 @@ class FreeMcqSet {
   const FreeMcqSet(this.questions, {this.sources = const [], this.license = '', this.licenseUrl = ''});
 }
 
+/// Test settings of the Free MCQs (same idea as a Mock Test: timer, marks, negative marking).
+/// The admin sets them once (Admin Panel > Free MCQs > Test settings); they apply to every Free MCQ test.
+/// Stored in appConfig/freeMcq, so the weekly script (which rewrites freeMcqIndex/current) never touches them.
+class FreeMcqSettings {
+  final int durationMinutes; // 0 = no timer
+  final double marksPerQuestion;
+  final double negativeMarks;
+
+  const FreeMcqSettings({this.durationMinutes = 25, this.marksPerQuestion = 1, this.negativeMarks = 0});
+
+  factory FreeMcqSettings.fromMap(dynamic raw) {
+    if (raw is! Map) return const FreeMcqSettings();
+    final minutes = (raw['durationMinutes'] as num?)?.toInt();
+    final marks = (raw['marksPerQuestion'] as num?)?.toDouble();
+    final neg = (raw['negativeMarks'] as num?)?.toDouble();
+    return FreeMcqSettings(
+      durationMinutes: (minutes == null || minutes < 0 || minutes > 300) ? 25 : minutes,
+      marksPerQuestion: (marks == null || marks <= 0 || marks > 100) ? 1 : marks,
+      negativeMarks: (neg == null || neg < 0) ? 0 : neg,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'durationMinutes': durationMinutes,
+        'marksPerQuestion': marksPerQuestion,
+        'negativeMarks': negativeMarks,
+      };
+}
+
 /// Everything the Free MCQs screens need, from one small document.
 class FreeMcqIndex {
   final List<FreeMcqChoice> exams;
   final List<FreeMcqChoice> subjects;
   final List<FreeMcqSetMeta> sets;
+  final FreeMcqSettings settings;
 
-  const FreeMcqIndex(this.exams, this.subjects, this.sets);
+  const FreeMcqIndex(this.exams, this.subjects, this.sets, [this.settings = const FreeMcqSettings()]);
+
+  /// Name of a subject folder (falls back to the id).
+  String subjectName(String id) {
+    for (final s in subjects) {
+      if (s.id == id) return s.name;
+    }
+    return id;
+  }
 
   /// Subject folders of one exam: the English folder has only English, the other exams never show English.
   List<FreeMcqChoice> subjectsForExam(String examId) => examId == kEnglishFolderId
@@ -114,7 +152,8 @@ class FreeMcqIndex {
 /// time (cached questions, the list entry and the saved score) - see [_withCachedSets]. This clean-up runs on the
 /// phone by itself, so it works even if the server clean-up is late.
 ///
-/// Quiz scores stay on the phone only (no Firestore writes at all for this feature).
+/// The tests open in the Mock Test exam screen, so a finished test is saved like a mock attempt (attempt list + leaderboard);
+/// the old phone-only scores (_kDone) are no longer written.
 class FreeMcqService {
   static const _kIndex = 'ysh_fmcq_index_v2';
   static const _kSetPrefix = 'ysh_fmcq_set_v2_';
@@ -168,7 +207,13 @@ class FreeMcqService {
         if (cached == null) return null;
         return _withCachedSets(p, cached.index);
       }
-      final json = <String, dynamic>{'exams': data['exams'], 'subjects': data['subjects'], 'sets': data['sets']};
+      final settings = await _fetchSettings(cached?.index.settings);
+      final json = <String, dynamic>{
+        'exams': data['exams'],
+        'subjects': data['subjects'],
+        'sets': data['sets'],
+        'settings': settings.toMap(),
+      };
       await p.setString(_kIndex, jsonEncode({'at': DateTime.now().millisecondsSinceEpoch, ...json}));
       return _withCachedSets(p, _fromMap(json));
     } catch (_) {
@@ -176,6 +221,51 @@ class FreeMcqService {
       if (cached != null) return _withCachedSets(p, cached.index);
       rethrow;
     }
+  }
+
+  /// The test settings (1 small read, only when the index itself is refreshed). On any problem the last known
+  /// settings (or the defaults) are used, so a student can always open a test.
+  Future<FreeMcqSettings> _fetchSettings(FreeMcqSettings? fallback) async {
+    try {
+      final snap = await _db.collection('appConfig').doc('freeMcq').get().timeout(const Duration(seconds: 8));
+      final data = snap.data();
+      if (data == null) return fallback ?? const FreeMcqSettings();
+      return FreeMcqSettings.fromMap(data);
+    } catch (_) {
+      return fallback ?? const FreeMcqSettings();
+    }
+  }
+
+  /// Admin only: saves the test settings and refreshes this phone's cached copy.
+  Future<void> saveSettings(FreeMcqSettings s) async {
+    await _db.collection('appConfig').doc('freeMcq').set(s.toMap(), SetOptions(merge: true));
+    try {
+      await loadIndex(force: true);
+    } catch (_) {}
+  }
+
+  /// A Free MCQ set as a mock test (same model the Mock Tests use), so it opens in the exam screen with
+  /// timer, marks, scorecard and leaderboard. The test id is the set id, so every set has its own leaderboard.
+  /// [subject] is the subject folder name ('' for the English folder, which has no subject folders).
+  static MockTestModel toMockTest({
+    required FreeMcqSetMeta meta,
+    required String subjectName,
+    required String subject,
+    required FreeMcqSet set,
+    required FreeMcqSettings settings,
+    String? id,
+    String? folderId,
+  }) {
+    return MockTestModel(
+      id: id ?? meta.id,
+      folderId: folderId ?? meta.examId,
+      title: '$subjectName \u00b7 ${setLabel(meta)}',
+      questions: set.questions,
+      durationMinutes: settings.durationMinutes,
+      marksPerQuestion: settings.marksPerQuestion,
+      negativeMarks: settings.negativeMarks,
+      subject: subject,
+    );
   }
 
   static ({int at, FreeMcqIndex index})? _readIndexCache(SharedPreferences p) {
@@ -209,7 +299,7 @@ class FreeMcqService {
     final exams = [..._choices(m['exams'])];
     if (!exams.any((e) => e.id == kEnglishFolderId)) exams.add(kEnglishFolder);
     if (!subjects.any((s) => s.id == kEnglishFolderId)) subjects.add(kEnglishFolder);
-    return FreeMcqIndex(exams, subjects, sets);
+    return FreeMcqIndex(exams, subjects, sets, FreeMcqSettings.fromMap(m['settings']));
   }
 
   static List<FreeMcqChoice> _choices(dynamic raw) {
@@ -409,7 +499,7 @@ class FreeMcqService {
     }
     await _pruneDone(p, cutoff);
     if (extras.isEmpty && liveSets.length == index.sets.length) return index;
-    return FreeMcqIndex(index.exams, index.subjects, [...liveSets, ...extras]);
+    return FreeMcqIndex(index.exams, index.subjects, [...liveSets, ...extras], index.settings);
   }
 
   // ------------------------------------------------------------ scores (phone only)

@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'content_seen_store.dart';
+import 'free_mcq_service.dart';
 
 class FirestoreService {
   final _db = FirebaseFirestore.instance;
@@ -1118,5 +1119,116 @@ class FirestoreService {
     if (destinations.any((d) => d != kCopyFreeDest)) await _markUpdated('newBatchesAt');
     if (destinations.contains(kCopyFreeDest)) await _markUpdated('newMocksAt');
     return tests.length;
+  }
+
+  // ====================================================================
+  // ---- FREE MCQs -> MOCK TESTS (Admin Panel > Free MCQs) ----
+  // Copies the weekly sets of one Free MCQs exam folder into the Mock Tests
+  // section (and / or paid batches) as real mock tests:
+  //   exam folder  -> mock exam folder (same name)
+  //   subject      -> mock subject folder (English has none)
+  //   weekly set   -> one mock test (all questions, Hindi + explanation kept)
+  // The timer / marks / negative marks come from [settings].
+  // If the destination already has an exam folder with the same name it is
+  // REUSED and tests that are already there (same subject + title) are
+  // skipped, so copying again only adds the new weeks. The newest week is
+  // shown first. Nothing is removed here - "Move" is done by the caller.
+  // ====================================================================
+  Future<({int added, int skipped})> copyFreeMcqExamToMocks({
+    required FreeMcqChoice exam,
+    required FreeMcqIndex index,
+    required List<String> destinations,
+    required FreeMcqSettings settings,
+    String? onlySubjectId,
+  }) async {
+    if (destinations.isEmpty) return (added: 0, skipped: 0);
+    var metas = index.setsForExam(exam.id); // newest week first
+    if (onlySubjectId != null) metas = metas.where((m) => m.subjectId == onlySubjectId).toList();
+    if (metas.isEmpty) throw StateError('This folder has no sets yet.');
+
+    // 1) Read every set first, so nothing is written if one of them cannot be read.
+    final svc = FreeMcqService();
+    final sets = <FreeMcqSet>[];
+    for (final m in metas) {
+      sets.add(await svc.loadSet(m));
+    }
+    final tests = <MockTestModel>[];
+    for (var i = 0; i < metas.length; i++) {
+      tests.add(FreeMcqService.toMockTest(
+        meta: metas[i],
+        subjectName: index.subjectName(metas[i].subjectId),
+        subject: exam.id == kEnglishFolderId ? '' : index.subjectName(metas[i].subjectId),
+        set: sets[i],
+        settings: settings,
+        id: '',
+        folderId: '',
+      ));
+    }
+
+    // 2) Existing mock folders (to reuse a folder with the same name).
+    final folderSnap = await _db.collection('mockTestFolders').get();
+    final wantedName = exam.name.trim().toLowerCase();
+    var added = 0;
+    var skipped = 0;
+
+    for (final dest in destinations.toSet()) {
+      final isFree = dest == kCopyFreeDest;
+      QueryDocumentSnapshot<Map<String, dynamic>>? existing;
+      for (final d in folderSnap.docs) {
+        final data = d.data();
+        if ((data['examName'] ?? '').toString().trim().toLowerCase() != wantedName) continue;
+        final ids = data['batchIds'] is List ? (data['batchIds'] as List).map((e) => e.toString()).toList() : <String>[];
+        if (isFree ? ids.isEmpty : ids.contains(dest)) {
+          existing = d;
+          break;
+        }
+      }
+
+      final folderRef = existing?.reference ?? _db.collection('mockTestFolders').doc();
+      final doneKeys = <String>{};
+      int? lowestOrder;
+      if (existing != null) {
+        final old = await _db.collection('mockTests').where('folderId', isEqualTo: folderRef.id).get();
+        for (final d in old.docs) {
+          final data = d.data();
+          doneKeys.add('${mockSubjectKey((data['subject'] ?? '').toString())}|${(data['title'] ?? '').toString().trim().toLowerCase()}');
+          final o = data['order'];
+          if (o is num && (lowestOrder == null || o.toInt() < lowestOrder)) lowestOrder = o.toInt();
+        }
+      }
+
+      final fresh = tests
+          .where((t) => !doneKeys.contains('${mockSubjectKey(t.subject)}|${t.title.trim().toLowerCase()}'))
+          .toList();
+      skipped += tests.length - fresh.length;
+      if (fresh.isEmpty) continue;
+
+      final ops = <void Function(WriteBatch b)>[];
+      if (existing == null) {
+        ops.add((b) => b.set(folderRef, {
+              'examName': exam.name.trim(),
+              'batchIds': isFree ? <String>[] : <String>[dest],
+              'createdAt': FieldValue.serverTimestamp(),
+            }));
+      }
+      // New weeks go on top of what the folder already has.
+      final base = (lowestOrder ?? 0) - fresh.length;
+      for (var i = 0; i < fresh.length; i++) {
+        final raw = <String, dynamic>{
+          ...fresh[i].toMap(),
+          'folderId': folderRef.id,
+          'order': existing == null ? i : base + i,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        ops.add((b) => b.set(_db.collection('mockTests').doc(), raw));
+      }
+      await _runWrites(ops, chunk: 8);
+      added += fresh.length;
+    }
+    if (added > 0) {
+      if (destinations.any((d) => d != kCopyFreeDest)) await _markUpdated('newBatchesAt');
+      if (destinations.contains(kCopyFreeDest)) await _markUpdated('newMocksAt');
+    }
+    return (added: added, skipped: skipped);
   }
 }
