@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
-import '../models/models.dart';
 import '../services/free_mcq_service.dart';
-import '../services/study_store.dart';
+import '../services/mock_rank_service.dart' show fmtMarks;
 import '../utils/open_link.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/state_views.dart';
-import 'quiz_session_screen.dart';
+import 'mock_leaderboard_screen.dart';
+import 'mock_test_attempt_screen.dart';
 import '../app_colors.dart';
 
-/// Free MCQs (home grid): exam folders -> subject folders -> one set per week.
-/// Every set has 25 MCQs (Hindi + English). Wrong answers go to the Mistake
-/// Notebook and the answered count goes to today's goal, same as the other quizzes.
+String _tests(int n) => '$n ${n == 1 ? 'test' : 'tests'}';
+
+/// Free MCQs (home grid): exam folders -> subject folders -> one test per week.
+/// Same format as Mock Tests: every weekly set is a test with a timer, marks,
+/// negative marking, scorecard and leaderboard (it opens in the Mock Test exam
+/// screen). Every set has 25 MCQs (Hindi + English). Wrong answers go to the
+/// Mistake Notebook and the answered count to today's goal, via the scorecard.
 class FreeMcqsScreen extends StatefulWidget {
   const FreeMcqsScreen({super.key});
 
@@ -58,7 +62,7 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
                   child: Text(
-                    'A new set of 25 MCQs every week (Monday): Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, easy to hard). Sets older than 2 months are removed automatically. Tap ⓘ on a set to see how it was made.',
+                    'A new test of 25 MCQs every week (Monday): Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, easy to hard). Every test is timed and marked like a Mock Test, with a scorecard and a leaderboard. Tests older than 2 months are removed automatically. Tap ⓘ on a test to see how it was made.',
                     style: TextStyle(color: AppC.muted, fontSize: 12.5),
                   ),
                 ),
@@ -78,8 +82,8 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                       title: Text(e.name, style: TextStyle(color: AppC.text)),
                       subtitle: Text(
                         e.id == kEnglishFolderId
-                            ? 'Banking PO / Clerk pattern · ${index.setsForExam(e.id).length} sets'
-                            : '${index.setsForExam(e.id).length} sets',
+                            ? 'Banking PO / Clerk pattern · ${_tests(index.setsForExam(e.id).length)}'
+                            : _tests(index.setsForExam(e.id).length),
                         style: TextStyle(color: AppC.muted, fontSize: 11),
                       ),
                       trailing: Icon(Icons.chevron_right, color: AppC.muted),
@@ -119,7 +123,7 @@ class _FreeMcqExamScreen extends StatelessWidget {
                 leading: Text(s.emoji, style: const TextStyle(fontSize: 22)),
                 title: Text(s.name, style: TextStyle(color: AppC.text)),
                 subtitle: Text(
-                  '${index.setsFor(exam.id, s.id).length} sets',
+                  _tests(index.setsFor(exam.id, s.id).length),
                   style: TextStyle(color: AppC.muted, fontSize: 11),
                 ),
                 trailing: Icon(Icons.chevron_right, color: AppC.muted),
@@ -144,73 +148,35 @@ class _FreeMcqSubjectScreen extends StatefulWidget {
 
 class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
   final _svc = FreeMcqService();
-  Map<String, String> _done = <String, String>{};
   String? _openingId; // the set being downloaded right now (spinner on its tile)
 
-  @override
-  void initState() {
-    super.initState();
-    _loadDone();
-  }
-
-  Future<void> _loadDone() async {
-    final d = await _svc.doneScores();
-    if (mounted) setState(() => _done = d);
-  }
-
+  /// Opens the set in the Mock Test exam screen (timer, marks, scorecard, leaderboard).
   Future<void> _open(FreeMcqSetMeta meta) async {
     if (_openingId != null) return;
     setState(() => _openingId = meta.id);
 
-    final List<MockQuestion> qs;
+    final FreeMcqSet set;
     try {
-      qs = (await _svc.loadSet(meta)).questions;
+      set = await _svc.loadSet(meta);
     } catch (_) {
       if (!mounted) return;
       setState(() => _openingId = null);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This set could not be opened. Check your internet and try again.')),
+        const SnackBar(content: Text('This test could not be opened. Check your internet and try again.')),
       );
       return;
     }
     if (!mounted) return;
     setState(() => _openingId = null);
 
-    final title = '${widget.subject.name} · ${FreeMcqService.setLabel(meta)}';
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => QuizSessionScreen(
-          title: title,
-          questions: qs,
-          onFinished: (answers) => _finish(meta, qs, answers),
-        ),
-      ),
-    );
-    _loadDone(); // show the new score on the tile
-  }
-
-  /// Saves the score on this phone, wrong answers to the Mistake Notebook, and the goal count.
-  Future<void> _finish(FreeMcqSetMeta meta, List<MockQuestion> qs, List<int?> answers) async {
-    final wrong = <MockQuestion>[];
-    var answered = 0;
-    var correct = 0;
-    for (var i = 0; i < qs.length; i++) {
-      final a = i < answers.length ? answers[i] : null;
-      if (a == null) continue;
-      answered++;
-      if (a == qs[i].correctIndex) {
-        correct++;
-      } else {
-        wrong.add(qs[i]);
-      }
-    }
-    await _svc.markDone(meta.id, correct, qs.length);
-    await StudyStore.addMistakes(
-      wrong,
+    final test = FreeMcqService.toMockTest(
+      meta: meta,
+      subjectName: widget.subject.name,
       subject: widget.subject.name,
-      source: '${widget.exam.name} · ${FreeMcqService.setLabel(meta)}',
+      set: set,
+      settings: widget.index.settings,
     );
-    await StudyStore.addGoalProgress(answered);
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestAttemptScreen(test: test)));
   }
 
   /// "About this set" (how it was made). Uses the same single read the quiz needs (then cached).
@@ -238,7 +204,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
             children: [
-              Text('About this set', style: TextStyle(color: AppC.text, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text('About this test', style: TextStyle(color: AppC.text, fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
                 set.sources.isNotEmpty
@@ -267,12 +233,11 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
     );
   }
 
+  /// Same line as a Mock Test tile: questions, time, marks, negative marking.
   String _subtitle(FreeMcqSetMeta m) {
-    final parts = <String>['${m.count} MCQs'];
-    if (m.source.isNotEmpty) parts.add(m.source);
-    final score = _done[m.id];
-    if (score != null) parts.add('Score $score');
-    return parts.join(' · ');
+    final st = widget.index.settings;
+    return '${m.count} questions \u2022 ${st.durationMinutes > 0 ? '${st.durationMinutes} min' : 'No timer'} \u2022 ${fmtMarks(m.count * st.marksPerQuestion)} marks'
+        '${st.negativeMarks > 0 ? ' \u2022 \u2212${fmtMarks(st.negativeMarks)} negative' : ''}';
   }
 
   @override
@@ -282,8 +247,8 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
       appBar: AppBar(title: Text(widget.subject.name)),
       body: sets.isEmpty
           ? EmptyView(widget.subject.id == kEnglishFolderId
-              ? 'The English set for this week is not ready yet. A new set of 25 English MCQs arrives automatically every Monday.'
-              : 'No set for this subject yet. A new set of 25 MCQs arrives automatically every Monday.')
+              ? 'The English test for this week is not ready yet. A new test of 25 English MCQs arrives automatically every Monday.'
+              : 'No test for this subject yet. A new test of 25 MCQs arrives automatically every Monday.')
           : ListView(
               padding: const EdgeInsets.all(14),
               children: [
@@ -292,10 +257,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
                     margin: const EdgeInsets.only(bottom: 8),
                     onTap: _openingId == null ? () => _open(m) : null,
                     child: ListTile(
-                      leading: Icon(
-                        _done.containsKey(m.id) ? Icons.check_circle : Icons.quiz_outlined,
-                        color: _done.containsKey(m.id) ? Colors.green : AppC.muted,
-                      ),
+                      leading: const Text('📝', style: TextStyle(fontSize: 22)),
                       title: Text(FreeMcqService.setLabel(m), style: TextStyle(color: AppC.text)),
                       subtitle: Text(_subtitle(m), style: TextStyle(color: AppC.muted, fontSize: 11)),
                       trailing: _openingId == m.id
@@ -303,8 +265,23 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
                           : Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                // Leaderboard: rank list by marks only (no names), same as Mock Tests.
                                 IconButton(
-                                  tooltip: 'About this set',
+                                  tooltip: 'Leaderboard',
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Text('\u{1F3C6}', style: TextStyle(fontSize: 20)),
+                                  onPressed: _openingId == null
+                                      ? () => Navigator.of(context).push(MaterialPageRoute(
+                                            builder: (_) => MockLeaderboardScreen(
+                                              testId: m.id,
+                                              testTitle: '${widget.subject.name} \u00b7 ${FreeMcqService.setLabel(m)}',
+                                            ),
+                                          ))
+                                      : null,
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: 'About this test',
                                   icon: Icon(Icons.info_outline, size: 20, color: AppC.muted),
                                   onPressed: _openingId == null ? () => _showSources(m) : null,
                                 ),
