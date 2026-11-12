@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'calendar_store.dart';
 
 // =============================================================================
 //  ActivityLog - din-wise "kitne sawal kiye" ka hisaab (Weekly Report ke liye).
@@ -49,7 +48,6 @@ class ActivityLog {
       m.removeWhere((k, _) => k.compareTo(oldest) < 0);
       await p.setString(_kQ, jsonEncode(m));
     } catch (_) {}
-    await CalendarStore.addQuestions(n); // Study Calendar (lamba record)
   }
 
   /// Diye gaye dinon ke sawal, usi kram me ({day: count}).

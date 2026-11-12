@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'calendar_store.dart';
 import 'study_store.dart';
 import 'xp_store.dart';
 
@@ -49,7 +48,6 @@ class StudyTimeStore {
       await p.setString(_kDays, jsonEncode(m));
       await p.setInt(_kTotal, (p.getInt(_kTotal) ?? 0) + seconds);
       await XpStore.addFocusSeconds(seconds); // har poore minute par 1 XP
-      await CalendarStore.addSeconds(seconds); // Study Calendar (lamba record)
       _bump();
     } catch (_) {}
   }
