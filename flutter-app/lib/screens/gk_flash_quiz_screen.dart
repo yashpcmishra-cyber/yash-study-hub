@@ -7,7 +7,7 @@ import '../services/drill_store.dart';
 import '../services/study_store.dart';
 import 'quiz_session_screen.dart';
 
-/// GK Flash Quiz: Flashcards ke sawal-jawab se 4-option ka quiz banta hai.
+/// GK Flash Quiz: GK ke sawal-jawab se 4-option ka quiz banta hai.
 /// Category chuno (ya "All") aur 10 sawal khelo. Galat sawal Smart Revision me
 /// chale jaate hain. Sab kuch phone me - Firestore ko 0 reads / 0 writes.
 class GkFlashQuizScreen extends StatefulWidget {
@@ -141,13 +141,13 @@ class _GkFlashQuizScreenState extends State<GkFlashQuizScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Turn your flashcards into a quick MCQ quiz.\nफ्लैशकार्ड से झटपट MCQ क्विज़।',
+                  'A quick GK MCQ quiz.\nझटपट GK MCQ क्विज़।',
                   style: TextStyle(color: AppC.text, fontWeight: FontWeight.w600, fontSize: 13.5, height: 1.35),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   b == null
-                      ? '${kFlashcards.length} cards ready • new mix every time\n${kFlashcards.length} कार्ड तैयार • हर बार नया मिक्स'
+                      ? '${kFlashcards.length} questions ready • new mix every time\n${kFlashcards.length} सवाल तैयार • हर बार नया मिक्स'
                       : 'Best: ${b.correct}/${b.total} (${b.percent}%)\nबेस्ट: ${b.correct}/${b.total} (${b.percent}%)',
                   style: TextStyle(color: AppC.text54, fontSize: 11.5, height: 1.35),
                 ),
