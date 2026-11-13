@@ -1332,9 +1332,48 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             TextField(controller: _brandYoutubeCtrl, style: TextStyle(color: AppC.text), decoration: InputDecoration(labelText: 'YouTube URL', labelStyle: TextStyle(color: AppC.muted))),
             const SizedBox(height: 10),
             ElevatedButton(onPressed: () => _saveBrandingText(cfg), child: const Text('Save')),
+            Divider(color: AppC.divider, height: 34),
+            _homeOrderSection(cfg),
           ],
         );
       },
+    );
+  }
+
+  // Home screen sections: drag / arrows to set the order students see.
+  Widget _homeOrderSection(AppConfigModel cfg) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Home screen sections order', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 14)),
+        Text('Drag the handle or tap the arrows. Students see the new order on Home right away \u2014 no rebuild needed.', style: TextStyle(color: AppC.muted, fontSize: 11)),
+        const SizedBox(height: 10),
+        AdminReorderList<String>(
+          items: cfg.homeOrder,
+          inCard: true,
+          idOf: (id) => id,
+          onSave: (list) => _fs.setHomeSectionOrder(list),
+          contentBuilder: (context, id) => ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+            title: Text(kHomeSectionTitles[id] ?? id, style: TextStyle(color: AppC.text, fontSize: 13)),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () async {
+              try {
+                await _fs.setHomeSectionOrder(List<String>.of(kHomeSectionIds));
+                _snack('Order reset to default');
+              } catch (e) {
+                _snack('Reset failed: $e');
+              }
+            },
+            icon: Icon(Icons.restart_alt, size: 18, color: AppC.accent),
+            label: Text('Reset to default order', style: TextStyle(color: AppC.accent, fontSize: 12)),
+          ),
+        ),
+      ],
     );
   }
 
