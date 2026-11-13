@@ -1141,6 +1141,11 @@ class FirestoreService {
   Future<void> setAppConfig(AppConfigModel c) =>
       _db.collection('appConfig').doc('main').set(c.toMap(), SetOptions(merge: true));
 
+  // Home screen sections order (Admin > Branding). Stored in the same doc the
+  // Home already streams (appConfig/main), so students need no extra read.
+  Future<void> setHomeSectionOrder(List<String> ids) =>
+      _db.collection('appConfig').doc('main').set({'homeSectionOrder': ids}, SetOptions(merge: true));
+
   Future<void> setAppLogoUrl(String url) =>
       _db.collection('appConfig').doc('main').set({'logoUrl': url}, SetOptions(merge: true));
 
