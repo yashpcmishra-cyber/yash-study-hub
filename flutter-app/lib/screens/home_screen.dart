@@ -508,68 +508,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: StudyCornerCard(),
                       ),
 
-                      // Study Tools: Flashcards, Badges
-                      // (all data lives on the phone - 0 Firestore reads).
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
-                        child: StudyToolsCard(),
-                      ),
-
-                      // Smart Study: Today's Plan, Speed Maths, Syllabus Tracker, Weekly Report
-                      // (all data lives on the phone - 0 Firestore reads).
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
-                        child: SmartStudyCard(),
-                      ),
-
-                      // Exam Boost: Reasoning Drill, GK Flash Quiz, Exam Tracker, Score Journal
-                      // (all data lives on the phone - 0 Firestore reads).
-                      // Remote Config 'feature_exam_boost' = false karne par ye card chhup jaata hai.
-                      if (RemoteFlags.on('feature_exam_boost'))
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
-                          child: ExamBoostCard(),
-                        ),
-
-                      // More Tools: My Notes, Important Days, Cloud Backup.
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
-                        child: MoreToolsCard(),
-                      ),
-
-                      // Aaj ka Gyaan: Word of the Day + GK fact (bundled in the app).
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0),
-                        child: DailyGyanCard(),
-                      ),
-
-                      // YouTube auto-fetch section — sits BELOW the social
-                      // card, so it only shows when the student scrolls.
-                      _sectionHeader(
-                        'YouTube Videos',
-                        actionLabel: 'Channel',
-                        onAction: () => openExternalLink(context, cfg.youtubeUrl),
-                      ),
-                      SizedBox(
-                        height: 130,
-                        child: StreamBuilder<List<VideoModel>>(
-                          stream: _latestVideosStream,
-                          builder: (context, latestSnap) {
-                            final latest = latestSnap.data ?? <VideoModel>[];
-                            if (latest.isNotEmpty) return _videoStrip(context, latest);
-                            return StreamBuilder<List<VideoModel>>(
-                              stream: _fallbackVideosStream,
-                              builder: (context, snap) {
-                                if (snap.hasError) return _stripMessage('Could not load videos.');
-                                if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-                                final videos = snap.data!;
-                                if (videos.isEmpty) return _stripMessage('New videos will show up here.');
-                                return _videoStrip(context, videos);
-                              },
-                            );
-                          },
-                        ),
-                      ),
+                      // Study Tools, Smart Study, Exam Boost, More Tools, Word of the Day and
+                      // YouTube Videos - in the order set in Admin > Branding > Home sections order.
+                      ..._orderedSections(cfg),
                     ],
                   ),
                 );
@@ -586,6 +527,68 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  // The Home sections under the social banner, in the order the admin chose.
+  // The order lives in appConfig/main, which Home already streams (0 extra reads).
+  List<Widget> _orderedSections(AppConfigModel cfg) {
+    const sidePad = 14.0;
+    Widget card(Widget w) => Padding(padding: const EdgeInsets.fromLTRB(sidePad, 12, sidePad, 0), child: w);
+    final out = <Widget>[];
+    for (final id in cfg.homeOrder) {
+      switch (id) {
+        case 'study_tools': // Flashcards, Badges (data on the phone)
+          out.add(card(const StudyToolsCard()));
+          break;
+        case 'smart_study': // Today's Plan, Speed Maths, Syllabus Tracker, Weekly Report
+          out.add(card(const SmartStudyCard()));
+          break;
+        case 'exam_boost': // Remote Config 'feature_exam_boost' = false hides it
+          if (RemoteFlags.on('feature_exam_boost')) out.add(card(const ExamBoostCard()));
+          break;
+        case 'more_tools': // My Notes, Important Days, Cloud Backup
+          out.add(card(const MoreToolsCard()));
+          break;
+        case 'daily_gyan': // Word of the Day + GK fact (bundled in the app)
+          out.add(card(const DailyGyanCard()));
+          break;
+        case 'youtube':
+          out.addAll(_youtubeSection(cfg));
+          break;
+      }
+    }
+    return out;
+  }
+
+  // YouTube auto-fetch section (header + horizontal video strip).
+  List<Widget> _youtubeSection(AppConfigModel cfg) {
+    return [
+      _sectionHeader(
+        'YouTube Videos',
+        actionLabel: 'Channel',
+        onAction: () => openExternalLink(context, cfg.youtubeUrl),
+      ),
+      SizedBox(
+        height: 130,
+        child: StreamBuilder<List<VideoModel>>(
+          stream: _latestVideosStream,
+          builder: (context, latestSnap) {
+            final latest = latestSnap.data ?? <VideoModel>[];
+            if (latest.isNotEmpty) return _videoStrip(context, latest);
+            return StreamBuilder<List<VideoModel>>(
+              stream: _fallbackVideosStream,
+              builder: (context, snap) {
+                if (snap.hasError) return _stripMessage('Could not load videos.');
+                if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                final videos = snap.data!;
+                if (videos.isEmpty) return _stripMessage('New videos will show up here.');
+                return _videoStrip(context, videos);
+              },
+            );
+          },
+        ),
+      ),
+    ];
   }
 
   Widget _videoStrip(BuildContext context, List<VideoModel> videos) {
