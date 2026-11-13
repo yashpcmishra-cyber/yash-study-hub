@@ -642,6 +642,18 @@ class BannerModel {
 // admin edits something in the Branding tab.
 // IMPORTANT: check the UPI ID below (and the links) in Admin > Branding
 // before going live — 'yshpay@upi' is only a placeholder.
+/// Home screen sections the admin can re-order (Admin > Branding > Home sections order).
+/// The list below is also the DEFAULT order (same as before this feature existed).
+const List<String> kHomeSectionIds = ['study_tools', 'smart_study', 'exam_boost', 'more_tools', 'daily_gyan', 'youtube'];
+const Map<String, String> kHomeSectionTitles = {
+  'study_tools': 'Study Tools',
+  'smart_study': 'Smart Study',
+  'exam_boost': 'Exam Boost',
+  'more_tools': 'More Tools',
+  'daily_gyan': 'Word of the Day',
+  'youtube': 'YouTube Videos',
+};
+
 class AppConfigModel {
   final String? logoUrl;
   final String appName;
@@ -653,6 +665,21 @@ class AppConfigModel {
   final String paymentEmail;
   final String whatsappUrl;
   final String youtubeUrl;
+  // Order of the Home sections chosen by the admin (null = default order).
+  final List<String>? homeSectionOrder;
+
+  /// Saved order made safe: unknown ids are dropped, and any section missing
+  /// from the saved list (e.g. one added in a later app update) is added at the end.
+  List<String> get homeOrder {
+    final out = <String>[];
+    for (final id in homeSectionOrder ?? const <String>[]) {
+      if (kHomeSectionIds.contains(id) && !out.contains(id)) out.add(id);
+    }
+    for (final id in kHomeSectionIds) {
+      if (!out.contains(id)) out.add(id);
+    }
+    return out;
+  }
 
   const AppConfigModel({
     this.logoUrl,
@@ -664,6 +691,7 @@ class AppConfigModel {
     this.paymentEmail = 'officialteamysh@gmail.com',
     this.whatsappUrl = 'https://whatsapp.com/channel/0029VbCnzSvKmCPLxoMBuk33',
     this.youtubeUrl = 'https://www.youtube.com/c/YashStudyHub',
+    this.homeSectionOrder,
   });
 
   factory AppConfigModel.fromMap(Map<String, dynamic>? m) {
@@ -679,6 +707,7 @@ class AppConfigModel {
       paymentEmail: (m['paymentEmail'] as String?)?.trim().isNotEmpty == true ? (m['paymentEmail'] as String).trim() : d.paymentEmail,
       whatsappUrl: (m['whatsappUrl'] as String?)?.trim().isNotEmpty == true ? m['whatsappUrl'] : d.whatsappUrl,
       youtubeUrl: (m['youtubeUrl'] as String?)?.trim().isNotEmpty == true ? m['youtubeUrl'] : d.youtubeUrl,
+      homeSectionOrder: m['homeSectionOrder'] is List ? (m['homeSectionOrder'] as List).whereType<String>().toList() : null,
     );
   }
 
@@ -692,9 +721,10 @@ class AppConfigModel {
         'paymentEmail': paymentEmail,
         'whatsappUrl': whatsappUrl,
         'youtubeUrl': youtubeUrl,
+        if (homeSectionOrder != null) 'homeSectionOrder': homeSectionOrder,
       };
 
-  AppConfigModel copyWith({String? logoUrl, String? appName, String? tagline, String? upiId, String? telegramUrl, String? paymentTelegramUrl, String? paymentEmail, String? whatsappUrl, String? youtubeUrl}) =>
+  AppConfigModel copyWith({String? logoUrl, String? appName, String? tagline, String? upiId, String? telegramUrl, String? paymentTelegramUrl, String? paymentEmail, String? whatsappUrl, String? youtubeUrl, List<String>? homeSectionOrder}) =>
       AppConfigModel(
         logoUrl: logoUrl ?? this.logoUrl,
         appName: appName ?? this.appName,
@@ -705,6 +735,7 @@ class AppConfigModel {
         paymentEmail: paymentEmail ?? this.paymentEmail,
         whatsappUrl: whatsappUrl ?? this.whatsappUrl,
         youtubeUrl: youtubeUrl ?? this.youtubeUrl,
+        homeSectionOrder: homeSectionOrder ?? this.homeSectionOrder,
       );
 }
 
