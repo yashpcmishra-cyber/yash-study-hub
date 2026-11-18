@@ -3,7 +3,12 @@ name: Fetch YouTube Videos (free, no Blaze needed)
 on:
   schedule:
     - cron: '0 * * * *'   # every hour (videos are posted far less often than news)
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Run the full update even if nothing changed'
+        type: boolean
+        default: false
 
 concurrency:
   group: fetch-videos
@@ -24,5 +29,6 @@ jobs:
         working-directory: production-app-guide/free-scripts
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FORCE: ${{ inputs.force }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
