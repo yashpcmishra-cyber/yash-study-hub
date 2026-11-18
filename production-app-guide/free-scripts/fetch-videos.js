@@ -33,6 +33,7 @@
  *     — see FREE_AUTOMATION_GUIDE.md for how to find it.
  */
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
@@ -44,6 +45,12 @@ const CHANNEL_ID = process.env.YOUTUBE_CHANNEL_ID;
 // next-newest one and we still end up with LATEST_COUNT. (Still 1 quota unit.)
 const MAX_VIDEOS = 25;
 const LATEST_COUNT = 10;
+// FEWER READS / WRITES: when nothing changed since the last run (same newest-10 list,
+// same titles, same hidden videos) the run stops after ~2 small reads and writes
+// NOTHING. A full run (write 10 videos + latest list + delete old ones) still happens
+// when something changed, once every 24 hours as a self-heal, or when started by hand
+// with "force" ticked (GitHub > Actions > Fetch YouTube Videos > Run workflow).
+const FULL_RUN_EVERY_MS = 24 * 60 * 60 * 1000;
 
 async function getJson(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
@@ -133,6 +140,23 @@ async function deleteOlderAutoVideos(keepIds, windowIds) {
     candidates.sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)));
     const latest = candidates.slice(0, LATEST_COUNT);
 
+    // Fingerprint of everything this run would write. The hidden ids are part of it, so
+    // hiding / un-hiding a video in the Admin panel changes it and triggers a full run.
+    const sig = crypto
+      .createHash("sha1")
+      .update(JSON.stringify({ latest: latest.map((v) => [v.id, v.title]), hidden: [...hidden].sort() }))
+      .digest("hex");
+    const latestRef = db.collection("appConfig").doc("latestVideos");
+    if (process.env.FORCE !== "true") {
+      const prevSnap = await latestRef.get();
+      const prev = prevSnap.exists ? prevSnap.data() : null;
+      const prevAt = prev && prev.updatedAt && typeof prev.updatedAt.toMillis === "function" ? prev.updatedAt.toMillis() : 0;
+      if (prev && prev.sig === sig && Date.now() - prevAt < FULL_RUN_EVERY_MS) {
+        console.log("No change since the last run - nothing written, nothing deleted.");
+        process.exit(0);
+      }
+    }
+
     const batch = db.batch();
     for (const v of latest) {
       // Doc id = video id itself (not auto-generated) so re-running this
@@ -150,8 +174,9 @@ async function deleteOlderAutoVideos(keepIds, windowIds) {
     }
     await batch.commit();
 
-    await db.collection("appConfig").doc("latestVideos").set({
+    await latestRef.set({
       items: latest,
+      sig,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     console.log(`Saved ${latest.length} videos from channel uploads (latest list updated).`);

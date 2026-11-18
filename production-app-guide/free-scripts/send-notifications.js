@@ -1,6 +1,8 @@
 /**
  * Free push-notification sender (no Blaze/billing needed).
- * Runs every few minutes via GitHub Actions. Does two jobs:
+ * Runs once an HOUR via GitHub Actions (to keep Firestore reads low; for an
+ * urgent push run it by hand: GitHub > Actions > Send Notifications > Run
+ * workflow). Does three jobs:
  *
  * 1) Student notifications: checks Firestore for any notification the admin
  *    sent that hasn't been pushed yet, sends it to the "all_students" topic
@@ -16,9 +18,15 @@
  *    are never announced twice. A student who re-sends a request replaces
  *    the request document, so that one is announced again.
  *
- * Delivery happens within the polling interval (about 5-10 minutes)
+ * Delivery happens within the polling interval (up to about an hour)
  * instead of truly real-time - a fair trade-off for zero cost and no
  * credit card.
+ *
+ * FEWER READS: every query below reads ONLY what is needed. The two admin
+ * alerts look only at doubts / requests created inside the last
+ * *_WINDOW_MS (older ones were already announced or are no longer news), and
+ * a notification that failed MAX_ATTEMPTS times is marked sent:"failed" once,
+ * so it is never read again.
  *
  * A notification that keeps failing (for example an empty title) is tried
  * at most 5 times and then left alone, so it can never block the others.
@@ -31,6 +39,11 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
 const MAX_ATTEMPTS = 5;
+// How far back the admin alerts look. Must be longer than the schedule gap (1 hour)
+// so a late or skipped run still finds everything. Docs inside the window that were
+// already announced carry adminNotified:true, so nothing is announced twice.
+const QUERY_WINDOW_MS = 6 * 60 * 60 * 1000;
+const REQUEST_WINDOW_MS = 6 * 60 * 60 * 1000;
 // The admin can send a notification to ONE exam only. The app saves that choice
 // in the notification's "topic" field (for example "exam_bank_po"). Students
 // subscribe to these topics in the app (signup / Profile / Notifications >
@@ -53,7 +66,12 @@ async function sendStudentNotifications() {
   for (const doc of snap.docs) {
     const data = doc.data();
     if ((data.failedAttempts || 0) >= MAX_ATTEMPTS) {
-      console.log(`Skipping "${data.title}" - failed ${data.failedAttempts} times already.`);
+      console.log(`Giving up on "${data.title}" - failed ${data.failedAttempts} times. Marked sent:"failed" so it is not read again.`);
+      try {
+        await doc.ref.update({ sent: "failed" });
+      } catch (e) {
+        // ignore
+      }
       continue;
     }
     try {
@@ -67,9 +85,12 @@ async function sendStudentNotifications() {
     } catch (err) {
       console.error(`Failed to send "${data.title}":`, err.message);
       try {
+        const attempts = (data.failedAttempts || 0) + 1;
         await doc.ref.update({
           failedAttempts: admin.firestore.FieldValue.increment(1),
           lastError: String(err.message || err).slice(0, 200),
+          // Out of attempts: leave the sent==false query for good (never read again).
+          ...(attempts >= MAX_ATTEMPTS ? { sent: "failed" } : {}),
         });
       } catch (e) {
         // ignore
@@ -83,10 +104,12 @@ function millisOf(ts) {
 }
 
 async function sendAdminQueryAlert() {
-  const snap = await db.collection("queries").where("status", "==", "open").get();
   const cutoff = Date.now() - QUERY_WINDOW_MS;
+  // Single-field range query (no composite index needed): reads only the doubts
+  // created inside the window instead of every open doubt on every run.
+  const snap = await db.collection("queries").where("createdAt", ">=", admin.firestore.Timestamp.fromMillis(cutoff)).get();
   const fresh = snap.docs
-    .filter((d) => d.data().adminNotified !== true && millisOf(d.data().createdAt) >= cutoff)
+    .filter((d) => d.data().status === "open" && d.data().adminNotified !== true && millisOf(d.data().createdAt) >= cutoff)
     .sort((a, b) => millisOf(b.data().createdAt) - millisOf(a.data().createdAt))
     .slice(0, 400);
   if (fresh.length === 0) {
@@ -115,12 +138,12 @@ async function sendAdminQueryAlert() {
 }
 
 async function sendAdminGrantAlert() {
-  // Single-field filter only (no composite index needed); the rest is
-  // filtered here.
-  const snap = await db.collection("accessRequests").where("status", "==", "pending").get();
+  // Single-field range query (no composite index needed): reads only the requests
+  // made inside the window; the rest is filtered here.
   const cutoff = Date.now() - REQUEST_WINDOW_MS;
+  const snap = await db.collection("accessRequests").where("requestedAt", ">=", admin.firestore.Timestamp.fromMillis(cutoff)).get();
   const fresh = snap.docs
-    .filter((d) => d.data().adminNotified !== true && millisOf(d.data().requestedAt) >= cutoff)
+    .filter((d) => d.data().status === "pending" && d.data().adminNotified !== true && millisOf(d.data().requestedAt) >= cutoff)
     .sort((a, b) => millisOf(b.data().requestedAt) - millisOf(a.data().requestedAt))
     .slice(0, 400);
   if (fresh.length === 0) {
