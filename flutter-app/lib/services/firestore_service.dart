@@ -737,6 +737,17 @@ class FirestoreService {
         return list;
       });
 
+  // One-time read of the same list (no live listener). Grants are changed ONLY by the
+  // admin (rules: batchAccess write = admin), so a live listener only re-bills documents
+  // that nobody else changes. The Grants tab loads this once and reloads after each
+  // grant / revoke / validity change, or with its refresh button.
+  Future<List<AccessGrantModel>> fetchGrants() async {
+    final snap = await _db.collection('batchAccess').where('status', isEqualTo: 'granted').get();
+    final list = snap.docs.map((d) => AccessGrantModel.fromMap(d.id, d.data())).toList();
+    list.sort((a, b) => a.studentEmail.toLowerCase().compareTo(b.studentEmail.toLowerCase()));
+    return list;
+  }
+
   // Takes access back (the student is locked out the next time the batch
   // is opened).
   Future<void> revokeAccess(String email, String batchId) => _db
@@ -796,6 +807,7 @@ class FirestoreService {
   Stream<List<AccessRequestModel>> streamPendingRequests() => _db
       .collection('accessRequests')
       .orderBy('requestedAt', descending: true)
+      .limit(100) // FEWER READS: newest 100 requests only
       .snapshots()
       .map((snap) => snap.docs.map((d) => AccessRequestModel.fromMap(d.id, d.data())).toList());
 

@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/query_model.dart';
 
+/// How many of the newest doubts the Admin "Answered / All" views download (was 300).
+const int kAdminRecentQueries = 100;
+
 /// Everything about the `queries` collection (student doubts + admin reply).
 /// Kept in its own file so firestore_service.dart stays untouched.
 class QueriesService {
@@ -29,8 +32,17 @@ class QueriesService {
         return list;
       });
 
-  /// Admin: every doubt, newest first.
-  Stream<List<QueryModel>> streamAll() => _col.orderBy('createdAt', descending: true).limit(300).snapshots().map((snap) =>
+  /// Admin: only the doubts still waiting for a reply (the default "Pending" view).
+  /// FEWER READS: answered doubts are not downloaded until the admin opens
+  /// "Answered" / "All". Sorted here, so no extra index is needed.
+  Stream<List<QueryModel>> streamOpen() => _col.where('status', isEqualTo: 'open').limit(200).snapshots().map((snap) {
+        final list = snap.docs.map((d) => QueryModel.fromMap(d.id, d.data())).where((q) => !q.isExpired).toList();
+        list.sort((a, b) => b.when.compareTo(a.when));
+        return list;
+      });
+
+  /// Admin: the newest doubts (answered + pending), newest first. Only the latest [kAdminRecentQueries].
+  Stream<List<QueryModel>> streamAll() => _col.orderBy('createdAt', descending: true).limit(kAdminRecentQueries).snapshots().map((snap) =>
       snap.docs.map((d) => QueryModel.fromMap(d.id, d.data())).where((q) => !q.isExpired).toList());
 
   /// Admin: write (or edit) the reply.
