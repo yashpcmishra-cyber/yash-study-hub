@@ -229,7 +229,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   // Streams are created once (not on every rebuild).
   late final Stream<List<BatchModel>> _batchesStream = _fs.streamBatches();
   late final Stream<List<AccessRequestModel>> _requestsStream = _fs.streamPendingRequests();
-  late final Stream<List<AccessGrantModel>> _grantsStream = _fs.streamGrants();
+  // FEWER READS: loaded once (not a live listener); reloaded after every change or with the refresh button.
+  late Future<List<AccessGrantModel>> _grantsFuture = _fs.fetchGrants();
+  void _reloadGrants() {
+    if (!mounted) return;
+    setState(() => _grantsFuture = _fs.fetchGrants());
+  }
   // Attempts are loaded only when the admin opens the Attempts tab (and again
   // on refresh), to save Firestore reads. Null = not loaded yet.
   Future<List<MockTestAttemptModel>>? _attemptsFuture;
@@ -717,6 +722,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   Future<void> _grant(String email, String batchId, {String phone = '', int months = 0, bool requireCode = true}) async {
     try {
       final res = await _fs.grantAccess(email, batchId, months: months, requireCode: requireCode);
+      _reloadGrants();
       if (!mounted) return;
       if (requireCode) {
         await _showAccessCodeDialog(email, res.code, phone: phone, expiresAt: res.expiresAt);
@@ -752,9 +758,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     try {
       if (r.lifetime) {
         await _fs.makeAccessLifetime(g.studentEmail, g.batchId);
+        _reloadGrants();
         _snack('Now lifetime access');
       } else {
         final until = await _fs.extendAccess(g.studentEmail, g.batchId, r.months);
+        _reloadGrants();
         _snack('Valid till ${DateFormat('d MMM yyyy').format(until)}');
       }
     } catch (e) {
@@ -888,11 +896,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               child: const Text('Grant access (no code needed)'),
             ),
             Divider(color: AppC.divider, height: 34),
-            Text('Students who have access', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15)),
+            Row(
+              children: [
+                Expanded(child: Text('Students who have access', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 15))),
+                IconButton(tooltip: 'Refresh list', icon: Icon(Icons.refresh, color: AppC.accent, size: 20), onPressed: _reloadGrants),
+              ],
+            ),
             Text('Tap the red button to take access back (the student is locked out the next time they open the batch).', style: TextStyle(color: AppC.muted, fontSize: 11)),
             const SizedBox(height: 10),
-            StreamBuilder<List<AccessGrantModel>>(
-              stream: _grantsStream,
+            FutureBuilder<List<AccessGrantModel>>(
+              future: _grantsFuture,
               builder: (context, gSnap) {
                 if (gSnap.hasError) {
                   return Padding(
@@ -943,6 +956,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                                       if (!ok) return;
                                       try {
                                         await _fs.revokeAccess(g.studentEmail, g.batchId);
+                                        _reloadGrants();
                                         _snack('Access taken back');
                                       } catch (e) {
                                         _snack('Could not take access back: $e');

@@ -15,7 +15,9 @@ class AdminQueriesTab extends StatefulWidget {
 
 class _AdminQueriesTabState extends State<AdminQueriesTab> with AutomaticKeepAliveClientMixin {
   final _svc = QueriesService();
-  late final Stream<List<QueryModel>> _stream = _svc.streamAll();
+  // FEWER READS: the default "Pending" view listens to open doubts only. The bigger
+  // "newest 100" list is downloaded only when the admin opens "Answered" / "All".
+  late Stream<List<QueryModel>> _stream = _svc.streamOpen();
   String _filter = 'pending'; // 'pending' | 'answered' | 'all'
 
   @override
@@ -66,7 +68,12 @@ class _AdminQueriesTabState extends State<AdminQueriesTab> with AutomaticKeepAli
   Widget _chip(String value, String label) => ChoiceChip(
         label: Text(label),
         selected: _filter == value,
-        onSelected: (_) => setState(() => _filter = value),
+        onSelected: (_) => setState(() {
+          final wasPending = _filter == 'pending';
+          _filter = value;
+          final nowPending = value == 'pending';
+          if (wasPending != nowPending) _stream = nowPending ? _svc.streamOpen() : _svc.streamAll();
+        }),
       );
 }
 
