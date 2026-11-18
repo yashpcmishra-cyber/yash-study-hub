@@ -60,7 +60,10 @@ class _HomeScreenState extends State<HomeScreen> {
   late Stream<AppConfigModel> _cfgStream;
   late Stream<List<BannerModel>> _bannersStream;
   late Stream<List<VideoModel>> _latestVideosStream;
-  late Stream<List<VideoModel>> _fallbackVideosStream;
+  // FEWER READS: this fallback list is created only when the Home strip really needs it
+  // (appConfig/latestVideos empty). Before, it was downloaded (up to 50 docs) on every Home open.
+  Stream<List<VideoModel>>? _fallbackVideosStreamCache;
+  Stream<List<VideoModel>> get _fallbackVideosStream => _fallbackVideosStreamCache ??= _fs.streamAutoFetchedVideos(cache: true);
   late Stream<List<QueryModel>> _myQueriesStream; // for the red dot on the Queries tile
   Set<String> _seenReplies = <String>{};
   late Stream<ContentUpdates> _updatesStream; // red dots on Mock / PDF / Video / Batches tiles
@@ -73,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _cfgStream = _fs.streamAppConfig();
     _bannersStream = _fs.streamBanners(cache: true);
     _latestVideosStream = _fs.streamLatestVideos();
-    _fallbackVideosStream = _fs.streamAutoFetchedVideos(cache: true);
+    _fallbackVideosStreamCache = null; // created lazily, see _fallbackVideosStream
     _updatesStream = _fs.streamContentUpdates();
     _notifTimeStream = _fs.streamLatestNotificationTime();
     final uid = FirebaseAuth.instance.currentUser?.uid;
