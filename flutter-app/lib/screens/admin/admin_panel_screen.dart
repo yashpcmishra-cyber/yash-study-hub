@@ -243,6 +243,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   late Future<int> _installFuture;
   late Future<List<int>> _activeFuture; // [active today, last 7 days, last 30 days]
   late Future<List<int>> _studentsFuture; // [total, web, today, 7 days, 30 days] signups
+  late Future<List<List<int>>> _openedFuture; // [today, yesterday] x [app total/phone/tablet, web total/phone/tablet/computer]
 
   File? _batchIconFile;
   File? _appLogoFile;
@@ -285,6 +286,15 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     _installFuture = _fs.installCount();
     _activeFuture = _loadActiveCounts();
     _studentsFuture = _loadStudentCounts();
+    _openedFuture = _loadOpened();
+  }
+
+  Future<List<List<int>>> _loadOpened() {
+    final n = DateTime.now();
+    return Future.wait([
+      _fs.openedOnDay(FirestoreService.dayKey(n)),
+      _fs.openedOnDay(FirestoreService.dayKey(DateTime(n.year, n.month, n.day - 1))),
+    ]);
   }
 
   // Registered students: [total, web signups, signed up today, last 7 days, last 30 days].
@@ -582,6 +592,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           _installFuture = _fs.installCount();
           _activeFuture = _loadActiveCounts();
           _studentsFuture = _loadStudentCounts();
+          _openedFuture = _loadOpened();
         });
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -701,6 +712,58 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
                   const SizedBox(height: 10),
                   Text(
                     'Only phones that have opened the updated app are counted. Reinstall = counted again. / केवल अपडेटेड ऐप खोलने वाले फ़ोन गिने जाते हैं।',
+                    style: TextStyle(color: AppC.muted, fontSize: 11),
+                  ),
+                ]);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        DepthCard(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: FutureBuilder<List<List<int>>>(
+              future: _openedFuture,
+              builder: (context, snap) {
+                final loading = snap.connectionState != ConnectionState.done;
+                final ok = !loading && !snap.hasError && snap.data != null;
+                // day 0 = today, day 1 = yesterday
+                String v(int day, int i) => loading ? '...' : (ok ? '${snap.data![day][i]}' : '?');
+                Widget block(String title, List<String> labels, List<int> idx) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(title, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        for (var k = 0; k < labels.length; k++) statColumn(v(0, idx[k]), labels[k]),
+                      ]),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Yesterday / कल: ${[for (var k = 0; k < labels.length; k++) '${labels[k]} ${v(1, idx[k])}'].join('  \u2022  ')}',
+                        style: TextStyle(color: AppC.muted, fontSize: 11),
+                      ),
+                    ]);
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Icon(Icons.devices, color: AppC.accent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Students who opened today / आज कितने students ने खोला', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  ]),
+                  const SizedBox(height: 14),
+                  block('\u{1F4F1} App', const ['Total', 'Phone', 'Tablet'], const [0, 1, 2]),
+                  const SizedBox(height: 16),
+                  block('\u{1F310} Web', const ['Total', 'Phone', 'Tablet', 'Desktop / Laptop'], const [3, 4, 5, 6]),
+                  if (snap.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text('Could not load the count: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 11)),
+                    ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Each student is counted once per day for each device type (someone who used phone and computer shows in both). '
+                    'A browser cannot tell a laptop from a desktop, so they are shown together. '
+                    'App numbers count students on the updated app; Web numbers count from the web update. Day = this phone\u2019s date.',
                     style: TextStyle(color: AppC.muted, fontSize: 11),
                   ),
                 ]);
