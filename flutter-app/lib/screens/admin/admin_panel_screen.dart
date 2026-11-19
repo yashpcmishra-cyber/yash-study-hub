@@ -1458,7 +1458,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   // Banners
   // ------------------------------------------------------------------
   Future<void> _pickBannerImage() async {
-    final img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 82);
+    // maxWidth: a 16:9 banner needs only 1280 x 720. Phone / AI pictures are often 5000+ px wide (1.5 MB) - shrink them here.
+    final img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 82, maxWidth: 1280);
     if (img != null && mounted) setState(() => _bannerImageFile = File(img.path));
   }
 
