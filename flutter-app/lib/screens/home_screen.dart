@@ -146,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     _loadStudentName();
     _loadQuizDone();
+    final pingUid = FirebaseAuth.instance.currentUser?.uid;
+    if (pingUid != null) _fs.pingAppActive(pingUid); // Admin > Stats: "opened today" (once a day)
     StudyStore.changes.addListener(_loadQuizDone);
     // App was opened by tapping a push notification -> go straight to the
     // Notifications screen.
