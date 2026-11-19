@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'content_seen_store.dart';
@@ -839,6 +840,58 @@ class FirestoreService {
     final agg = await _db.collection('installs').count().get();
     return agg.count ?? 0;
   }
+
+  // ---- "Who opened today" (App + Web, per device type) ----
+  // One tiny write per student, per day, per phone (remembered in SharedPreferences), into the
+  // student's own document (the rules already allow that). Fields: lastAppDay, lastAppPhoneDay /
+  // lastAppTabletDay. The Web writes the same kind of fields (lastWebDay, lastWebPhoneDay,
+  // lastWebTabletDay, lastWebComputerDay). Day format: yyyy-MM-dd (the phone's own date).
+  static String dayKey([DateTime? d]) {
+    final t = d ?? DateTime.now();
+    return '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+  }
+
+  // Tablet = shortest side of the screen is 600 dp or more (the usual Android rule).
+  static String _appDeviceType() {
+    try {
+      final v = WidgetsBinding.instance.platformDispatcher.views.first;
+      final shortest = min(v.physicalSize.width, v.physicalSize.height) / v.devicePixelRatio;
+      return shortest >= 600 ? 'Tablet' : 'Phone';
+    } catch (_) {
+      return 'Phone';
+    }
+  }
+
+  Future<void> pingAppActive(String uid) async {
+    try {
+      final day = dayKey();
+      final type = _appDeviceType();
+      final key = '$uid|$day|$type';
+      final p = await SharedPreferences.getInstance();
+      if (p.getString('app_active_ping') == key) return;
+      await _db.collection('students').doc(uid).set({'lastAppDay': day, 'lastApp${type}Day': day}, SetOptions(merge: true));
+      await p.setString('app_active_ping', key);
+    } catch (_) {
+      // never block the app for a statistics ping
+    }
+  }
+
+  Future<int> _countDay(String field, String day) async {
+    final agg = await _db.collection('students').where(field, isEqualTo: day).count().get();
+    return agg.count ?? 0;
+  }
+
+  // [App total, App phone, App tablet, Web total, Web phone, Web tablet, Web computer] for one day.
+  // Server-side counts: about 1 read each.
+  Future<List<int>> openedOnDay(String day) => Future.wait([
+        _countDay('lastAppDay', day),
+        _countDay('lastAppPhoneDay', day),
+        _countDay('lastAppTabletDay', day),
+        _countDay('lastWebDay', day),
+        _countDay('lastWebPhoneDay', day),
+        _countDay('lastWebTabletDay', day),
+        _countDay('lastWebComputerDay', day),
+      ]);
 
   // ---- Registered students (App + Web signups, counts only) ----
   // Both the App and the Web sign-up write students/{uid}. `source` says where
