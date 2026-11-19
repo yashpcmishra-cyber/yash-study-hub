@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
 
@@ -42,14 +42,96 @@ class NetImage extends StatelessWidget {
     if (u == null || u.trim().isEmpty) return _fallback();
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: CachedNetworkImage(
-        imageUrl: u,
+      child: SafeNetImage(
+        url: u,
         width: width,
         height: height,
         fit: BoxFit.cover,
-        placeholder: (context, url) => _fallback(),
-        errorWidget: (context, url, error) => _fallback(),
+        cacheWidth: (width * 3).round(),
+        placeholder: (context) => _fallback(),
+        error: (context) => _fallback(),
       ),
+    );
+  }
+}
+
+
+/// Network picture that does NOT use cached_network_image / path_provider /
+/// sqflite. Reason: newer path_provider_android versions use JNI, and in the
+/// release APK that can make the image cache hang forever (banners spinning,
+/// thumbnails / PDF logos blank). This widget uses Flutter's own
+/// Image.network (memory cache only), so it works whatever the plugins do.
+/// If a load fails (weak network) it quietly retries up to 2 more times.
+class SafeNetImage extends StatefulWidget {
+  final String url;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final int? cacheWidth;
+  final WidgetBuilder? placeholder;
+  final WidgetBuilder? error;
+
+  const SafeNetImage({
+    super.key,
+    required this.url,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.cacheWidth,
+    this.placeholder,
+    this.error,
+  });
+
+  @override
+  State<SafeNetImage> createState() => _SafeNetImageState();
+}
+
+class _SafeNetImageState extends State<SafeNetImage> {
+  int _attempt = 0;
+  Timer? _retryTimer;
+
+  @override
+  void didUpdateWidget(covariant SafeNetImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      _attempt = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleRetry() {
+    if (_retryTimer != null || _attempt >= 2) return;
+    _retryTimer = Timer(const Duration(seconds: 3), () {
+      _retryTimer = null;
+      if (mounted) setState(() => _attempt++);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.network(
+      widget.url,
+      key: ValueKey('${widget.url}#$_attempt'),
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
+      cacheWidth: widget.cacheWidth,
+      gaplessPlayback: true,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return widget.placeholder?.call(context) ?? SizedBox(width: widget.width, height: widget.height);
+      },
+      errorBuilder: (context, err, stack) {
+        _scheduleRetry();
+        return widget.error?.call(context) ?? SizedBox(width: widget.width, height: widget.height);
+      },
     );
   }
 }

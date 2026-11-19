@@ -1,5 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'net_image.dart';
 
 /// DI graph / table picture shown above the questions of a DI group.
 /// Tap = full screen with pinch-to-zoom (small numbers are hard to read on a phone).
@@ -22,11 +22,11 @@ class DiImage extends StatelessWidget {
           child: InteractiveViewer(
             minScale: 1,
             maxScale: 6,
-            child: CachedNetworkImage(
-              imageUrl: url,
+            child: SafeNetImage(
+              url: url,
               fit: BoxFit.contain,
-              placeholder: (c, u) => const CircularProgressIndicator(strokeWidth: 2),
-              errorWidget: (c, u, e) => const Text('Image could not load', style: TextStyle(color: Colors.white70)),
+              placeholder: (c) => const CircularProgressIndicator(strokeWidth: 2),
+              error: (c) => const Text('Image could not load', style: TextStyle(color: Colors.white70)),
             ),
           ),
         ),
@@ -45,12 +45,12 @@ class DiImage extends StatelessWidget {
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
         child: Stack(
           children: [
-            CachedNetworkImage(
-              imageUrl: url,
+            SafeNetImage(
+              url: url,
               width: double.infinity,
               fit: BoxFit.fitWidth,
-              placeholder: (c, u) => const SizedBox(height: 160, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
-              errorWidget: (c, u, e) => const SizedBox(
+              placeholder: (c) => const SizedBox(height: 160, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+              error: (c) => const SizedBox(
                 height: 80,
                 child: Center(child: Text('Image could not load. Check internet.', style: TextStyle(color: Colors.black54, fontSize: 12))),
               ),

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'net_image.dart';
 import '../models/models.dart';
 import '../utils/open_link.dart';
 import '../app_colors.dart';
@@ -86,16 +86,16 @@ class _BannerCarouselState extends State<BannerCarousel> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      CachedNetworkImage(
-                        imageUrl: b.imageUrl,
+                      SafeNetImage(
+                        url: b.imageUrl,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        // The slide is only ~1080 px wide on a phone. Decode / store it at that size: a 5504 x 3072
+                        height: double.infinity,
+                        // The slide is only ~1080 px wide on a phone. Decode it at that size: a 5504 x 3072
                         // photo would otherwise be decoded at full size (~67 MB of RAM) and can stay blank.
-                        memCacheWidth: 1080,
-                        maxWidthDiskCache: 1280,
-                        placeholder: (_, __) => Container(color: AppC.card2, alignment: Alignment.center, child: const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2))),
-                        errorWidget: (_, __, ___) => Container(
+                        cacheWidth: 1080,
+                        placeholder: (_) => Container(color: AppC.card2, alignment: Alignment.center, child: const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2))),
+                        error: (_) => Container(
                           color: AppC.card2,
                           child: Icon(Icons.image_not_supported, color: AppC.muted),
                         ),
