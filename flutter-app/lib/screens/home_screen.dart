@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_globals.dart';
 import '../services/content_seen_store.dart';
@@ -20,6 +19,7 @@ import '../utils/open_link.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/depth_card.dart';
 import '../widgets/banner_carousel.dart';
+import '../widgets/net_image.dart';
 import '../widgets/study_corner_card.dart';
 import '../widgets/study_tools_card.dart';
 import '../widgets/smart_study_card.dart';
@@ -614,12 +614,14 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 v.thumbUrl != null && v.thumbUrl!.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: v.thumbUrl!,
+                    ? SafeNetImage(
+                        url: v.thumbUrl!,
                         height: 78,
                         width: 140,
                         fit: BoxFit.cover,
-                        errorWidget: (context, url, error) => Container(height: 78, color: AppC.soft, alignment: Alignment.center, child: const Text('▶️', style: TextStyle(fontSize: 26))),
+                        cacheWidth: 420,
+                        placeholder: (context) => Container(height: 78, width: 140, color: AppC.soft, alignment: Alignment.center, child: const Text('▶️', style: TextStyle(fontSize: 26))),
+                        error: (context) => Container(height: 78, width: 140, color: AppC.soft, alignment: Alignment.center, child: const Text('▶️', style: TextStyle(fontSize: 26))),
                       )
                     : Container(height: 78, color: AppC.soft, alignment: Alignment.center, child: const Text('▶️', style: TextStyle(fontSize: 26))),
                 Padding(
