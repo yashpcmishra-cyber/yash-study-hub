@@ -90,7 +90,11 @@ class _BannerCarouselState extends State<BannerCarousel> {
                         imageUrl: b.imageUrl,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        placeholder: (_, __) => Container(color: AppC.card2),
+                        // The slide is only ~1080 px wide on a phone. Decode / store it at that size: a 5504 x 3072
+                        // photo would otherwise be decoded at full size (~67 MB of RAM) and can stay blank.
+                        memCacheWidth: 1080,
+                        maxWidthDiskCache: 1280,
+                        placeholder: (_, __) => Container(color: AppC.card2, alignment: Alignment.center, child: const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2))),
                         errorWidget: (_, __, ___) => Container(
                           color: AppC.card2,
                           child: Icon(Icons.image_not_supported, color: AppC.muted),
