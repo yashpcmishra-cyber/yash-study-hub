@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../screens/exam_tracker_screen.dart';
 import '../screens/gk_flash_quiz_screen.dart';
+import '../screens/ready_reckoner_screen.dart';
 import '../screens/reasoning_drill_screen.dart';
 import '../services/drill_store.dart';
 import '../services/exam_tracker_store.dart';
 
-/// Home ka "Exam Boost" card: Reasoning Drill, GK Flash Quiz, Exam Tracker.
+/// Home ka "Exam Boost" card: Reasoning Drill, GK Flash Quiz, Exam Tracker, Ready Reckoner.
 /// Sab data phone me hai - Firestore se kuch nahi padhta / likhta.
 class ExamBoostCard extends StatefulWidget {
   const ExamBoostCard({super.key});
@@ -98,7 +99,7 @@ class _ExamBoostCardState extends State<ExamBoostCard> {
             children: [
               _tile('🗂️', 'Exam Tracker', examSub, () => _open(const ExamTrackerScreen()), dot: examDot),
               const SizedBox(width: 10),
-              const Expanded(child: SizedBox()),
+              _tile('🔢', 'Ready Reckoner', 'Squares & cubes\nवर्ग और घन', () => _open(const ReadyReckonerScreen())),
             ],
           ),
         ],
