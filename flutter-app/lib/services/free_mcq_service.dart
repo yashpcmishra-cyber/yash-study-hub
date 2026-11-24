@@ -11,9 +11,9 @@ class FreeMcqChoice {
   const FreeMcqChoice(this.id, this.name, this.emoji);
 }
 
-/// The built-in "English" folder (Banking PO / Clerk English, easy + moderate + hard, ONE new set every week).
+/// The built-in "English" folder (Banking PO / Clerk English, easy + moderate + hard, ONE new set twice a month).
 /// It holds ONE subject (english) and no Static GK / Science / GS; every other exam folder keeps its 3 subjects
-/// (they also get one new set every week).
+/// (they also get one new set twice a month).
 const String kEnglishFolderId = 'english';
 const FreeMcqChoice kEnglishFolder = FreeMcqChoice(kEnglishFolderId, 'English', '📖');
 
@@ -144,7 +144,7 @@ class FreeMcqIndex {
 
 /// Free MCQs data, with a phone cache so Firestore is read as little as possible.
 ///
-/// Firestore layout (every folder gets one set per week: GK / Science / GS by fetch-free-weekly.js, English by fetch-free-english.js):
+/// Firestore layout (every folder gets one set in the 1st and 3rd week of a month: GK / Science / GS by fetch-free-weekly.js, English by fetch-free-english.js):
 ///   freeMcqIndex/current          1 doc, read at most once every 12 hours per phone
 ///   freeMcqSets/{set id}          1 doc per exam+subject+week, read ONCE per phone, then cached
 ///

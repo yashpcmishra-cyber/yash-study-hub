@@ -1122,8 +1122,9 @@ class FirestoreService {
 
   // Admin "Attempts" tab (latest first).
   // One-time read (get), NOT a live listener, so Firestore reads are only
-  // used when the admin opens / refreshes the tab. Only the latest 25 are read.
-  Future<List<MockTestAttemptModel>> fetchMockAttempts({int limit = 25}) async {
+  // used when the admin opens / refreshes the tab. Only the latest 10 are read
+  // (the daily cleanup script keeps only the latest 10 attempts in the database too).
+  Future<List<MockTestAttemptModel>> fetchMockAttempts({int limit = 10}) async {
     final snap = await _db
         .collection('mockTestAttempts')
         .orderBy('submittedAt', descending: true)

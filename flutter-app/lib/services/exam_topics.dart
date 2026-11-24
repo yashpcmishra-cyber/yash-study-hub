@@ -11,8 +11,9 @@ import 'notify_prefs.dart';
 /// Student ke chune hue EXAMS (notification topics) ka poora hisaab.
 ///
 /// - Exam list data/notify_topics.dart (kExamTopics) se aati hai; topic ka
-///   naam exam_bank_po, exam_ssc_cgl, exam_rrb_ntpc, exam_upsssc, exam_ahc_ro,
-///   exam_uppsc hai.
+///   naam exam_bank_po (Banking/Insurance PO/Clerk), exam_uppsc (UPPCS), exam_upsssc,
+///   exam_ahc_ro (AHC RO/ARO/GroupC), exam_rrb_ntpc (RRB NTPC/Station Master),
+///   exam_ssc_cgl (SSC CGL/CHSL) hai.
 /// - Choice phone mein (NotifyPrefs) aur Firestore (students/{uid}.exams)
 ///   dono mein save hoti hai, taaki naye phone par bhi wapas aa jaye.
 /// - Har app start par topics dobara subscribe hote hain.
