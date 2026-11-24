@@ -62,7 +62,7 @@ class _FreeMcqsScreenState extends State<FreeMcqsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
                   child: Text(
-                    'A new test of 25 MCQs every week (Monday): Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, easy to hard). Every test is timed and marked like a Mock Test, with a scorecard and a leaderboard. Tests older than 2 months are removed automatically. Tap ⓘ on a test to see how it was made.',
+                    'New tests of 25 MCQs come twice a month (1st and 3rd week, on Monday): Static GK, General Science and General Studies (syllabus-based, Hindi + English), plus the English folder (Banking PO / Clerk pattern, easy to hard). Every test is timed and marked like a Mock Test, with a scorecard and a leaderboard. Tests older than 2 months are removed automatically. Tap ⓘ on a test to see how it was made.',
                     style: TextStyle(color: AppC.muted, fontSize: 12.5),
                   ),
                 ),
@@ -211,7 +211,7 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
                     ? 'These questions are written from official PIB (Government of India) press releases. The source is credited in each explanation. '
                         'Questions can contain mistakes, so please check important facts in your textbook.'
                     : widget.subject.id == kEnglishFolderId
-                        ? 'These English questions follow the Banking PO / Clerk pattern (reading comprehension, cloze test, error spotting, fill in the blanks, para jumbles, sentence improvement) at easy, moderate and hard level (a new set every week). '
+                        ? 'These English questions follow the Banking PO / Clerk pattern (reading comprehension, cloze test, error spotting, fill in the blanks, para jumbles, sentence improvement) at easy, moderate and hard level (a new set twice a month). '
                             'They are written by AI and checked twice for accuracy (grammar check and an independent re-solve). No book or website text is copied. Questions can still contain mistakes, so please confirm doubtful points in a grammar book.'
                         : 'These questions are written by AI from the syllabus topics of this exam and checked three times for accuracy (fact-check, independent re-solve, Hindi-English match). '
                             'No book or website text is copied. Questions can still contain mistakes, so please check important facts in your textbook.',
@@ -247,8 +247,8 @@ class _FreeMcqSubjectScreenState extends State<_FreeMcqSubjectScreen> {
       appBar: AppBar(title: Text(widget.subject.name)),
       body: sets.isEmpty
           ? EmptyView(widget.subject.id == kEnglishFolderId
-              ? 'The English test for this week is not ready yet. A new test of 25 English MCQs arrives automatically every Monday.'
-              : 'No test for this subject yet. A new test of 25 MCQs arrives automatically every Monday.')
+              ? 'No English test yet. A new test of 25 English MCQs arrives automatically twice a month (1st and 3rd week, Monday).'
+              : 'No test for this subject yet. A new test of 25 MCQs arrives automatically twice a month (1st and 3rd week, Monday).')
           : ListView(
               padding: const EdgeInsets.all(14),
               children: [
