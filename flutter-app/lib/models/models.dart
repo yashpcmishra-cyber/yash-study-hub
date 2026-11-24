@@ -124,7 +124,7 @@ class PdfFolderModel {
   final List<String> batchIds;
   final DateTime? createdAt;
   final int? order;
-  // FREE folders only: the monthly GitHub job adds 20 bilingual MCQs per subject
+  // FREE folders only: the GitHub job (twice a month) adds 20 bilingual MCQs per subject
   // as PDFs into this folder. Missing field (old folders) = ON; the admin can switch it off.
   final bool autoMonthlyMcq;
 
