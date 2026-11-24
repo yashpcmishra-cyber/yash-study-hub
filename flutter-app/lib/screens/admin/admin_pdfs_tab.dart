@@ -395,9 +395,9 @@ class _AdminPdfsTabState extends State<AdminPdfsTab> with AutomaticKeepAliveClie
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       activeColor: AppC.accent,
-                      title: Text('Monthly auto MCQ PDFs', style: TextStyle(color: AppC.text, fontSize: 13, fontWeight: FontWeight.w600)),
+                      title: Text('Auto MCQ PDFs (twice a month)', style: TextStyle(color: AppC.text, fontSize: 13, fontWeight: FontWeight.w600)),
                       subtitle: Text(
-                        'ON: every month 20 Hindi + English MCQs per subject (Static GK, General Science, General Studies) are made as PDFs and added to this folder automatically.',
+                        'ON: twice a month (2nd and 16th) 20 Hindi + English MCQs per subject (Static GK, General Science, General Studies) are made as PDFs and added to this folder automatically.',
                         style: TextStyle(color: AppC.muted, fontSize: 11),
                       ),
                       value: selected.first.autoMonthlyMcq,

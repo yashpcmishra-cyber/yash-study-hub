@@ -1261,7 +1261,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               Row(
                 children: [
                   Expanded(
-                    child: Text('Latest ${attempts.length} attempts \u2022 auto-deleted after 30 days', style: TextStyle(color: AppC.muted, fontSize: 11)),
+                    child: Text('Latest ${attempts.length} attempts \u2022 only the latest 10 are kept', style: TextStyle(color: AppC.muted, fontSize: 11)),
                   ),
                   IconButton(
                     tooltip: 'Refresh',
@@ -1303,7 +1303,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     );
   }
 
-  // Manual refresh = one new read of the latest 25 attempts.
+  // Manual refresh = one new read of the latest 10 attempts.
   void _refreshAttempts() {
     if (!mounted) return;
     setState(() => _attemptsFuture = _fs.fetchMockAttempts());

@@ -166,7 +166,7 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
       ];
     });
     if (ok) {
-      _snack('Added "${r.name}". Its MCQ sets appear after the next weekly run (Monday).');
+      _snack('Added "${r.name}". Its MCQ sets appear after the next run (twice a month: Monday of the 1st and 3rd week).');
       await _load();
     }
   }
@@ -382,7 +382,7 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
         padding: const EdgeInsets.all(14),
         children: [
           Text(
-            'Exam folders of the Free MCQs section. Students see these folders; each one gets 3 subjects (Static GK, General Science, General Studies) with a new 25-question set every WEEK. The "English" folder is built in: it gets only 25 Banking PO / Clerk English MCQs every week (easy + moderate + hard, no GK / Science / GS) and cannot be removed. Sets older than 2 months are deleted automatically (database and students\u2019 phones).',
+            'Exam folders of the Free MCQs section. Students see these folders; each one gets 3 subjects (Static GK, General Science, General Studies) with a new 25-question set TWICE A MONTH (Monday of the 1st and 3rd week). The "English" folder is built in: it gets only 25 Banking PO / Clerk English MCQs twice a month (easy + moderate + hard, no GK / Science / GS) and cannot be removed. Sets older than 2 months are deleted automatically (database and students\u2019 phones).',
             style: TextStyle(color: AppC.muted, fontSize: 12.5),
           ),
           const SizedBox(height: 12),
@@ -413,7 +413,7 @@ class _AdminFreeMcqTabState extends State<AdminFreeMcqTab> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Text(
-                'No exam folders in the database yet. The weekly run will create the default ones (SSC, UPSSSC, Railway), or add your own above.',
+                'No exam folders in the database yet. The next run will create the default ones (SSC, UPSSSC, Railway), or add your own above.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppC.muted),
               ),
