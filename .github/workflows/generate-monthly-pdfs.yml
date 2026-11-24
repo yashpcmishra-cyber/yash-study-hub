@@ -1,13 +1,19 @@
-name: Monthly MCQ PDFs for Free PDF folders (free, Gemini + Chrome)
+name: MCQ PDFs twice a month for Free PDF folders (free, Gemini + Chrome)
 
 on:
   schedule:
-    - cron: '30 4 2 * *'   # 2nd of every month, 10:00 AM IST - after the Free MCQs job of the 1st
-    - cron: '30 4 5 * *'   # 5th of every month - retry (PDFs that already exist are skipped)
+    - cron: '30 4 2 * *'   # 2nd of every month, 10:00 AM IST - Part 1 (the script picks the part from today's date)
+    - cron: '30 4 5 * *'   # 5th - retry of Part 1 (PDFs that already exist are skipped)
+    - cron: '30 4 16 * *'  # 16th of every month, 10:00 AM IST - Part 2
+    - cron: '30 4 19 * *'  # 19th - retry of Part 2 (PDFs that already exist are skipped)
   workflow_dispatch:
     inputs:
       month:
-        description: 'Month to build, yyyy-MM (blank = previous month)'
+        description: 'Month to build, yyyy-MM (blank = current month)'
+        required: false
+        default: ''
+      part:
+        description: 'Part 1 or 2 (blank = by today: day 1-15 -> 1, day 16-31 -> 2)'
         required: false
         default: ''
       force:
@@ -49,5 +55,6 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           IMAGE_UPLOAD_TOKEN: ${{ secrets.IMAGE_UPLOAD_TOKEN }}
           MONTH: ${{ github.event.inputs.month }}
+          PART: ${{ github.event.inputs.part }}
           FORCE: ${{ github.event.inputs.force }}
           ONLY_FOLDER: ${{ github.event.inputs.only_folder }}

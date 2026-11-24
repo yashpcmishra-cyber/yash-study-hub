@@ -1,4 +1,4 @@
-name: Cleanup Old Attempts (free, no Blaze needed)
+name: Cleanup Attempts - keep latest 10 (free, no Blaze needed)
 
 on:
   schedule:

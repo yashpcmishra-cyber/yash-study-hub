@@ -1,9 +1,9 @@
-name: Weekly English MCQs (free, Gemini)
+name: English MCQs twice a month (free, Gemini)
 
 on:
   schedule:
-    - cron: '30 2 * * 1'   # every Monday, 8:00 AM IST - builds THIS week's English set
-    - cron: '30 2 * * 3'   # every Wednesday - retry (a week that already has its set is skipped)
+    - cron: '30 2 * * 1'   # Monday 8:00 AM IST - builds the English set of a build week (1st and 3rd week of the month only, see "gate" below)
+    - cron: '30 2 * * 3'   # Wednesday - retry inside a build week (a week that already has its set is skipped)
   workflow_dispatch:
     inputs:
       week:
@@ -20,7 +20,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # TWICE A MONTH: the schedule fires every Mon/Wed/Fri, but the build only runs in the 1st and the 3rd week of the month
+  # (the week whose Monday falls on the 1st-7th or the 15th-21st, India time). Every other week this small job says
+  # "skip" and nothing is read or written. "Run workflow" by hand always builds.
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run: building."
+            exit 0
+          fi
+          today=$(TZ=Asia/Kolkata date +%F)
+          dow=$(date -d "$today" +%u)   # 1 = Monday ... 7 = Sunday
+          monday_dom=$(date -d "$today -$((dow - 1)) days" +%d)
+          monday_dom=$((10#$monday_dom))
+          if [ "$monday_dom" -le 7 ] || { [ "$monday_dom" -ge 15 ] && [ "$monday_dom" -le 21 ]; }; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "$today: week starting on day $monday_dom is a build week (1st or 3rd week of the month)."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "$today: week starting on day $monday_dom is not a build week. Skipping (MCQs are made twice a month)."
+          fi
+
   build:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
