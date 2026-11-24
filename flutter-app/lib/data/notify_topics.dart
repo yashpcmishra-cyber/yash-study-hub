@@ -21,12 +21,13 @@ class NotifyTopic {
 const String kDailyReminderTopic = 'daily_reminder';
 
 const List<NotifyTopic> kExamTopics = [
-  NotifyTopic('exam_bank_po', '🏦', 'Banking PO', 'बैंकिंग पीओ'),
-  NotifyTopic('exam_ssc_cgl', '🧾', 'SSC CGL', 'एसएससी सीजीएल'),
-  NotifyTopic('exam_rrb_ntpc', '🚆', 'RRB NTPC', 'आरआरबी एनटीपीसी'),
+  // NOTE: id (FCM topic) kabhi mat badlo - purane students ki choice aur subscription isi id se hai. Sirf naam badal sakte hain.
+  NotifyTopic('exam_bank_po', '🏦', 'Banking/Insurance PO/Clerk', 'बैंकिंग/इंश्योरेंस पीओ/क्लर्क'),
+  NotifyTopic('exam_uppsc', '🏛️', 'UPPCS', 'यूपीपीसीएस'),
   NotifyTopic('exam_upsssc', '📋', 'UPSSSC', 'यूपीएसएसएससी'),
-  NotifyTopic('exam_ahc_ro', '⚖️', 'AHC RO', 'एएचसी आरओ'),
-  NotifyTopic('exam_uppsc', '🏛️', 'UPPSC', 'यूपीपीएससी'),
+  NotifyTopic('exam_ahc_ro', '⚖️', 'AHC RO/ARO/GroupC', 'एएचसी आरओ/एआरओ/ग्रुप सी'),
+  NotifyTopic('exam_rrb_ntpc', '🚆', 'RRB NTPC/Station Master', 'आरआरबी एनटीपीसी/स्टेशन मास्टर'),
+  NotifyTopic('exam_ssc_cgl', '🧾', 'SSC CGL/CHSL', 'एसएससी सीजीएल/सीएचएसएल'),
 ];
 
 /// Notification kis exam ke liye hai (list me chhota tag dikhane ke liye). Sabke liye ho to null.
