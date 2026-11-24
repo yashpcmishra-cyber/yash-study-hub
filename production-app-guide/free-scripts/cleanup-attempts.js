@@ -1,11 +1,11 @@
-// Deletes mock-test attempts (collection "mockTestAttempts", shown in the
-// Admin Panel -> Attempts tab) older than RETENTION_DAYS, so Firestore storage
-// does not keep growing. Same firebase-admin + FIREBASE_SERVICE_ACCOUNT
+// Keeps only the LATEST 10 mock-test attempts (collection "mockTestAttempts", shown in the
+// Admin Panel -> Attempts tab) and deletes all older ones, so Firestore storage stays tiny and the
+// Attempts tab reads at most 10 documents. Same firebase-admin + FIREBASE_SERVICE_ACCOUNT
 // pattern as cleanup-queries.js / cleanup-notifications.js.
 // (Student ranks live in a different collection, "mockScores", and are NOT touched.)
 const admin = require('firebase-admin');
 
-const RETENTION_DAYS = 30;
+const KEEP_LATEST = 10;
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({
@@ -15,17 +15,17 @@ admin.initializeApp({
 const db = admin.firestore();
 
 async function deleteOldAttempts() {
-  const cutoff = admin.firestore.Timestamp.fromDate(
-    new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000)
-  );
-
+  // Newest first, skip the 10 newest, everything after them is deleted.
+  // select() = only the document references are returned (no field data).
   const snapshot = await db
     .collection('mockTestAttempts')
-    .where('submittedAt', '<', cutoff)
+    .orderBy('submittedAt', 'desc')
+    .offset(KEEP_LATEST)
+    .select()
     .get();
 
   if (snapshot.empty) {
-    console.log('No attempts older than ' + RETENTION_DAYS + ' days. Nothing to delete.');
+    console.log('Only ' + KEEP_LATEST + ' or fewer attempts exist. Nothing to delete.');
     return;
   }
 
@@ -40,7 +40,7 @@ async function deleteOldAttempts() {
     deleted += chunk.length;
   }
 
-  console.log('Deleted ' + deleted + ' attempt(s) older than ' + RETENTION_DAYS + ' days.');
+  console.log('Deleted ' + deleted + ' old attempt(s). Kept the latest ' + KEEP_LATEST + '.');
 }
 
 deleteOldAttempts().catch((err) => {

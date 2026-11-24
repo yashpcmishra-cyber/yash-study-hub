@@ -1,10 +1,12 @@
 /**
- * WEEKLY sets for every Free MCQs folder except English (free: GitHub Actions + free Gemini key).
+ * Sets for every Free MCQs folder except English, built TWICE A MONTH (free: GitHub Actions + free Gemini key).
  *
- * Every Monday (9:00 AM IST) it builds ONE set of 25 MCQs per exam x subject (for example SSC / UPSSSC / Railway
- * x Static GK / General Science / General Studies, and any exam folder you add in the Admin Panel) for the week
- * that starts that day (ISO week, Monday to Sunday). This is the same weekly rhythm as the English folder, which is
- * built by fetch-free-english.js. The questions, the accuracy checks (fact-check, blind re-solve, Hindi-English
+ * The workflow (fetch-free-weekly.yml) lets the build run only in the 1st and the 3rd week of every month (the week
+ * whose Monday is on the 1st-7th or the 15th-21st, India time). In such a week (Monday 9:00 AM IST) it builds ONE set
+ * of 25 MCQs per exam x subject (for example SSC / UPSSSC / Railway x Static GK / General Science / General Studies,
+ * and any exam folder you add in the Admin Panel) for the ISO week (Monday to Sunday) it runs in. Set ids and fields
+ * stay week based (weekKey / periodStart). The English folder follows the same rhythm (fetch-free-english.js).
+ * The questions, the accuracy checks (fact-check, blind re-solve, Hindi-English
  * match) and the Gemini calls are the ones from fetch-free-mcqs.js.
  *
  * Firestore output (read by the app):
@@ -52,7 +54,7 @@ const {
   sleep,
 } = core;
 
-const PREVIOUS_WEEKS = 4; // questions of the last 4 weeks are never repeated
+const PREVIOUS_WEEKS = 6; // sets are 2-3 weeks apart now, so 6 weeks back covers the last two sets (never repeated)
 const MAX_PREVIOUS_TEXTS = 40; // shown to Gemini as "do not repeat" (keeps the prompt small)
 const SOURCE_LABEL = "Syllabus-based, AI-checked";
 const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -137,7 +139,7 @@ async function main() {
   const notify = process.env.FREE_MCQ_NOTIFY !== "false";
   const monthOfWeek = week.periodStart.slice(0, 7);
   const label = weekLabel(week);
-  console.log(`Building the weekly Free MCQs for ${week.weekKey} (${week.periodStart} to ${week.periodEnd}).`);
+  console.log(`Building the Free MCQs for ${week.weekKey} (${week.periodStart} to ${week.periodEnd}).`);
 
   // 0) Retention: nothing older than 2 months stays in the database. Sets built from CC-licensed text,
   //    of removed exams or of removed subjects go too.
@@ -222,12 +224,12 @@ async function main() {
   if (newSets > 0 && notify) {
     try {
       await db.collection("notifications").add({
-        title: "\u{1F4DD} New weekly MCQs! / नए साप्ताहिक MCQs!",
-        body: "This week's Static GK, General Science and General Studies MCQs are in Free MCQs. / इस हफ़्ते के Static GK, General Science और General Studies MCQs फ़्री MCQs में हैं।",
+        title: "\u{1F4DD} New Free MCQs! / नए फ़्री MCQs!",
+        body: "New Static GK, General Science and General Studies MCQs are in Free MCQs. / नए Static GK, General Science और General Studies MCQs फ़्री MCQs में हैं।",
         sent: false,
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      console.log("Queued the 'New weekly MCQs' notification.");
+      console.log("Queued the 'New Free MCQs' notification.");
     } catch (err) {
       console.warn("Notification skipped:", err.message);
     }

@@ -1,8 +1,9 @@
 /**
- * WEEKLY English set for the "English" folder of Free MCQs (free: GitHub Actions + free Gemini key).
+ * English set for the "English" folder of Free MCQs, built TWICE A MONTH (free: GitHub Actions + free Gemini key).
  *
- * Every Monday (8:00 AM IST) it builds ONE set of 25 Banking PO / Clerk English MCQs for the week that starts
- * that day (ISO week, Monday to Sunday). The questions mix EASY (Clerk), MODERATE (PO Prelims) and HARD
+ * The workflow (fetch-free-english-weekly.yml) lets the build run only in the 1st and the 3rd week of every month
+ * (the week whose Monday is on the 1st-7th or the 15th-21st, India time). In such a week (Monday 8:00 AM IST) it
+ * builds ONE set of 25 Banking PO / Clerk English MCQs for the ISO week (Monday to Sunday) it runs in. The questions mix EASY (Clerk), MODERATE (PO Prelims) and HARD
  * (PO Mains) level. How they are written and checked lives in free-mcq-english.js.
  *
  * Firestore output (read by the app, same collections as the monthly job):
@@ -46,7 +47,7 @@ const {
 const DAY_MS = 86400000;
 const ENGLISH_SOURCE = "Banking PO/Clerk pattern, AI-checked";
 const ENGLISH_LEVEL_LABEL = "Easy + moderate + hard mix";
-const PREVIOUS_WEEKS = 4; // question texts and passages of the last 4 weeks are never repeated
+const PREVIOUS_WEEKS = 6; // sets are 2-3 weeks apart now, so 6 weeks back covers the last two sets (never repeated)
 const pad2 = (n) => String(n).padStart(2, "0");
 
 // ------------------------------------------------------------------ weeks (ISO, Monday to Sunday)
@@ -197,7 +198,7 @@ async function main() {
     try {
       await db.collection("notifications").add({
         title: "\u{1F4DD} New English MCQs! / नए English MCQs!",
-        body: "This week's 25 Banking PO / Clerk English MCQs are in Free MCQs. / इस हफ़्ते के 25 English MCQs फ़्री MCQs में हैं।",
+        body: "New 25 Banking PO / Clerk English MCQs are in Free MCQs. / नए 25 English MCQs फ़्री MCQs में हैं।",
         sent: false,
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
       });

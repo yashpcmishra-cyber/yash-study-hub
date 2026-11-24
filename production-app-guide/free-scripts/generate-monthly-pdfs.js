@@ -1,10 +1,13 @@
 /**
- * Monthly auto MCQ PDFs for the FREE PDF folders (PDF Library > Free).
+ * Auto MCQ PDFs for the FREE PDF folders (PDF Library > Free), made TWICE A MONTH.
  *
  * For every FREE PDF folder (every exam folder the admin made) and every subject
  * (Static GK, General Science, General Studies) it makes ONE PDF with 20 bilingual
- * (English + Hindi) MCQs for the previous calendar month (or env MONTH=yyyy-MM),
- * and adds it to that folder, so students see it in PDF Library > Free > <exam folder>.
+ * (English + Hindi) MCQs per run and adds it to that folder, so students see it in
+ * PDF Library > Free > <exam folder>. The workflow runs on the 2nd (Part 1) and the 16th
+ * (Part 2) of every month, plus a retry 3 days after each (5th and 19th). Without env
+ * MONTH / PART the run builds the CURRENT month (IST) and the part of today's date:
+ * day 1-15 = Part 1, day 16-31 = Part 2.
  *
  * Questions: the same writer + 3 accuracy checks as the Free MCQs job (fetch-free-mcqs.js):
  * Gemini writes original questions on our own syllabus topic list, a fact-checker, a blind
@@ -21,15 +24,17 @@
  * / Blaze plan is needed.
  *
  * Firestore output (read by the app, nothing new to read):
- *   pdfs/auto_{folderId}_{subjectId}_{yyyy-MM}   same fields as an admin-added PDF
- *       { title, iconUrl:null, driveLink, folderId, batchId:null, createdAt, autoMonthly:true, monthKey, subjectId, count }
- *   autoPdfQuestions/{folderId}_{subjectId}_{yyyy-MM}   { texts[] }  (only so next month does not repeat questions)
+ *   pdfs/auto_{folderId}_{subjectId}_{yyyy-MM}-p{1|2}   same fields as an admin-added PDF
+ *       { title, iconUrl:null, driveLink, folderId, batchId:null, createdAt, autoMonthly:true, monthKey, part, subjectId, count }
+ *       (PDFs made before the twice-a-month switch are named ..._{yyyy-MM} without -p1/-p2 and stay as they are)
+ *   autoPdfQuestions/{folderId}_{subjectId}_{yyyy-MM}-p{1|2}   { texts[] }  (only so the next PDFs do not repeat questions)
  *
  * A folder can be skipped by the admin (Admin > PDFs > folder > "Monthly auto MCQ PDFs" switch off,
  * field pdfFolders/{id}.autoMonthlyMcq = false).
  *
  * Env: FIREBASE_SERVICE_ACCOUNT, GEMINI_API_KEY, IMAGE_UPLOAD_TOKEN   (GitHub secrets)
- *      MONTH=yyyy-MM          optional, default = previous month (IST)
+ *      MONTH=yyyy-MM          optional, default = current month (IST)
+ *      PART=1|2               optional, default = by today's date (IST): day 1-15 -> 1, day 16-31 -> 2
  *      FORCE=true             optional, rebuild PDFs that already exist
  *      ONLY_FOLDER=<name>     optional, only the folder with this exact name (testing)
  *      PDF_NOTIFY=false       optional, skip the "PDFs ready" push
@@ -77,8 +82,20 @@ function slug(name) {
   return s || "folder";
 }
 
-const docIdFor = (folderId, subjectId, monthKey) => `auto_${folderId}_${subjectId}_${monthKey}`;
-const questionsDocIdFor = (folderId, subjectId, monthKey) => `${folderId}_${subjectId}_${monthKey}`;
+/** "2026-11" + part 1 -> "2026-11-p1" (the key of one PDF period; a month has two). */
+const periodKeyFor = (monthKey, part) => `${monthKey}-p${part}`;
+
+/** The period `back` steps before (monthKey, part): (2026-11, 1) back 1 -> 2026-10 part 2. */
+function shiftPeriod(monthKey, part, back) {
+  const [y, m] = monthKey.split("-").map(Number);
+  const idx = y * 24 + (m - 1) * 2 + (part - 1) - back;
+  const year = Math.floor(idx / 24);
+  const month = Math.floor((idx % 24) / 2) + 1;
+  return { monthKey: `${year}-${String(month).padStart(2, "0")}`, part: (idx % 2) + 1 };
+}
+
+const docIdFor = (folderId, subjectId, monthKey, part) => `auto_${folderId}_${subjectId}_${periodKeyFor(monthKey, part)}`;
+const questionsDocIdFor = (folderId, subjectId, key) => `${folderId}_${subjectId}_${key}`;
 
 /** The exam description given to Gemini for any folder name the admin typed. */
 function examFor(folder) {
@@ -97,6 +114,7 @@ function examFor(folder) {
  * English / Hindi), then the answer key with explanations in both languages.
  */
 function buildHtml({ folderName, subjectName, monthLabelText, questions }) {
+  // monthLabelText is e.g. "November 2026 \u00b7 Part 1"
   const qHtml = questions
     .map((q, i) => {
       const opts = q.options
@@ -213,7 +231,7 @@ async function uploadPdf(buf, repoPath, token) {
     Authorization: `Bearer ${token}`,
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "yash-study-hub-monthly-pdfs",
+    "User-Agent": "yash-study-hub-auto-pdfs",
   };
   // A file with this name may already exist (FORCE rebuild): GitHub then needs its sha.
   let sha;
@@ -224,7 +242,7 @@ async function uploadPdf(buf, repoPath, token) {
     const res = await fetch(api, {
       method: "PUT",
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ message: `Monthly MCQ PDF: ${repoPath}`, content: buf.toString("base64"), branch: REPO_BRANCH, ...(sha ? { sha } : {}) }),
+      body: JSON.stringify({ message: `MCQ PDF: ${repoPath}`, content: buf.toString("base64"), branch: REPO_BRANCH, ...(sha ? { sha } : {}) }),
     });
     if (res.ok) {
       const json = await res.json();
@@ -244,10 +262,16 @@ async function uploadPdf(buf, repoPath, token) {
 
 // ------------------------------------------------------------------ Firestore
 
-async function loadPreviousTexts(db, folderId, subjectId, monthKey) {
+/** Questions of the last two PDFs (and of last month's old one-per-month PDF) so they do not come back. Newest first. */
+async function loadPreviousTexts(db, folderId, subjectId, monthKey, part) {
+  const keys = [1, 2].map((back) => {
+    const p = shiftPeriod(monthKey, part, back);
+    return periodKeyFor(p.monthKey, p.part);
+  });
+  keys.push(fm.shiftMonth(monthKey, -1)); // PDFs made before the twice-a-month switch were keyed by month only
   const texts = [];
-  for (const back of [1, 2]) {
-    const snap = await db.collection("autoPdfQuestions").doc(questionsDocIdFor(folderId, subjectId, fm.shiftMonth(monthKey, -back))).get();
+  for (const key of keys) {
+    const snap = await db.collection("autoPdfQuestions").doc(questionsDocIdFor(folderId, subjectId, key)).get();
     if (!snap.exists) continue;
     for (const t of snap.data().texts || []) if (t) texts.push(String(t));
   }
@@ -275,8 +299,13 @@ async function loadFreeFolders(db, onlyName) {
 // ------------------------------------------------------------------ main
 
 async function main() {
-  const monthKey = (process.env.MONTH || "").trim() || fm.shiftMonth(new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 7), -1);
+  const todayIst = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10); // yyyy-MM-dd, India time
+  const monthKey = (process.env.MONTH || "").trim() || todayIst.slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(monthKey)) throw new Error(`MONTH must look like 2026-10, got "${monthKey}"`);
+  const partInput = (process.env.PART || "").trim();
+  if (partInput && partInput !== "1" && partInput !== "2") throw new Error(`PART must be 1 or 2, got "${partInput}"`);
+  const part = partInput ? Number(partInput) : Number(todayIst.slice(8, 10)) <= 15 ? 1 : 2;
+  const periodKey = periodKeyFor(monthKey, part);
 
   const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
   const TOKEN = process.env.IMAGE_UPLOAD_TOKEN || "";
@@ -296,8 +325,8 @@ async function main() {
 
   const force = process.env.FORCE === "true";
   const notify = process.env.PDF_NOTIFY !== "false";
-  const label = fm.monthLabel(monthKey);
-  console.log(`Building monthly MCQ PDFs for ${label} (${monthKey}).`);
+  const label = `${fm.monthLabel(monthKey)} \u00b7 Part ${part}`;
+  console.log(`Building MCQ PDFs for ${label} (${periodKey}).`);
 
   const folders = await loadFreeFolders(db, (process.env.ONLY_FOLDER || "").trim());
   console.log(`${folders.length} free folder(s) x ${fm.SUBJECTS.length} subject(s).`);
@@ -306,7 +335,7 @@ async function main() {
   let failed = 0;
   for (const folder of folders) {
     for (const subject of fm.SUBJECTS) {
-      const docId = docIdFor(folder.id, subject.id, monthKey);
+      const docId = docIdFor(folder.id, subject.id, monthKey, part);
       const tag = `${folder.name} / ${subject.name}`;
       try {
         if (!force && (await db.collection("pdfs").doc(docId).get()).exists) {
@@ -314,14 +343,14 @@ async function main() {
           continue;
         }
         const exam = examFor(folder);
-        const topicList = topics.pickTopics({ subjectId: subject.id, examId: folder.id, monthKey, n: TOPICS_PER_PDF });
+        const topicList = topics.pickTopics({ subjectId: subject.id, examId: folder.id, periodKey, n: TOPICS_PER_PDF });
         if (topicList.length < 5) {
           console.warn(`${tag}: no topics configured for this subject.`);
           failed++;
           continue;
         }
         console.log(`${tag}: generating ${PDF_QUESTIONS} MCQs...`);
-        const previous = await loadPreviousTexts(db, folder.id, subject.id, monthKey);
+        const previous = await loadPreviousTexts(db, folder.id, subject.id, monthKey, part);
         const questions = await fm.generateSet({ exam, subject, monthKey, ctx: { topicList }, previous, key: GEMINI_KEY, perSet: PDF_QUESTIONS, asked: PDF_ASKED });
         if (questions.length < PDF_QUESTIONS) {
           failed++;
@@ -333,7 +362,7 @@ async function main() {
         const buf = renderPdf(buildHtml({ folderName: folder.name, subjectName: subject.name, monthLabelText: label, questions }), tmpPdf);
         fs.rmSync(tmpPdf, { force: true });
 
-        const repoPath = `pdfs/monthly/${monthKey}/${slug(folder.name)}-${folder.id.slice(0, 6)}-${subject.id}.pdf`;
+        const repoPath = `pdfs/monthly/${monthKey}/${slug(folder.name)}-${folder.id.slice(0, 6)}-${subject.id}-p${part}.pdf`;
         const link = await uploadPdf(buf, repoPath, TOKEN);
 
         await db.collection("pdfs").doc(docId).set({
@@ -344,11 +373,12 @@ async function main() {
           folderId: folder.id,
           autoMonthly: true,
           monthKey,
+          part,
           subjectId: subject.id,
           count: questions.length,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        await db.collection("autoPdfQuestions").doc(questionsDocIdFor(folder.id, subject.id, monthKey)).set({ texts: questions.map((q) => fm.oneLine(q.text)) });
+        await db.collection("autoPdfQuestions").doc(questionsDocIdFor(folder.id, subject.id, periodKey)).set({ texts: questions.map((q) => fm.oneLine(q.text)) });
         created++;
         console.log(`${tag}: PDF added (${link}).`);
         // The "new PDFs" red dot on the Home grid.
@@ -364,7 +394,7 @@ async function main() {
   if (created > 0 && notify) {
     try {
       await db.collection("notifications").add({
-        title: "\u{1F4C4} New monthly MCQ PDFs! / नए मंथली MCQ PDF!",
+        title: "\u{1F4C4} New MCQ PDFs! / नए MCQ PDF!",
         body: `${label} MCQ PDFs are in PDF Library > Free. / ${label} के MCQ PDF फ़्री PDF लाइब्रेरी में हैं।`,
         sent: false,
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -378,7 +408,7 @@ async function main() {
   return failed;
 }
 
-module.exports = { PDF_QUESTIONS, buildHtml, renderPdf, slug, escapeHtml, docIdFor, examFor };
+module.exports = { PDF_QUESTIONS, buildHtml, renderPdf, slug, escapeHtml, docIdFor, examFor, shiftPeriod, periodKeyFor };
 
 if (require.main === module) {
   main()
