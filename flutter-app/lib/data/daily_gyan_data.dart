@@ -3,6 +3,9 @@
 //
 //  1) Word of the Day  - Banking PO (IBPS PO / SBI PO) English vocabulary,
 //                        har word ke saath Hindi meaning, Synonyms aur Antonyms.
+//     + AHC RO/ARO PYQ content (Vocabulary, One Word Substitution, Idioms) ab
+//       alag file me hai: lib/data/ahc_pyq_data.dart (naya PYQ jodna ho to sirf
+//       wahi file badlo). Ye har 2nd din Word of the Day me aate hain.
 //  2) Did you know?    - Hard-level facts jo SSC CGL / RRB NTPC / UPSSSC /
 //                        AHC RO / UPPSC ke syllabus se aate hain:
 //                        General Science, General Studies (Polity, History,
@@ -28,7 +31,10 @@ class GyanWord {
   final String example;
   final List<String> syn; // Synonyms
   final List<String> ant; // Antonyms
-  const GyanWord(this.word, this.pos, this.hi, this.en, this.example, this.syn, this.ant);
+  final String src; // Khali = normal word. Bhara ho to PYQ badge dikhta hai (jaise "AHC RO 2019").
+  // pos = "OWS" -> One Word Substitution (word = answer, en = jis ka one-word hai)
+  // pos = "idiom" -> Idiom/Phrase (word = idiom, en = meaning)
+  const GyanWord(this.word, this.pos, this.hi, this.en, this.example, this.syn, this.ant, [this.src = '']);
 }
 
 class GyanFact {
@@ -64,7 +70,6 @@ const List<GyanWord> kGyanWords = [
   GyanWord("Debacle", "n.", "भारी विफलता", "A sudden and complete failure", "The merger turned into a financial debacle.", ["Fiasco", "Collapse", "Disaster"], ["Triumph", "Success", "Victory"]),
   GyanWord("Deference", "n.", "सम्मान / आदर", "Polite respect for someone's opinion", "He spoke with deference to the senior officer.", ["Respect", "Regard", "Homage"], ["Disrespect", "Contempt", "Disregard"]),
   GyanWord("Despondent", "adj.", "निराश", "Feeling hopeless and dejected", "He was despondent after missing the cut-off by one mark.", ["Dejected", "Disheartened", "Gloomy"], ["Cheerful", "Hopeful", "Elated"]),
-  GyanWord("Diligent", "adj.", "मेहनती", "Hard-working and careful", "A diligent student revises every day.", ["Hardworking", "Industrious", "Assiduous"], ["Lazy", "Idle", "Negligent"]),
   GyanWord("Disparage", "v.", "तिरस्कार करना / नीचा दिखाना", "To speak of someone as having little value", "Do not disparage other candidates' efforts.", ["Belittle", "Denigrate", "Deprecate"], ["Praise", "Laud", "Extol"]),
   GyanWord("Eclectic", "adj.", "विविध स्रोतों से चुना हुआ", "Drawn from a wide variety of sources", "She has an eclectic reading list for her exam.", ["Diverse", "Varied", "Wide-ranging"], ["Narrow", "Limited", "Uniform"]),
   GyanWord("Elusive", "adj.", "पकड़ से बाहर", "Hard to find, catch or achieve", "A perfect score remained elusive.", ["Evasive", "Slippery", "Intangible"], ["Obvious", "Evident", "Noticeable"]),
@@ -78,11 +83,9 @@ const List<GyanWord> kGyanWords = [
   GyanWord("Fastidious", "adj.", "नुक्ताचीं / बहुत सावधान", "Very attentive to accuracy and detail", "The fastidious clerk rechecked every entry.", ["Meticulous", "Particular", "Finicky"], ["Careless", "Sloppy", "Slapdash"]),
   GyanWord("Feasible", "adj.", "संभव / व्यावहारिक", "Possible and practical to do", "The committee found the plan financially feasible.", ["Viable", "Practicable", "Workable"], ["Impractical", "Unworkable", "Unviable"]),
   GyanWord("Fervent", "adj.", "उत्कट / जोशीला", "Showing intense and sincere feeling", "He made a fervent appeal for donations.", ["Ardent", "Passionate", "Zealous"], ["Apathetic", "Indifferent", "Cool"]),
-  GyanWord("Flamboyant", "adj.", "भड़कीला", "Showy and attracting attention", "The flamboyant tycoon arrived in a gold car.", ["Showy", "Ostentatious", "Flashy"], ["Modest", "Subdued", "Restrained"]),
   GyanWord("Fortuitous", "adj.", "संयोगवश / आकस्मिक", "Happening by chance, often luckily", "Their meeting at the bank was entirely fortuitous.", ["Accidental", "Chance", "Lucky"], ["Planned", "Intentional", "Deliberate"]),
   GyanWord("Frugal", "adj.", "मितव्ययी", "Careful about spending money", "They led a frugal life.", ["Thrifty", "Economical", "Sparing"], ["Extravagant", "Wasteful", "Lavish"]),
   GyanWord("Futile", "adj.", "व्यर्थ", "Producing no useful result", "Arguing with the examiner was futile.", ["Useless", "Fruitless", "Vain"], ["Fruitful", "Productive", "Effective"]),
-  GyanWord("Garrulous", "adj.", "बातूनी", "Talking too much about trivial things", "The garrulous neighbour kept the clerk talking for an hour.", ["Talkative", "Loquacious", "Chatty"], ["Taciturn", "Reticent", "Quiet"]),
   GyanWord("Haphazard", "adj.", "अव्यवस्थित", "Lacking order or planning", "Haphazard revision rarely clears the exam.", ["Random", "Disorganised", "Careless"], ["Systematic", "Orderly", "Methodical"]),
   GyanWord("Hindrance", "n.", "बाधा", "A thing that makes progress difficult", "Fear of failure is the biggest hindrance to success.", ["Obstacle", "Impediment", "Barrier"], ["Help", "Aid", "Assistance"]),
   GyanWord("Hypocrisy", "n.", "पाखंड", "Saying one thing but doing another", "Preaching honesty while cheating is hypocrisy.", ["Insincerity", "Duplicity", "Pretence"], ["Sincerity", "Honesty", "Integrity"]),
@@ -94,7 +97,6 @@ const List<GyanWord> kGyanWords = [
   GyanWord("Inept", "adj.", "अकुशल / अयोग्य", "Having no skill; clumsy", "An inept manager can ruin a good team.", ["Unskilled", "Incompetent", "Clumsy"], ["Skilful", "Adept", "Competent"]),
   GyanWord("Innate", "adj.", "जन्मजात", "Inborn; present from birth", "She has an innate talent for mathematics.", ["Inborn", "Inherent", "Natural"], ["Acquired", "Learned", "Extrinsic"]),
   GyanWord("Insolvent", "adj.", "दिवालिया", "Unable to pay one's debts", "The insolvent firm was taken over by its lender.", ["Bankrupt", "Broke", "Ruined"], ["Solvent", "Wealthy", "Prosperous"]),
-  GyanWord("Intrepid", "adj.", "निडर", "Fearless and adventurous", "The intrepid officer led the rescue team.", ["Fearless", "Bold", "Courageous"], ["Timid", "Fearful", "Cowardly"]),
   GyanWord("Lethargic", "adj.", "सुस्त", "Lacking energy and enthusiasm", "The heat made everyone lethargic.", ["Sluggish", "Listless", "Lazy"], ["Energetic", "Active", "Lively"]),
   GyanWord("Loquacious", "adj.", "वाचाल / बहुत बोलने वाला", "Tending to talk a great deal", "The loquacious guide narrated every detail of the fort.", ["Talkative", "Garrulous", "Voluble"], ["Reticent", "Taciturn", "Reserved"]),
   GyanWord("Lucrative", "adj.", "लाभदायक", "Producing a great deal of profit", "Banking is a lucrative career for many graduates.", ["Profitable", "Gainful", "Remunerative"], ["Unprofitable", "Unrewarding", "Loss-making"]),
@@ -116,10 +118,8 @@ const List<GyanWord> kGyanWords = [
   GyanWord("Perfunctory", "adj.", "ऊपरी / रस्मी", "Done with little effort or interest", "The officer gave only a perfunctory glance at the file.", ["Cursory", "Superficial", "Casual"], ["Thorough", "Painstaking", "Diligent"]),
   GyanWord("Pernicious", "adj.", "हानिकारक / घातक", "Having a harmful effect, often gradually", "Corruption has a pernicious effect on the economy.", ["Harmful", "Destructive", "Deadly"], ["Beneficial", "Harmless", "Helpful"]),
   GyanWord("Pertinent", "adj.", "प्रासंगिक", "Relevant to the matter in hand", "Answer only pertinent questions in the interview.", ["Relevant", "Apt", "Applicable"], ["Irrelevant", "Unrelated", "Inapplicable"]),
-  GyanWord("Placid", "adj.", "शांत", "Calm and not easily disturbed", "The placid lake reflected the hills.", ["Calm", "Tranquil", "Serene"], ["Turbulent", "Agitated", "Stormy"]),
   GyanWord("Plausible", "adj.", "विश्वसनीय / संभावित", "Seeming reasonable or believable", "His explanation sounded plausible.", ["Credible", "Believable", "Reasonable"], ["Implausible", "Unbelievable", "Far-fetched"]),
   GyanWord("Pragmatic", "adj.", "व्यावहारिक", "Practical rather than theoretical", "We need a pragmatic solution.", ["Practical", "Realistic", "Sensible"], ["Impractical", "Idealistic", "Unrealistic"]),
-  GyanWord("Precarious", "adj.", "अनिश्चित / जोखिम भरा", "Not secure; likely to fall or fail", "The firm's finances were in a precarious state.", ["Risky", "Unstable", "Perilous"], ["Secure", "Safe", "Stable"]),
   GyanWord("Procrastinate", "v.", "टालमटोल करना", "To delay doing something", "Do not procrastinate; start revising today.", ["Delay", "Postpone", "Dawdle"], ["Hasten", "Expedite", "Hurry"]),
   GyanWord("Prodigal", "adj.", "फ़िज़ूलख़र्च", "Spending money recklessly", "The prodigal heir wasted his inheritance.", ["Wasteful", "Extravagant", "Spendthrift"], ["Thrifty", "Frugal", "Economical"]),
   GyanWord("Prolific", "adj.", "अत्यधिक उत्पादक / रचनाशील", "Producing a great deal", "She is a prolific writer of exam guides.", ["Productive", "Fertile", "Abundant"], ["Unproductive", "Barren", "Sterile"]),
@@ -136,7 +136,6 @@ const List<GyanWord> kGyanWords = [
   GyanWord("Surreptitious", "adj.", "चोरी-छिपे", "Done secretly to avoid notice", "He took a surreptitious glance at the answer sheet.", ["Stealthy", "Secret", "Furtive"], ["Open", "Blatant", "Overt"]),
   GyanWord("Tangible", "adj.", "मूर्त / ठोस", "Able to be touched or clearly seen", "The scheme produced tangible benefits for farmers.", ["Concrete", "Palpable", "Real"], ["Intangible", "Abstract", "Imaginary"]),
   GyanWord("Tenacious", "adj.", "दृढ़ / अडिग", "Holding firmly to a goal", "Her tenacious effort finally paid off.", ["Persistent", "Determined", "Resolute"], ["Weak", "Yielding", "Irresolute"]),
-  GyanWord("Transient", "adj.", "क्षणिक / अस्थायी", "Lasting only a short time", "Transient workers moved from town to town.", ["Temporary", "Fleeting", "Passing"], ["Permanent", "Lasting", "Enduring"]),
   GyanWord("Ubiquitous", "adj.", "सर्वव्यापी", "Found everywhere", "Smartphones are ubiquitous today.", ["Omnipresent", "Pervasive", "Universal"], ["Rare", "Scarce", "Limited"]),
   GyanWord("Venerable", "adj.", "आदरणीय", "Deserving great respect because of age or wisdom", "The venerable teacher was honoured by all.", ["Revered", "Respected", "Esteemed"], ["Despised", "Contemptible", "Disreputable"]),
   GyanWord("Verbose", "adj.", "वाचाल / शब्दबहुल", "Using more words than needed", "His verbose answer confused everyone.", ["Wordy", "Long-winded", "Prolix"], ["Concise", "Terse", "Succinct"]),
