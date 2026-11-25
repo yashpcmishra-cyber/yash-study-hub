@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
+import '../data/ahc_pyq_data.dart';
 import '../data/daily_gyan_data.dart';
 import '../services/share_service.dart';
 
@@ -18,15 +19,62 @@ class DailyGyanCard extends StatelessWidget {
 
   static int _gcd(int a, int b) => b == 0 ? a : _gcd(b, a % b);
 
-  /// Words A-Z ki tarah paas-paas na aayein, isliye har din kuch aage ka word
-  /// liya jaata hai (step list ki lambai se coprime hota hai, to har word
-  /// ek cycle mein ek baar hi aata hai).
+  /// Har kitne din me ek AHC RO/ARO PYQ item aaye (2 = har doosre din,
+  /// 3 = har teesre din, 1 = roz, 0 = band). Baaki din normal Banking words.
+  static const int _pyqEvery = 2;
+
+  /// PYQ dino ka kram: 0 = Vocabulary, 1 = One Word Substitution, 2 = Idiom.
+  /// Is pattern me 8 me se 6 din vocabulary, 1 din OWS, 1 din idiom (list ki
+  /// lambai ke hisaab se teeno ki cycle lagbhag barabar chalti hai).
+  static const List<int> _pyqPattern = [0, 0, 0, 1, 0, 0, 0, 2];
+
+  static GyanWord _pick(List<GyanWord> list, int counter, int step) {
+    final n = list.length;
+    var st = step;
+    if (_gcd(st, n) != 1) st = 1;
+    return list[(((counter * st) % n) + n) % n];
+  }
+
+  /// k = ab tak kitne PYQ din hue. Har type ki apni alag cycle hai, isliye
+  /// koi word / idiom skip nahi hota aur ek cycle me ek hi baar aata hai.
+  static GyanWord _pyqFor(int k) {
+    final pl = _pyqPattern.length;
+    final p = ((k % pl) + pl) % pl;
+    final kind = _pyqPattern[p];
+    final per = _pyqPattern.where((x) => x == kind).length;
+    final rank = _pyqPattern.sublist(0, p).where((x) => x == kind).length;
+    final counter = (k ~/ pl) * per + rank;
+    final list = kind == 1 ? kAhcPyqOws : (kind == 2 ? kAhcPyqIdioms : kAhcPyqWords);
+    return _pick(list.isEmpty ? kAhcPyqWords : list, counter, 7);
+  }
+
   static GyanWord _wordFor(DateTime d) {
-    final n = kGyanWords.length;
-    var step = 37;
-    if (_gcd(step, n) != 1) step = 1;
-    final i = (((_dayIndex(d) * step) % n) + n) % n;
-    return kGyanWords[i];
+    final di = _dayIndex(d);
+    if (_pyqEvery > 0 && kAhcPyqWords.isNotEmpty) {
+      if (di % _pyqEvery == 0) return _pyqFor(di ~/ _pyqEvery);
+      // Normal words ka counter: sirf non-PYQ dino ko gino, taaki koi word skip na ho.
+      return _pick(kGyanWords, di - (di ~/ _pyqEvery) - 1, 37);
+    }
+    return _pick(kGyanWords, di, 37);
+  }
+
+  static bool _special(GyanWord w) => w.pos == 'OWS' || w.pos == 'idiom';
+
+  static String _kindLabel(GyanWord w) {
+    if (w.pos == 'OWS') return 'One Word Substitution';
+    if (w.pos == 'idiom') return 'Idiom & Phrase';
+    return '';
+  }
+
+  /// "word (pos)" ya OWS / idiom ke liye sirf "word".
+  static String _head(GyanWord w) => _special(w) ? w.word : '${w.word} (${w.pos})';
+
+  /// Badge / share ke liye: "AHC RO/ARO PYQ · One Word Substitution · AHC RO 2019"
+  static String _pyqText(GyanWord w) {
+    final parts = <String>['AHC RO/ARO PYQ'];
+    if (_kindLabel(w).isNotEmpty) parts.add(_kindLabel(w));
+    if (w.src.isNotEmpty) parts.add(w.src);
+    return parts.join(' · ');
   }
 
   /// Facts topic ke hisaab se ghul-mil kar: Science, Polity, History,
@@ -83,14 +131,20 @@ class DailyGyanCard extends StatelessWidget {
   }
 
   void _share(BuildContext context, GyanWord w, GyanFact f) {
+    final first = w.pos == 'OWS'
+        ? '${w.word} = ${w.en} (${w.hi})\n'
+        : (w.pos == 'idiom' ? '${w.word} = ${w.en} (${w.hi})\n' : '${w.word} (${w.pos}) = ${w.hi} (${w.en})\n');
     ShareService.custom(
       context,
-      '📖 Word of the Day: ${w.word}',
-      '${w.word} (${w.pos}) = ${w.hi} (${w.en})\n'
-      'Synonyms: ${w.syn.join(', ')}\n'
-      'Antonyms: ${w.ant.join(', ')}\n'
-      'Example: ${w.example}\n\n'
-      '💡 ${f.en}\n${f.hi}',
+      w.pos == 'OWS'
+          ? '📖 One Word Substitution: ${w.word}'
+          : (w.pos == 'idiom' ? '📖 Idiom: ${w.word}' : '📖 Word of the Day: ${w.word}'),
+      first +
+          (w.src.isNotEmpty ? '🎯 ${_pyqText(w)}\n' : '') +
+          (w.syn.isNotEmpty ? 'Synonyms: ${w.syn.join(', ')}\n' : '') +
+          (w.ant.isNotEmpty ? 'Antonyms: ${w.ant.join(', ')}\n' : '') +
+          'Example: ${w.example}\n\n'
+              '💡 ${f.en}\n${f.hi}',
     );
   }
 
@@ -132,14 +186,31 @@ class DailyGyanCard extends StatelessWidget {
         children: [
           Text(_dayLabel(d, back), style: TextStyle(color: AppC.muted, fontSize: 11)),
           const SizedBox(height: 4),
-          Text('${w.word} (${w.pos}) - ${w.hi}', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 14)),
+          Text('${_head(w)} - ${w.hi}', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 14)),
           Text(w.en, style: TextStyle(color: AppC.text70, fontSize: 12.5)),
-          Text('Syn: ${w.syn.join(', ')}', style: TextStyle(color: AppC.text70, fontSize: 12)),
-          Text('Ant: ${w.ant.join(', ')}', style: TextStyle(color: AppC.text70, fontSize: 12)),
+          if (w.src.isNotEmpty) Text('🎯 ${_pyqText(w)}', style: TextStyle(color: AppC.accent, fontSize: 11.5, fontWeight: FontWeight.w600)),
+          if (w.syn.isNotEmpty) Text('Syn: ${w.syn.join(', ')}', style: TextStyle(color: AppC.text70, fontSize: 12)),
+          if (w.ant.isNotEmpty) Text('Ant: ${w.ant.join(', ')}', style: TextStyle(color: AppC.text70, fontSize: 12)),
           const SizedBox(height: 6),
           Text('💡 ${f.en}', style: TextStyle(color: AppC.text, fontSize: 12.5, height: 1.35)),
           Text(f.hi, style: TextStyle(color: AppC.text70, fontSize: 12.5, height: 1.35)),
         ],
+      ),
+    );
+  }
+
+  Widget _pyqBadge(GyanWord w) {
+    if (w.src.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppC.accent.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppC.accent.withOpacity(0.5)),
+        ),
+        child: Text('🎯 ${_pyqText(w)}', style: TextStyle(color: AppC.accent, fontSize: 11, fontWeight: FontWeight.w600)),
       ),
     );
   }
@@ -200,6 +271,7 @@ class DailyGyanCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _pyqBadge(w),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
@@ -207,13 +279,15 @@ class DailyGyanCard extends StatelessWidget {
                     Flexible(
                       child: Text(w.word, style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 22)),
                     ),
-                    const SizedBox(width: 8),
-                    Text(w.pos, style: TextStyle(color: AppC.muted, fontSize: 12.5, fontStyle: FontStyle.italic)),
+                    if (!_special(w)) ...[
+                      const SizedBox(width: 8),
+                      Text(w.pos, style: TextStyle(color: AppC.muted, fontSize: 12.5, fontStyle: FontStyle.italic)),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(w.hi, style: TextStyle(color: AppC.text, fontWeight: FontWeight.w600, fontSize: 14.5)),
-                Text(w.en, style: TextStyle(color: AppC.text70, fontSize: 13)),
+                Text(w.pos == 'OWS' ? 'One word for: ${w.en}' : w.en, style: TextStyle(color: AppC.text70, fontSize: 13)),
                 _synAnt('Synonyms', w.syn, AppC.green),
                 _synAnt('Antonyms', w.ant, AppC.red),
                 const SizedBox(height: 6),
