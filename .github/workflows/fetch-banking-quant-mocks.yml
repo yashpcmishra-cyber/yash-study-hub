@@ -77,6 +77,12 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+      - name: Hindi (Devanagari) fonts for DI graph images
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-core fonts-lohit-deva
+      - name: Chrome (preinstalled on the runner)
+        run: google-chrome --version
       - run: npm install
         working-directory: production-app-guide/free-scripts
       - run: node fetch-banking-quant-mocks.js
@@ -84,6 +90,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          IMAGE_UPLOAD_TOKEN: ${{ secrets.IMAGE_UPLOAD_TOKEN }}
           WEEK: ${{ github.event.inputs.week }}
           FORCE: ${{ github.event.inputs.force }}
           ONLY_SUBFOLDER: ${{ github.event.inputs.only_subfolder }}
