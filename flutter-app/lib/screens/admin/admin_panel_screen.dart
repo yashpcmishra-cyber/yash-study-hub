@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../services/admin_session.dart';
+import '../../services/admin_stats_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/image_upload_service.dart';
@@ -243,7 +244,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   late Future<int> _installFuture;
   late Future<List<int>> _activeFuture; // [active today, last 7 days, last 30 days]
   late Future<List<int>> _studentsFuture; // [total, web, today, 7 days, 30 days] signups
-  late Future<List<List<int>>> _openedFuture; // [today, yesterday] x [app total/phone/tablet, web total/phone/tablet/computer]
+  late Future<StatsBundle> _bundleFuture; // today + yesterday + 7-day trend (App / Web / Unique)
+  late Future<List<int>> _windowsFuture; // [unique, app, web] for last 7 days, then last 30 days
+  DateTime? _anyDate; // "Check any date" card
+  Future<DayStats>? _anyDateFuture;
 
   File? _batchIconFile;
   File? _appLogoFile;
@@ -283,18 +287,20 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     _setAdminAlerts(true);
     Future.microtask(() => adminSignedIn.value = true);
     _tabs = TabController(length: 12, vsync: this);
-    _installFuture = _fs.installCount();
-    _activeFuture = _loadActiveCounts();
-    _studentsFuture = _loadStudentCounts();
-    _openedFuture = _loadOpened();
+    _loadStats();
   }
 
-  Future<List<List<int>>> _loadOpened() {
-    final n = DateTime.now();
-    return Future.wait([
-      _fs.openedOnDay(FirestoreService.dayKey(n)),
-      _fs.openedOnDay(FirestoreService.dayKey(DateTime(n.year, n.month, n.day - 1))),
-    ]);
+  // Everything on the Stats tab. Small counts are cached on the phone for 10 minutes and past
+  // days are saved for good, so opening / re-opening the panel costs very few reads.
+  // [force] = fetch today's numbers again; [forceAll] = also re-count the past days.
+  void _loadStats({bool force = false, bool forceAll = false}) {
+    _installFuture = AdminStatsService.cachedInts('installs', () async => [await _fs.installCount()], force: force)
+        .then((l) => l.first);
+    _activeFuture = AdminStatsService.cachedInts('active', _loadActiveCounts, force: force);
+    _studentsFuture = AdminStatsService.cachedInts('students', _loadStudentCounts, force: force);
+    _bundleFuture = AdminStatsService.loadBundle(force: force, forceAll: forceAll);
+    _windowsFuture = AdminStatsService.cachedInts('windows', AdminStatsService.windows,
+        ttl: const Duration(minutes: 30), force: force || forceAll);
   }
 
   // Registered students: [total, web signups, signed up today, last 7 days, last 30 days].
@@ -580,200 +586,407 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   // ------------------------------------------------------------------
   // Stats
   // ------------------------------------------------------------------
-  Widget _statsTab() {
-    Widget statColumn(String value, String label) => Expanded(
-          child: Column(children: [
-            Text(value, style: TextStyle(color: AppC.text, fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(color: AppC.muted, fontSize: 12)),
-          ]),
-        );
-    void refresh() => setState(() {
-          _installFuture = _fs.installCount();
-          _activeFuture = _loadActiveCounts();
-          _studentsFuture = _loadStudentCounts();
-          _openedFuture = _loadOpened();
-        });
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        DepthCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: FutureBuilder<List<int>>(
-              future: _studentsFuture,
-              builder: (context, snap) {
-                final loading = snap.connectionState != ConnectionState.done;
-                final ok = !loading && !snap.hasError && snap.data != null;
-                String v(int i) => loading ? '...' : (ok ? '${snap.data![i]}' : '?');
-                // App signups = total - web (older accounts have no source tag).
-                final appCount = ok ? '${(snap.data![0] - snap.data![1]).clamp(0, 1 << 31)}' : (loading ? '...' : '?');
-                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Icon(Icons.how_to_reg, color: AppC.accent),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('Registered students (App + Web)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
-                    ),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    statColumn(v(0), 'Total'),
-                    statColumn(appCount, 'From App'),
-                    statColumn(v(1), 'From Web'),
-                  ]),
-                  const SizedBox(height: 14),
-                  Text('New signups', style: TextStyle(color: AppC.muted, fontSize: 12)),
-                  const SizedBox(height: 8),
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    statColumn(v(2), 'Today'),
-                    statColumn(v(3), 'Last 7 days'),
-                    statColumn(v(4), 'Last 30 days'),
-                  ]),
-                  if (snap.hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text('Could not load the count: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 11)),
-                    ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Counts only, no personal info. Accounts made before this update have no date, so they are in Total but not in "New signups". / पुराने अकाउंट Total में गिने जाते हैं, "New signups" में नहीं।',
-                    style: TextStyle(color: AppC.muted, fontSize: 11),
-                  ),
-                ]);
-              },
-            ),
-          ),
+  Widget _statNum(String value, String label) => Expanded(
+        child: Column(children: [
+          Text(value, style: TextStyle(color: AppC.text, fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(color: AppC.muted, fontSize: 12)),
+        ]),
+      );
+
+  Widget _statTitle(IconData icon, String text) => Row(children: [
+        Icon(icon, color: AppC.accent),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(text, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
         ),
-        const SizedBox(height: 12),
-        DepthCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: FutureBuilder<int>(
-              future: _installFuture,
-              builder: (context, snap) {
-                final loading = snap.connectionState != ConnectionState.done;
-                final countText = loading ? '...' : (snap.hasError ? '?' : '${snap.data ?? 0}');
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Icon(Icons.people, color: AppC.accent),
-                        const SizedBox(height: 6),
-                        Text(countText, style: TextStyle(color: AppC.text, fontSize: 24, fontWeight: FontWeight.bold)),
-                        Text('App installs (only counting)', style: TextStyle(color: AppC.muted, fontSize: 12)),
-                        if (snap.hasError)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text('Could not load the count: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 11)),
-                          ),
-                      ]),
-                    ),
-                    IconButton(
-                      tooltip: 'Refresh',
-                      icon: Icon(Icons.refresh, color: AppC.muted),
-                      onPressed: refresh,
-                    ),
-                  ],
+      ]);
+
+  Widget _statNote(String text) => Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Text(text, style: TextStyle(color: AppC.muted, fontSize: 11)),
+      );
+
+  Widget _statError(Object? e) => e == null
+      ? const SizedBox.shrink()
+      : Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text('Could not load the count: $e', style: TextStyle(color: AppC.orange, fontSize: 11)),
+        );
+
+  Widget _statCard(Widget child) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: DepthCard(child: Padding(padding: const EdgeInsets.all(16), child: child)),
+      );
+
+  void _refreshStats({bool all = false}) => setState(() {
+        _loadStats(force: true, forceAll: all);
+        final d = _anyDate;
+        if (d != null) _anyDateFuture = AdminStatsService.forDate(d);
+      });
+
+  Future<void> _pickStatsDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _anyDate ?? DateTime(now.year, now.month, now.day - 1),
+      firstDate: DateTime(now.year, now.month, now.day - 44),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _anyDate = picked;
+      _anyDateFuture = AdminStatsService.forDate(picked);
+    });
+  }
+
+  Widget _statsTab() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        _refreshStats();
+        try {
+          await _bundleFuture;
+        } catch (_) {}
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          _statsTopBar(),
+          const SizedBox(height: 4),
+          _activePhonesCard(),
+          _openedCard(),
+          _trendCard(),
+          _windowsCard(),
+          _anyDateCard(),
+          _registeredCard(),
+          _installsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _statsTopBar() => FutureBuilder<StatsBundle>(
+        future: _bundleFuture,
+        builder: (context, snap) {
+          final done = snap.connectionState == ConnectionState.done && snap.data != null;
+          final label = !done
+              ? 'Loading... / लोड हो रहा है'
+              : 'Updated ${DateFormat('h:mm a').format(snap.data!.fetchedAt)} \u2022 about ${AdminStatsService.reads} reads this session';
+          return Row(children: [
+            Expanded(child: Text(label, style: TextStyle(color: AppC.muted, fontSize: 11))),
+            IconButton(
+              tooltip: 'Refresh today',
+              icon: Icon(Icons.refresh, color: AppC.muted),
+              onPressed: () => _refreshStats(),
+            ),
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert, color: AppC.muted),
+              onSelected: (_) => _refreshStats(all: true),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'all', child: Text('Re-count all days (more reads)')),
+              ],
+            ),
+          ]);
+        },
+      );
+
+  // Phones that opened the app (anonymous install ids) - today / 7 / 30 days.
+  Widget _activePhonesCard() => _statCard(FutureBuilder<List<int>>(
+        future: _activeFuture,
+        builder: (context, snap) {
+          final loading = snap.connectionState != ConnectionState.done;
+          String v(int i) => loading ? '...' : ((snap.hasError || snap.data == null) ? '?' : '${snap.data![i]}');
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _statTitle(Icons.bolt, 'Active students (phones that opened the app)'),
+            const SizedBox(height: 14),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _statNum(v(0), 'Today'),
+              _statNum(v(1), 'Last 7 days'),
+              _statNum(v(2), 'Last 30 days'),
+            ]),
+            _statError(snap.error),
+            _statNote(
+                'Only phones that have opened the updated app are counted. Reinstall = counted again. / केवल अपडेटेड ऐप खोलने वाले फ़ोन गिने जाते हैं।'),
+          ]);
+        },
+      ));
+
+  // Unique students + App + Web, for today and yesterday.
+  Widget _openedCard() => _statCard(FutureBuilder<StatsBundle>(
+        future: _bundleFuture,
+        builder: (context, snap) {
+          final loading = snap.connectionState != ConnectionState.done;
+          final b = (!loading && !snap.hasError) ? snap.data : null;
+          final t = b?.today;
+          final y = b?.yesterday;
+          String v(DayStats? d, int Function(DayStats) f) => loading ? '...' : (d == null ? '?' : '${f(d)}');
+          Widget block(String title, List<String> labels, List<int Function(DayStats)> getters) =>
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  for (var k = 0; k < labels.length; k++) _statNum(v(t, getters[k]), labels[k]),
+                ]),
+                const SizedBox(height: 6),
+                Text(
+                  'Yesterday / कल: ${[for (var k = 0; k < labels.length; k++) '${labels[k]} ${v(y, getters[k])}'].join('  \u2022  ')}',
+                  style: TextStyle(color: AppC.muted, fontSize: 11),
+                ),
+              ]);
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _statTitle(Icons.devices, 'Students who opened today / आज कितने students ने खोला'),
+            const SizedBox(height: 14),
+            block('\u{1F464} Unique students (App + Web) / कुल अलग-अलग students', const [
+              'Unique',
+              'Both App & Web',
+              'Only App',
+              'Only Web',
+            ], <int Function(DayStats)>[
+              (d) => d.unique,
+              (d) => d.both,
+              (d) => d.app - d.both,
+              (d) => d.web - d.both,
+            ]),
+            // Share of all registered students that opened today (no extra reads: cached counts).
+            FutureBuilder<List<int>>(
+              future: _studentsFuture,
+              builder: (context, ss) {
+                final total = (ss.data != null && ss.data!.isNotEmpty) ? ss.data![0] : 0;
+                if (t == null || total <= 0) return const SizedBox.shrink();
+                final pct = (t.unique * 100 / total).toStringAsFixed(1);
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('Today: $pct% of ${total} registered students / आज ${pct}% students',
+                      style: TextStyle(color: AppC.muted, fontSize: 11)),
                 );
               },
             ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        DepthCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: FutureBuilder<List<int>>(
-              future: _activeFuture,
-              builder: (context, snap) {
-                final loading = snap.connectionState != ConnectionState.done;
-                String v(int i) => loading ? '...' : ((snap.hasError || snap.data == null) ? '?' : '${snap.data![i]}');
-                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Icon(Icons.bolt, color: AppC.accent),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text('Active students (phones that opened the app)', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
-                    ),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    statColumn(v(0), 'Today'),
-                    statColumn(v(1), 'Last 7 days'),
-                    statColumn(v(2), 'Last 30 days'),
-                  ]),
-                  if (snap.hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text('Could not load the count: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 11)),
-                    ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Only phones that have opened the updated app are counted. Reinstall = counted again. / केवल अपडेटेड ऐप खोलने वाले फ़ोन गिने जाते हैं।',
-                    style: TextStyle(color: AppC.muted, fontSize: 11),
-                  ),
-                ]);
-              },
+            const SizedBox(height: 16),
+            block('\u{1F4F1} App', const ['Total', 'Phone', 'Tablet'], <int Function(DayStats)>[
+              (d) => d.app,
+              (d) => d.appPhone,
+              (d) => d.appTablet,
+            ]),
+            const SizedBox(height: 16),
+            block('\u{1F310} Web', const ['Total', 'Phone', 'Tablet', 'Desktop / Laptop'], <int Function(DayStats)>[
+              (d) => d.web,
+              (d) => d.webPhone,
+              (d) => d.webTablet,
+              (d) => d.webComputer,
+            ]),
+            _statError(snap.error),
+            _statNote(
+              'Each student is counted once per day for each device type (someone who used phone and computer shows in both). '
+              'Unique = App + Web minus the students who used both. '
+              'A browser cannot tell a laptop from a desktop, so they are shown together. Day = this phone\u2019s date.',
             ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        DepthCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: FutureBuilder<List<List<int>>>(
-              future: _openedFuture,
-              builder: (context, snap) {
-                final loading = snap.connectionState != ConnectionState.done;
-                final ok = !loading && !snap.hasError && snap.data != null;
-                // day 0 = today, day 1 = yesterday
-                String v(int day, int i) => loading ? '...' : (ok ? '${snap.data![day][i]}' : '?');
-                Widget block(String title, List<String> labels, List<int> idx) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(title, style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
-                      const SizedBox(height: 8),
-                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        for (var k = 0; k < labels.length; k++) statColumn(v(0, idx[k]), labels[k]),
+          ]);
+        },
+      ));
+
+  // Last 7 days: bars (unique students) + a small table.
+  Widget _trendCard() => _statCard(FutureBuilder<StatsBundle>(
+        future: _bundleFuture,
+        builder: (context, snap) {
+          final loading = snap.connectionState != ConnectionState.done;
+          final rows = (!loading && !snap.hasError && snap.data != null) ? snap.data!.trend : <DayRow>[];
+          Widget body;
+          if (rows.isEmpty) {
+            body = Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(loading ? '...' : '?', style: TextStyle(color: AppC.text, fontSize: 24, fontWeight: FontWeight.bold)),
+            );
+          } else {
+            var maxV = 1;
+            for (final r in rows) {
+              final u = r.stats?.unique ?? 0;
+              if (u > maxV) maxV = u;
+            }
+            final done = rows.sublist(0, rows.length - 1); // today is not finished yet
+            var sum = 0;
+            DayRow? best;
+            for (final r in done) {
+              final u = r.stats?.unique ?? 0;
+              sum += u;
+              if (best == null || u > (best.stats?.unique ?? 0)) best = r;
+            }
+            final avg = done.isEmpty ? 0 : (sum / done.length).round();
+            Widget cell(String t, {int flex = 1, bool bold = false, TextAlign a = TextAlign.center}) => Expanded(
+                  flex: flex,
+                  child: Text(t,
+                      textAlign: a,
+                      style: TextStyle(color: bold ? AppC.text : AppC.muted, fontSize: 12, fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+                );
+            body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SizedBox(
+                height: 132,
+                child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  for (var i = 0; i < rows.length; i++)
+                    Expanded(
+                      child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                        Text('${rows[i].stats?.unique ?? 0}', style: TextStyle(color: AppC.text, fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Container(
+                          height: 6 + 78 * (rows[i].stats?.unique ?? 0) / maxV,
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: i == rows.length - 1 ? AppC.orange : AppC.accent,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(DateFormat('E').format(rows[i].date), style: TextStyle(color: AppC.muted, fontSize: 11)),
                       ]),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Yesterday / कल: ${[for (var k = 0; k < labels.length; k++) '${labels[k]} ${v(1, idx[k])}'].join('  \u2022  ')}',
-                        style: TextStyle(color: AppC.muted, fontSize: 11),
-                      ),
-                    ]);
-                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Icon(Icons.devices, color: AppC.accent),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('Students who opened today / आज कितने students ने खोला', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                cell('Date', flex: 3, a: TextAlign.left, bold: true),
+                cell('App', bold: true),
+                cell('Web', bold: true),
+                cell('Unique', bold: true),
+              ]),
+              const Divider(height: 10),
+              for (final r in rows.reversed)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    cell(DateFormat('EEE, d MMM').format(r.date) + (r == rows.last ? ' (today)' : ''), flex: 3, a: TextAlign.left),
+                    cell('${r.stats?.app ?? '?'}'),
+                    cell('${r.stats?.web ?? '?'}'),
+                    cell('${r.stats?.unique ?? '?'}', bold: true),
                   ]),
-                  const SizedBox(height: 14),
-                  block('\u{1F4F1} App', const ['Total', 'Phone', 'Tablet'], const [0, 1, 2]),
-                  const SizedBox(height: 16),
-                  block('\u{1F310} Web', const ['Total', 'Phone', 'Tablet', 'Desktop / Laptop'], const [3, 4, 5, 6]),
-                  if (snap.hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text('Could not load the count: ${snap.error}', style: TextStyle(color: AppC.orange, fontSize: 11)),
-                    ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Each student is counted once per day for each device type (someone who used phone and computer shows in both). '
-                    'A browser cannot tell a laptop from a desktop, so they are shown together. '
-                    'App numbers count students on the updated app; Web numbers count from the web update. Day = this phone\u2019s date.',
-                    style: TextStyle(color: AppC.muted, fontSize: 11),
-                  ),
-                ]);
-              },
+                ),
+              const SizedBox(height: 6),
+              Text(
+                'Average / day (finished days): $avg${best == null ? '' : '  \u2022  Best day: ${DateFormat('EEE d MMM').format(best.date)} (${best.stats?.unique ?? 0})'}',
+                style: TextStyle(color: AppC.text70, fontSize: 12),
+              ),
+            ]);
+          }
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _statTitle(Icons.bar_chart, 'Last 7 days / पिछले 7 दिन (Unique students)'),
+            const SizedBox(height: 14),
+            body,
+            _statError(snap.error),
+            _statNote(
+              'Finished days are counted once and saved on this phone (no repeat reads). App days are exact from the day this update is installed. '
+              'Web saves only each student\u2019s last day, so Web numbers of past days can be lower than real. / पुराने दिन एक बार गिनकर फ़ोन में सेव हो जाते हैं।',
             ),
-          ),
+          ]);
+        },
+      ));
+
+  // Unique students over the last 7 / 30 days (from "last opened" fields).
+  Widget _windowsCard() => _statCard(FutureBuilder<List<int>>(
+        future: _windowsFuture,
+        builder: (context, snap) {
+          final loading = snap.connectionState != ConnectionState.done;
+          String v(int i) => loading ? '...' : ((snap.hasError || snap.data == null || snap.data!.length <= i) ? '?' : '${snap.data![i]}');
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _statTitle(Icons.groups, 'Unique students: 7 / 30 days / अलग-अलग students'),
+            const SizedBox(height: 14),
+            Text('Last 7 days / पिछले 7 दिन', style: TextStyle(color: AppC.muted, fontSize: 12)),
+            const SizedBox(height: 8),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _statNum(v(0), 'Unique'),
+              _statNum(v(1), 'App'),
+              _statNum(v(2), 'Web'),
+            ]),
+            const SizedBox(height: 14),
+            Text('Last 30 days / पिछले 30 दिन', style: TextStyle(color: AppC.muted, fontSize: 12)),
+            const SizedBox(height: 8),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _statNum(v(3), 'Unique'),
+              _statNum(v(4), 'App'),
+              _statNum(v(5), 'Web'),
+            ]),
+            _statError(snap.error),
+            _statNote('Saved for 30 minutes, so opening this tab again costs no reads. Unique is never lower than App or Web.'),
+          ]);
+        },
+      ));
+
+  // Pick any date of the last 45 days.
+  Widget _anyDateCard() => _statCard(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _statTitle(Icons.event, 'Check any date / कोई भी तारीख देखें'),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _pickStatsDate,
+          icon: const Icon(Icons.calendar_month),
+          label: Text(_anyDate == null ? 'Pick a date / तारीख चुनें' : DateFormat('EEE, d MMM yyyy').format(_anyDate!)),
         ),
-      ],
-    );
-  }
+        if (_anyDateFuture != null)
+          FutureBuilder<DayStats>(
+            future: _anyDateFuture,
+            builder: (context, snap) {
+              final loading = snap.connectionState != ConnectionState.done;
+              final d = (!loading && !snap.hasError) ? snap.data : null;
+              String v(int Function(DayStats) f) => loading ? '...' : (d == null ? '?' : '${f(d)}');
+              return Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Column(children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    _statNum(v((x) => x.unique), 'Unique'),
+                    _statNum(v((x) => x.app), 'App'),
+                    _statNum(v((x) => x.web), 'Web'),
+                    _statNum(v((x) => x.both), 'Both'),
+                  ]),
+                  _statError(snap.error),
+                ]),
+              );
+            },
+          ),
+        _statNote('Works for the last 45 days. Each new date costs about 6 reads, then it is saved on this phone.'),
+      ]));
+
+  Widget _registeredCard() => _statCard(FutureBuilder<List<int>>(
+        future: _studentsFuture,
+        builder: (context, snap) {
+          final loading = snap.connectionState != ConnectionState.done;
+          final ok = !loading && !snap.hasError && snap.data != null;
+          String v(int i) => loading ? '...' : (ok ? '${snap.data![i]}' : '?');
+          // App signups = total - web (older accounts have no source tag).
+          final appCount = ok ? '${(snap.data![0] - snap.data![1]).clamp(0, 1 << 31)}' : (loading ? '...' : '?');
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _statTitle(Icons.how_to_reg, 'Registered students (App + Web)'),
+            const SizedBox(height: 14),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _statNum(v(0), 'Total'),
+              _statNum(appCount, 'From App'),
+              _statNum(v(1), 'From Web'),
+            ]),
+            const SizedBox(height: 14),
+            Text('New signups', style: TextStyle(color: AppC.muted, fontSize: 12)),
+            const SizedBox(height: 8),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _statNum(v(2), 'Today'),
+              _statNum(v(3), 'Last 7 days'),
+              _statNum(v(4), 'Last 30 days'),
+            ]),
+            _statError(snap.error),
+            _statNote(
+                'Counts only, no personal info. Accounts made before this update have no date, so they are in Total but not in "New signups". / पुराने अकाउंट Total में गिने जाते हैं, "New signups" में नहीं।'),
+          ]);
+        },
+      ));
+
+  Widget _installsCard() => _statCard(FutureBuilder<int>(
+        future: _installFuture,
+        builder: (context, snap) {
+          final loading = snap.connectionState != ConnectionState.done;
+          final countText = loading ? '...' : (snap.hasError ? '?' : '${snap.data ?? 0}');
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.people, color: AppC.accent),
+            const SizedBox(height: 6),
+            Text(countText, style: TextStyle(color: AppC.text, fontSize: 24, fontWeight: FontWeight.bold)),
+            Text('App installs (only counting)', style: TextStyle(color: AppC.muted, fontSize: 12)),
+            _statError(snap.error),
+          ]);
+        },
+      ));
 
   // ------------------------------------------------------------------
   // Grants
