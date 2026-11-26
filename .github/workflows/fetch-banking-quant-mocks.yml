@@ -1,0 +1,92 @@
+name: Banking PO/Clerk Quant Mocks twice a month (free, Gemini)
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'   # Monday 9:30 AM IST - builds 4 Banking PO Quant sets (1st and 3rd week of the month only, see "gate" below)
+    - cron: '0 4 * * 3'   # Wednesday - retry inside a build week (sub-folders that already exist are skipped)
+    - cron: '0 4 * * 5'   # Friday - second retry inside a build week
+  workflow_dispatch:
+    inputs:
+      week:
+        description: 'Week to build: 2026-W48 or any date inside it, 2026-11-26 (blank = this week)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild tests that already exist (true/false)'
+        required: false
+        default: 'false'
+      only_subfolder:
+        description: 'Optional: speed_maths | arithmetic | advanced_maths | data_interpretation (blank = all 4)'
+        required: false
+        default: ''
+      duration_minutes:
+        description: 'Manual timer in minutes (0 = no timer, blank = use Admin Panel setting or default 15)'
+        required: false
+        default: ''
+      marks_per_question:
+        description: 'Optional marks per question (blank = use Admin Panel setting or default 1)'
+        required: false
+        default: ''
+      negative_marks:
+        description: 'Optional negative marks (blank = use Admin Panel setting or default 0.25)'
+        required: false
+        default: ''
+
+concurrency:
+  group: fetch-banking-quant-mocks
+  cancel-in-progress: false
+
+jobs:
+  # TWICE A MONTH: the schedule fires every Mon/Wed/Fri, but the build only runs in the 1st and the 3rd week of the month
+  # (the week whose Monday falls on the 1st-7th or the 15th-21st, India time). Every other week this small job says
+  # "skip" and nothing is read or written. "Run workflow" by hand always builds.
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run: building."
+            exit 0
+          fi
+          today=$(TZ=Asia/Kolkata date +%F)
+          dow=$(date -d "$today" +%u)   # 1 = Monday ... 7 = Sunday
+          monday_dom=$(date -d "$today -$((dow - 1)) days" +%d)
+          monday_dom=$((10#$monday_dom))
+          if [ "$monday_dom" -le 7 ] || { [ "$monday_dom" -ge 15 ] && [ "$monday_dom" -le 21 ]; }; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "$today: week starting on day $monday_dom is a build week (1st or 3rd week of the month)."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "$today: week starting on day $monday_dom is not a build week. Skipping (Quant mocks are made twice a month)."
+          fi
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm install
+        working-directory: production-app-guide/free-scripts
+      - run: node fetch-banking-quant-mocks.js
+        working-directory: production-app-guide/free-scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          WEEK: ${{ github.event.inputs.week }}
+          FORCE: ${{ github.event.inputs.force }}
+          ONLY_SUBFOLDER: ${{ github.event.inputs.only_subfolder }}
+          DURATION_MINUTES: ${{ github.event.inputs.duration_minutes }}
+          MARKS_PER_QUESTION: ${{ github.event.inputs.marks_per_question }}
+          NEGATIVE_MARKS: ${{ github.event.inputs.negative_marks }}
