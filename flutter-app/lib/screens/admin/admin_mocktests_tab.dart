@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
@@ -396,12 +397,166 @@ class _AdminMockTestsTabState extends State<AdminMockTestsTab> with AutomaticKee
     }
   }
 
+  /// Manual timer & marking settings for auto-fetched Banking PO/Clerk Quant mocks.
+  /// Saved to appConfig/bankingQuant (read by fetch-banking-quant-mocks.js).
+  /// Optionally updates existing auto-generated Banking Quant mocks in one tap.
+  Future<void> _editQuantAutoSettings() async {
+    final db = FirebaseFirestore.instance;
+    int curMin = 15;
+    double curMarks = 1;
+    double curNeg = 0.25;
+    try {
+      final snap = await db.collection('appConfig').doc('bankingQuant').get();
+      final d = snap.data();
+      if (d != null) {
+        curMin = (d['durationMinutes'] as num?)?.toInt() ?? curMin;
+        curMarks = (d['marksPerQuestion'] as num?)?.toDouble() ?? curMarks;
+        curNeg = (d['negativeMarks'] as num?)?.toDouble() ?? curNeg;
+      }
+    } catch (_) {}
+    if (!mounted) return;
+
+    final minCtrl = TextEditingController(text: '$curMin');
+    final marksCtrl = TextEditingController(text: curMarks == curMarks.roundToDouble() ? '${curMarks.toInt()}' : '$curMarks');
+    final negCtrl = TextEditingController(text: curNeg == curNeg.roundToDouble() ? '${curNeg.toInt()}' : '$curNeg');
+    bool applyExisting = false;
+    String? err;
+
+    final saved = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setLocal) => AlertDialog(
+          backgroundColor: AppC.card,
+          title: Text('Banking Quant Auto-Fetch Timer', style: TextStyle(color: AppC.text, fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Set manual timer (0 = no timer) and marking for auto-generated Banking PO/Clerk Quant mocks.',
+                  style: TextStyle(color: AppC.muted, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: minCtrl,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: AppC.text),
+                        decoration: InputDecoration(labelText: 'Timer (min)', labelStyle: TextStyle(color: AppC.muted, fontSize: 12), isDense: true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: marksCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: TextStyle(color: AppC.text),
+                        decoration: InputDecoration(labelText: 'Marks / Q', labelStyle: TextStyle(color: AppC.muted, fontSize: 12), isDense: true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: negCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: TextStyle(color: AppC.text),
+                        decoration: InputDecoration(labelText: 'Negative', labelStyle: TextStyle(color: AppC.muted, fontSize: 12), isDense: true),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: applyExisting,
+                  onChanged: (v) => setLocal(() => applyExisting = v == true),
+                  title: Text('Also update existing auto Quant mocks', style: TextStyle(color: AppC.text, fontSize: 12.5)),
+                ),
+                if (err != null) ...[
+                  const SizedBox(height: 6),
+                  Text(err!, style: TextStyle(color: AppC.red, fontSize: 12)),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppC.gold, foregroundColor: Colors.black),
+              onPressed: () {
+                final m = int.tryParse(minCtrl.text.trim());
+                final mk = double.tryParse(marksCtrl.text.trim().replaceAll(',', '.'));
+                final ng = double.tryParse(negCtrl.text.trim().replaceAll(',', '.'));
+                if (m == null || m < 0 || m > 300) {
+                  setLocal(() => err = 'Timer must be 0 to 300 minutes (0 = no timer).');
+                  return;
+                }
+                if (mk == null || mk <= 0 || mk > 100) {
+                  setLocal(() => err = 'Marks per question must be more than 0.');
+                  return;
+                }
+                if (ng == null || ng < 0 || ng > mk) {
+                  setLocal(() => err = 'Negative marks must be between 0 and marks/Q.');
+                  return;
+                }
+                Navigator.pop(dialogCtx, {'durationMinutes': m, 'marksPerQuestion': mk, 'negativeMarks': ng, 'applyExisting': applyExisting});
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    minCtrl.dispose();
+    marksCtrl.dispose();
+    negCtrl.dispose();
+    if (saved == null) return;
+
+    try {
+      final cfg = {
+        'durationMinutes': saved['durationMinutes'],
+        'marksPerQuestion': saved['marksPerQuestion'],
+        'negativeMarks': saved['negativeMarks'],
+      };
+      await db.collection('appConfig').doc('bankingQuant').set(cfg, SetOptions(merge: true));
+      int updated = 0;
+      if (saved['applyExisting'] == true) {
+        final qSnap = await db.collection('mockTests').where('autoSource', isEqualTo: 'banking_quant').get();
+        for (var i = 0; i < qSnap.docs.length; i += 400) {
+          final batch = db.batch();
+          for (final d in qSnap.docs.skip(i).take(400)) {
+            batch.update(d.reference, cfg);
+            updated++;
+          }
+          await batch.commit();
+        }
+      }
+      _snack(updated > 0 ? 'Quant timer saved & applied to $updated existing mock(s).' : 'Quant auto-fetch timer saved.');
+    } catch (e) {
+      _snack('Could not save settings: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // required by AutomaticKeepAliveClientMixin
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _editQuantAutoSettings,
+            icon: const Icon(Icons.timer_outlined, size: 18),
+            label: const Text('Banking Quant Auto-Fetch Timer & Marking'),
+          ),
+        ),
+        const SizedBox(height: 10),
         Text('1. Choose an exam folder or create a new one', style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         StreamBuilder<List<MockTestFolderModel>>(
