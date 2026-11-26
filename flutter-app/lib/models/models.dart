@@ -923,3 +923,49 @@ MockSubjectSplit groupMockTestsBySubject(List<MockTestModel> tests) {
   }
   return MockSubjectSplit(byKey.values.toList(), ungrouped);
 }
+
+/// Splits a nested subject path like "Quant / Speed Maths" into ["Quant", "Speed Maths"].
+/// Plain subjects like "Maths" become ["Maths"]; empty subjects become [].
+List<String> splitMockSubjectPath(String subject) =>
+    subject.split('/').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+/// Groups tests at a given nested subject folder [path].
+/// - Tests whose subject path matches [path] exactly go into `ungrouped` (shown directly at this level).
+/// - Tests deeper than [path] are grouped into child folders by their next segment.
+MockSubjectSplit groupMockTestsAtPath(List<MockTestModel> tests, List<String> path) {
+  final prefixKeys = path.map(mockSubjectKey).toList();
+  final depth = prefixKeys.length;
+  final byKey = <String, MockSubjectGroup>{};
+  final direct = <MockTestModel>[];
+
+  for (final t in tests) {
+    final segs = splitMockSubjectPath(t.subject);
+    if (segs.length < depth) continue;
+    var matches = true;
+    for (var i = 0; i < depth; i++) {
+      if (mockSubjectKey(segs[i]) != prefixKeys[i]) {
+        matches = false;
+        break;
+      }
+    }
+    if (!matches) continue;
+    if (segs.length == depth) {
+      direct.add(t);
+    } else {
+      final seg = segs[depth];
+      final key = mockSubjectKey(seg);
+      byKey.putIfAbsent(key, () => MockSubjectGroup(seg, <MockTestModel>[])).tests.add(t);
+    }
+  }
+  return MockSubjectSplit(byKey.values.toList(), direct);
+}
+
+/// Counts distinct direct child sub-folders inside a subject group at [nextDepth].
+int countMockChildFolders(List<MockTestModel> tests, int nextDepth) {
+  final keys = <String>{};
+  for (final t in tests) {
+    final segs = splitMockSubjectPath(t.subject);
+    if (segs.length > nextDepth) keys.add(mockSubjectKey(segs[nextDepth]));
+  }
+  return keys.length;
+}
