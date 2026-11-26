@@ -9,6 +9,7 @@ import '../services/study_store.dart';
 import 'mock_test_scorecard_screen.dart';
 import '../widgets/space_background.dart';
 import '../widgets/di_image.dart';
+import '../widgets/math_text.dart';
 
 import '../app_colors.dart';
 
@@ -356,7 +357,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _passageBox(q),
-                Text(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 16, fontWeight: FontWeight.w600, height: 1.4)),
+                MathText(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 16, fontWeight: FontWeight.w600, height: 1.4)),
                 const SizedBox(height: 16),
                 for (var oi = 0; oi < opts.length; oi++) _optionTile(oi, opts[oi]),
               ],
@@ -382,7 +383,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (p.isNotEmpty) Text(p, style: TextStyle(color: AppC.text70, fontSize: compact ? 12.5 : 14, height: 1.4)),
+          if (p.isNotEmpty) MathText(p, style: TextStyle(color: AppC.text70, fontSize: compact ? 12.5 : 14, height: 1.4)),
           if (img.isNotEmpty) Padding(padding: EdgeInsets.only(top: p.isNotEmpty ? 8 : 0), child: DiImage(url: img)),
         ],
       ),
@@ -458,7 +459,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                             Text(_marksLine(total), style: TextStyle(color: AppC.muted, fontSize: 12)),
                             const SizedBox(height: 4),
                             _passageBox(q, compact: true),
-                            Text(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
+                            MathText(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
                           ],
                         ),
                       ),
@@ -561,7 +562,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Text(text, style: TextStyle(color: AppC.text, fontSize: 14, height: 1.3))),
+              Expanded(child: MathText(text, style: TextStyle(color: AppC.text, fontSize: 14, height: 1.3))),
             ],
           ),
         ),

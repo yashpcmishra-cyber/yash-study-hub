@@ -5,6 +5,7 @@ import '../services/mock_rank_service.dart';
 import '../services/revision_store.dart';
 import '../services/study_store.dart';
 import '../widgets/di_image.dart';
+import '../widgets/math_text.dart';
 import '../widgets/score_share.dart';
 import 'mock_leaderboard_screen.dart';
 
@@ -352,7 +353,7 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (passage.isNotEmpty) Text(passage, style: TextStyle(color: AppC.text70, fontSize: 12.5, height: 1.4)),
+                  if (passage.isNotEmpty) MathText(passage, style: TextStyle(color: AppC.text70, fontSize: 12.5, height: 1.4)),
                   if (passageImg.isNotEmpty) Padding(padding: EdgeInsets.only(top: passage.isNotEmpty ? 8 : 0), child: DiImage(url: passageImg)),
                 ],
               ),
@@ -363,7 +364,7 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
               Icon(icon, color: iconColor, size: 20),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('${i + 1}. ${mockText(q, _hindi)}', style: TextStyle(color: AppC.text, fontSize: 14, height: 1.35)),
+                child: MathText('${i + 1}. ${mockText(q, _hindi)}', style: TextStyle(color: AppC.text, fontSize: 14, height: 1.35)),
               ),
               InkWell(
                 onTap: () => _toggleSave(q),
@@ -393,7 +394,7 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
                 children: [
                   Text('Explanation', style: TextStyle(color: AppC.accent, fontWeight: FontWeight.bold, fontSize: 12)),
                   const SizedBox(height: 4),
-                  Text(explanation, style: TextStyle(color: AppC.text, fontSize: 13, height: 1.35)),
+                  MathText(explanation, style: TextStyle(color: AppC.text, fontSize: 13, height: 1.35)),
                 ],
               ),
             ),
@@ -423,7 +424,7 @@ class _MockTestScorecardScreenState extends State<MockTestScorecardScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: border)),
-      child: Text('${String.fromCharCode(65 + oi)}. $text$mark${isGiven ? '  (your answer)' : ''}',
+      child: MathText('${String.fromCharCode(65 + oi)}. $text$mark${isGiven ? '  (your answer)' : ''}',
           style: TextStyle(color: textColor, fontSize: 13)),
     );
   }
