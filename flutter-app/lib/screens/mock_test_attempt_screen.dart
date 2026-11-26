@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/firestore_service.dart';
@@ -41,6 +42,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
   int _index = 0;
   bool _hindi = false;
   bool _submitting = false;
+  bool _landscape = false;
   int _secondsShown = 0; // timed: bacha hua time, untimed: beeta hua time
 
   @override
@@ -59,8 +61,25 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
   void dispose() {
     _ticker?.cancel();
     _identityController.dispose();
+    // Test se bahar aate hi phone ki status/navigation bar wapas.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
     Future.microtask(() => spaceBackgroundPause.value--);
     super.dispose();
+  }
+
+  // Landscape me phone ki status bar chhupa do (upar ki navy patti bottom jitni
+  // patli rahe). Upar se swipe karne par bar kuch der ke liye wapas aati hai.
+  void _applyOrientation(bool landscape) {
+    if (landscape == _landscape) return;
+    _landscape = landscape;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (landscape) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      } else {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+      }
+    });
   }
 
   int get _elapsed => DateTime.now().difference(_startedAt).inSeconds;
@@ -278,6 +297,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     final test = widget.test;
     final total = test.questions.length;
     final land = MediaQuery.orientationOf(context) == Orientation.landscape;
+    _applyOrientation(land);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -288,7 +308,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
         appBar: AppBar(
           // Landscape: slim bar that also carries the timer + language toggle,
           // so the separate header row is not needed and more screen is left.
-          toolbarHeight: land ? 44 : null,
+          toolbarHeight: land ? 34 : null,
           titleSpacing: land ? 0 : null,
           title: land && total > 0
               ? Row(
@@ -301,8 +321,19 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
               : Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
             if (land && total > 0 && _hasHindi) ...[_langToggle(onBar: true), const SizedBox(width: 4)],
-            if (total > 0) IconButton(tooltip: 'Questions', icon: const Icon(Icons.grid_view_rounded), onPressed: _openPalette),
-            TextButton(onPressed: _submitting ? null : () => _submit(), child: const Text('Submit')),
+            if (total > 0)
+              IconButton(
+                tooltip: 'Questions',
+                visualDensity: land ? VisualDensity.compact : null,
+                iconSize: land ? 22 : null,
+                icon: const Icon(Icons.grid_view_rounded),
+                onPressed: _openPalette,
+              ),
+            TextButton(
+              style: land ? TextButton.styleFrom(minimumSize: const Size(0, 30), tapTargetSize: MaterialTapTargetSize.shrinkWrap) : null,
+              onPressed: _submitting ? null : () => _submit(),
+              child: const Text('Submit'),
+            ),
           ],
         ),
         body: total == 0
@@ -398,8 +429,9 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     );
   }
 
-  /// Landscape layout: question on the left, options on the right (each side
-  /// scrolls on its own), slim bottom bar. Whole question + options fit on
+  /// Landscape layout: question on the left (wide), options on the right
+  /// (narrow, ~32% of the width, kept between 200 and 300 px), each side
+  /// scrolls on its own, slim bottom bar. Whole question + options fit on
   /// one screen without wasting the top half.
   Widget _landscapeBody(int total) {
     final q = widget.test.questions[_index];
@@ -410,37 +442,42 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
           child: SafeArea(
             top: false,
             bottom: false,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  flex: 11,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_marksLine(total), style: TextStyle(color: AppC.muted, fontSize: 12)),
-                        const SizedBox(height: 6),
-                        _passageBox(q, compact: true),
-                        Text(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
-                      ],
+            child: LayoutBuilder(
+              builder: (context, box) {
+                // Options column: chhota; baaki saari jagah question ko.
+                final optW = (box.maxWidth * 0.32).clamp(200.0, 300.0).toDouble();
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(14, 6, 12, 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_marksLine(total), style: TextStyle(color: AppC.muted, fontSize: 12)),
+                            const SizedBox(height: 4),
+                            _passageBox(q, compact: true),
+                            Text(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                VerticalDivider(width: 1, thickness: 1, color: AppC.text12),
-                Expanded(
-                  flex: 10,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 14, 8),
-                    child: Column(
-                      children: [
-                        for (var oi = 0; oi < opts.length; oi++) _optionTile(oi, opts[oi], compact: true),
-                      ],
+                    VerticalDivider(width: 1, thickness: 1, color: AppC.text12),
+                    SizedBox(
+                      width: optW,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+                        child: Column(
+                          children: [
+                            for (var oi = 0; oi < opts.length; oi++) _optionTile(oi, opts[oi], compact: true),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -534,17 +571,21 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
 
   Widget _bottomBar(int total, {bool compact = false}) {
     final last = _index >= total - 1;
-    final pad = EdgeInsets.symmetric(horizontal: 4, vertical: compact ? 6 : 12);
+    final pad = EdgeInsets.symmetric(horizontal: 4, vertical: compact ? 3 : 12);
+    // Compact (landscape): Material ka 48px tap-target aur min height hata do,
+    // warna button chhota dikhne par bhi bottom patti 56px ki hi rehti hai.
+    final Size? minSize = compact ? const Size(0, 30) : null;
+    final MaterialTapTargetSize? tap = compact ? MaterialTapTargetSize.shrinkWrap : null;
     return SafeArea(
       top: false,
       child: Container(
         color: AppC.card2,
-        padding: EdgeInsets.fromLTRB(12, compact ? 4 : 8, 12, compact ? 4 : 8),
+        padding: EdgeInsets.fromLTRB(12, compact ? 2 : 8, 12, compact ? 2 : 8),
         child: Row(
           children: [
             Expanded(
               child: OutlinedButton(
-                style: OutlinedButton.styleFrom(padding: pad),
+                style: OutlinedButton.styleFrom(padding: pad, minimumSize: minSize, tapTargetSize: tap),
                 onPressed: _index > 0 ? () => setState(() => _index--) : null,
                 child: const Text('Previous'),
               ),
@@ -552,7 +593,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton(
-                style: OutlinedButton.styleFrom(padding: pad),
+                style: OutlinedButton.styleFrom(padding: pad, minimumSize: minSize, tapTargetSize: tap),
                 onPressed: _answers[_index] != null ? () => setState(() => _answers[_index] = null) : null,
                 child: const Text('Clear'),
               ),
@@ -560,7 +601,7 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(padding: pad),
+                style: ElevatedButton.styleFrom(padding: pad, minimumSize: minSize, tapTargetSize: tap),
                 onPressed: _submitting ? null : _goNextOrSubmit,
                 child: Text(last ? 'Submit' : 'Next'),
               ),
