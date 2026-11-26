@@ -50,7 +50,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _tab = 0;
   final GlobalKey _contentKey = GlobalKey(); // rotate par tab ka state bana rahe
   final _fs = FirestoreService();
@@ -148,6 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadQuizDone();
     final pingUid = FirebaseAuth.instance.currentUser?.uid;
     if (pingUid != null) _fs.pingAppActive(pingUid); // Admin > Stats: "opened today" (once a day)
+    WidgetsBinding.instance.addObserver(this);
     StudyStore.changes.addListener(_loadQuizDone);
     // App was opened by tapping a push notification -> go straight to the
     // Notifications screen.
@@ -162,10 +163,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     ContentSeenStore.seen.removeListener(_onSeenChanged);
     RemoteFlags.changes.removeListener(_onSeenChanged);
     StudyStore.changes.removeListener(_loadQuizDone);
     super.dispose();
+  }
+
+  // App left open overnight: when it comes back to the front on a NEW day, count that day too.
+  // pingAppActive remembers the last ping on the phone, so same-day calls cost nothing
+  // (no network, no write).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) _fs.pingAppActive(uid);
   }
 
   // The saved "seen" times changed (a screen was opened) -> redraw the dots.
