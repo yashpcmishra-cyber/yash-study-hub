@@ -15,15 +15,25 @@ import '../app_colors.dart';
 /// - [stage] == null -> not inside a category (the exam folder's first level).
 ///   [stage] == '' -> only tests WITHOUT a category (shown under "Other tests").
 ///   [stage] == 'prelims' / 'mains' -> only that category's tests.
-/// - [subject] == null  -> subject folders (if any test has a subject) and the
-///   tests that have no subject. If NO test has a subject, just the tests
-///   (exactly like before).
-/// - [subject] != null  -> only the tests of that subject folder.
+/// - [subjectPath] / [subject] supports both single-level subjects ("Maths")
+///   and nested sub-folders separated by "/" (e.g. "Quant / Speed Maths" ->
+///   Quant > Speed Maths > Tests).
 class MockTestListScreen extends StatefulWidget {
   final MockTestFolderModel folder;
   final String? subject;
+  final List<String> subjectPath;
   final String? stage;
-  const MockTestListScreen({super.key, required this.folder, this.subject, this.stage});
+  const MockTestListScreen({
+    super.key,
+    required this.folder,
+    this.subject,
+    this.subjectPath = const [],
+    this.stage,
+  });
+
+  List<String> get resolvedPath => subjectPath.isNotEmpty
+      ? subjectPath
+      : (subject != null && subject!.trim().isNotEmpty ? splitMockSubjectPath(subject!) : const <String>[]);
 
   @override
   State<MockTestListScreen> createState() => _MockTestListScreenState();
@@ -79,14 +89,22 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
     );
   }
 
-  Widget _subjectCard(MockSubjectGroup g, String? stage) {
+  Widget _subjectCard(MockSubjectGroup g, List<String> parentPath, String? stage) {
+    final nextPath = [...parentPath, g.name];
+    final subCount = countMockChildFolders(g.tests, nextPath.length);
+    final testsText = '${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}';
+    final subText = subCount > 0 ? '$subCount ${subCount == 1 ? 'folder' : 'folders'} \u2022 $testsText' : testsText;
     return DepthCard(
       margin: const EdgeInsets.only(bottom: 8),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestListScreen(folder: widget.folder, subject: g.name, stage: stage))),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MockTestListScreen(folder: widget.folder, subjectPath: nextPath, stage: stage),
+        ),
+      ),
       child: ListTile(
         leading: const Text('📚', style: TextStyle(fontSize: 22)),
         title: Text(g.name, style: TextStyle(color: AppC.text)),
-        subtitle: Text('${g.tests.length} ${g.tests.length == 1 ? 'test' : 'tests'}', style: TextStyle(color: AppC.muted, fontSize: 11)),
+        subtitle: Text(subText, style: TextStyle(color: AppC.muted, fontSize: 11)),
         trailing: Icon(Icons.chevron_right, color: AppC.muted),
       ),
     );
@@ -94,13 +112,14 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final subject = widget.subject;
+    final path = widget.resolvedPath;
     final stageArg = widget.stage;
     final stageTitle = (stageArg != null && stageArg.isNotEmpty) ? mockStageLabel(stageArg) : (stageArg == '' ? 'Other tests' : null);
+    final pathTitle = path.join(' \u203A ');
     return Scaffold(
       appBar: AppBar(
-        title: Text(subject != null
-            ? (stageTitle != null && stageArg!.isNotEmpty ? '$stageTitle \u2022 $subject' : subject)
+        title: Text(path.isNotEmpty
+            ? (stageTitle != null && stageArg!.isNotEmpty ? '$stageTitle \u2022 $pathTitle' : pathTitle)
             : (stageTitle ?? widget.folder.examName)),
       ),
       body: StreamBuilder<List<MockTestModel>>(
@@ -112,7 +131,7 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
           final byStage = splitMockTestsByStage(everything);
 
           // First level of an exam folder that has Prelims / Mains tests.
-          if (stageArg == null && subject == null && byStage.hasStages) {
+          if (stageArg == null && path.isEmpty && byStage.hasStages) {
             return ListView(padding: const EdgeInsets.all(14), children: [
               if (byStage.prelims.isNotEmpty) _stageCard(kStagePrelims, byStage.prelims),
               if (byStage.mains.isNotEmpty) _stageCard(kStageMains, byStage.mains),
@@ -121,14 +140,12 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
                   padding: const EdgeInsets.only(top: 6, bottom: 8, left: 4),
                   child: Text('Other tests', style: TextStyle(color: AppC.muted, fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
-                ..._subjectSplitItems(byStage.none, ''),
+                ..._subjectSplitItems(byStage.none, const [], ''),
               ],
             ]);
           }
 
           // The tests this screen is about: the whole folder, or one category of it.
-          // (When the folder has categories, a subject opened from the first level
-          // belongs to the untagged tests: stage ''.)
           final List<MockTestModel> all;
           if (stageArg == null) {
             all = byStage.hasStages ? byStage.none : everything;
@@ -140,30 +157,21 @@ class _MockTestListScreenState extends State<MockTestListScreen> {
             all = byStage.none;
           }
 
-          // Inside one subject folder: only that subject's tests.
-          if (subject != null) {
-            final key = mockSubjectKey(subject);
-            final tests = all.where((t) => mockSubjectKey(t.subject) == key).toList();
-            if (tests.isEmpty) return const EmptyView('No mock test in this subject yet');
-            return ListView.builder(
-              padding: const EdgeInsets.all(14),
-              itemCount: tests.length,
-              itemBuilder: (context, i) => _testCard(tests[i]),
-            );
+          final items = _subjectSplitItems(all, path, stageArg);
+          if (items.isEmpty) {
+            return EmptyView(path.isNotEmpty ? 'No mock test in this subject yet' : 'No mock test in this folder yet');
           }
-
-          if (all.isEmpty) return const EmptyView('No mock test in this folder yet');
-          return ListView(padding: const EdgeInsets.all(14), children: _subjectSplitItems(all, stageArg));
+          return ListView(padding: const EdgeInsets.all(14), children: items);
         },
       ),
     );
   }
 
-  /// Subject folders first, then the tests that have no subject.
-  List<Widget> _subjectSplitItems(List<MockTestModel> tests, String? stageForSubjects) {
-    final split = groupMockTestsBySubject(tests);
+  /// Child subject folders first, then the tests that sit directly at [path].
+  List<Widget> _subjectSplitItems(List<MockTestModel> tests, List<String> path, String? stageForSubjects) {
+    final split = groupMockTestsAtPath(tests, path);
     return <Widget>[
-      ...split.groups.map((g) => _subjectCard(g, stageForSubjects)),
+      ...split.groups.map((g) => _subjectCard(g, path, stageForSubjects)),
       if (split.groups.isNotEmpty && split.ungrouped.isNotEmpty)
         Padding(
           padding: const EdgeInsets.only(top: 6, bottom: 8, left: 4),
