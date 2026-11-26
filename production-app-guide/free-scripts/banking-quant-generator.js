@@ -282,6 +282,27 @@ Return ONLY a JSON object:
 }${avoidBlock(previous)}`;
 }
 
+function buildDiTopupPrompt({ spec, periodLabel, chartSummary, passage, passageHi, existingQuestions = [], n = 6 }) {
+  return `${QUANT_COMMON_RULES}
+
+SUB-FOLDER: Banking PO Quant — Data Interpretation (${spec.label}, ${periodLabel})
+TASK:
+Using the EXACT verified DI chart and directions below (do NOT change a single number or label), write ${n} NEW Moderate-to-Hard Banking PO questions strictly answerable from this chart + directions alone.
+Mix ratio, percentage more/less, weighted average, conditional change, and difference questions. Every question must be completely distinct from the existing questions listed below.
+
+VERIFIED CHART DATA:
+${chartSummary}
+
+ENGLISH DIRECTIONS:
+${passage}
+
+HINDI DIRECTIONS:
+${passageHi}
+
+Return ONLY a JSON array of ${n} question objects with keys:
+text, textHi, options, optionsHi, correctIndex, explanation, explanationHi${avoidBlock(existingQuestions)}`;
+}
+
 // ---------------------------------------------------------------- verification prompts (Check A, B, C)
 
 function formatQuestionsForCheck(questions, { withAnswer = false, withPassage = false, chartSummary = "" } = {}) {
@@ -300,7 +321,17 @@ function formatQuestionsForCheck(questions, { withAnswer = false, withPassage = 
 }
 
 function buildMathAuditPrompt(questions, chartSummary = "") {
-  return `You are a ruthless Banking PO Quantitative Aptitude auditor. Cross-check LANGUAGE, DATA, LOGIC, and STEP-BY-STEP SOLUTION for EVERY question below from scratch.
+  const header = chartSummary ? `${chartSummary}\n\n` : "";
+  const lines = questions
+    .map((q, i) => {
+      const enOpts = q.options.map((o, k) => `${LETTERS[k]}) ${o}`).join(" | ");
+      const hiOpts = q.optionsHi.map((o, k) => `${LETTERS[k]}) ${o}`).join(" | ");
+      const pass = q.passage ? `\n   EN Directions: ${q.passage}\n   HI Directions: ${q.passageHi}` : "";
+      return `Q${i + 1}:${pass}\n   EN: ${q.text}\n   EN Options: ${enOpts}\n   EN Exp: ${q.explanation}\n   HI: ${q.textHi}\n   HI Options: ${hiOpts}\n   HI Exp: ${q.explanationHi}\n   Marked: ${LETTERS[q.correctIndex]}`;
+    })
+    .join("\n\n");
+
+  return `You are a ruthless Banking PO Quantitative Aptitude auditor and EN-HI bilingual proofreader. Cross-check MATH, DATA, LOGIC, STEP-BY-STEP SOLUTION, and ENGLISH-HINDI PARITY for EVERY question below from scratch.
 
 REMOVE a question if ANY of these is true:
 - there is ANY arithmetic, algebraic, variable, formula, rounding, or logical error in the solution or marked answer;
@@ -309,13 +340,14 @@ REMOVE a question if ANY of these is true:
 - a variable equation yields negative/impossible values (like negative age, speed, or items) or has multiple valid roots without a constraint;
 - a Number Series rule is forced/ambiguous, or Quadratic roots/comparison are wrong;
 - a Data Interpretation question contradicts the given DI graph/table data or requires unstated assumptions;
-- the English wording is ambiguous, awkward, or uses broken LaTeX syntax (like \\frac or \\sqrt).
-When in doubt, REMOVE. KEEP only 100% mathematically airtight, exam-grade questions.
+- the Hindi question, Hindi directions, Hindi option, or Hindi explanation differs in meaning, mathematical condition, variable name, ratio, unit, or number from English, or Hindi options are not in the exact same order;
+- the English or Hindi wording is ambiguous, awkward, or uses broken LaTeX syntax (like \\frac or \\sqrt).
+When in doubt, REMOVE. KEEP only 100% mathematically airtight, exam-grade bilingual questions.
 
 Return ONLY JSON: {"remove": [1, 4]} (or {"remove": []} if all are 100% correct). No markdown.
 
-QUESTIONS:
-${formatQuestionsForCheck(questions, { withAnswer: true, withPassage: true, chartSummary })}`;
+${header}QUESTIONS:
+${lines}`;
 }
 
 function buildBlindMathSolvePrompt(questions, chartSummary = "") {
@@ -418,7 +450,7 @@ function cleanQuantQuestion(raw, { passage = "", passageHi = "", passageImage = 
 async function verifyBatch(candidates, { key, callGemini, chartSummary = "" }) {
   if (!candidates.length) return [];
 
-  // Check A: Ruthless Math, Data & Logic Audit
+  // Check A + C (combined): Ruthless Math, Data, Logic & Bilingual EN-HI Audit
   const auditRaw = await callGemini(buildMathAuditPrompt(candidates, chartSummary), key, 0.0);
   const auditObj = parseJsonLoose(auditRaw);
   const dropA = new Set((Array.isArray(auditObj?.remove) ? auditObj.remove : []).map(Number));
@@ -437,17 +469,10 @@ async function verifyBatch(candidates, { key, callGemini, chartSummary = "" }) {
       ansMap.set(qNum, { letter, sure: e?.sure === true });
     }
   }
-  list = list.filter((q, i) => {
+  return list.filter((q, i) => {
     const a = ansMap.get(i + 1);
     return a && a.sure && a.letter === LETTERS[q.correctIndex];
   });
-  if (!list.length) return [];
-
-  // Check C: Bilingual EN-HI Language & Data Proofread
-  const biRaw = await callGemini(buildBilingualQuantCheckPrompt(list, chartSummary), key, 0.0);
-  const biObj = parseJsonLoose(biRaw);
-  const dropC = new Set((Array.isArray(biObj?.remove) ? biObj.remove : []).map(Number));
-  return list.filter((_, i) => !dropC.has(i + 1));
 }
 
 // ---------------------------------------------------------------- public generators
@@ -522,43 +547,77 @@ async function generateDiSubfolder({
 
   for (let sIdx = 0; sIdx < specs.length && allQuestions.length < target; sIdx++) {
     const spec = specs[sIdx];
-    let setQuestions = [];
+    const setQuestions = [];
     let verifiedChart = null;
+    let verifiedPassage = "";
+    let verifiedPassageHi = "";
+    let verifiedSummary = "";
+    const seen = new Set([...previous, ...allQuestions.map((q) => q.text)].map((t) => oneLine(t).toLowerCase()));
 
     for (let round = 1; round <= MAX_ROUNDS && setQuestions.length < perSet; round++) {
       try {
-        const avoid = [...previous, ...allQuestions.map((q) => q.text)];
-        const prompt = buildDiSetPrompt({ spec, periodLabel, previous: avoid, n: perSet + 2 });
-        const rawText = await callGemini(prompt, key, QUANT_TEMPERATURE);
-        const parsed = parseJsonLoose(rawText);
-        const chart = validateChartSpec(parsed?.chart);
-        const passage = tidyMultiline(parsed?.passage || "");
-        const passageHi = tidyMultiline(parsed?.passageHi || "");
-        const rawQs = Array.isArray(parsed?.questions) ? parsed.questions : [];
-        if (!chart || !passage || !passageHi || rawQs.length < perSet) {
-          console.warn(`  [data_interpretation/${spec.id}] round ${round}: invalid chart/passage/questions, retrying.`);
-          continue;
+        const need = perSet - setQuestions.length;
+        let rawQs = [];
+
+        if (!verifiedChart) {
+          // Generate chart + 10 candidate questions in one shot so 5+ easily pass verification on Round 1.
+          const ask = Math.max(perSet + 5, 10);
+          console.log(`  [data_interpretation/${spec.id}] round ${round}: generating chart + ${ask} candidates...`);
+          const avoid = [...previous, ...allQuestions.map((q) => q.text)];
+          const prompt = buildDiSetPrompt({ spec, periodLabel, previous: avoid, n: ask });
+          const rawText = await callGemini(prompt, key, QUANT_TEMPERATURE);
+          const parsed = parseJsonLoose(rawText);
+          const chart = validateChartSpec(parsed?.chart);
+          const passage = tidyMultiline(parsed?.passage || "");
+          const passageHi = tidyMultiline(parsed?.passageHi || "");
+          rawQs = Array.isArray(parsed?.questions) ? parsed.questions : [];
+          if (!chart || !passage || !passageHi || rawQs.length < perSet) {
+            console.warn(`  [data_interpretation/${spec.id}] round ${round}: invalid chart/passage/questions (${rawQs.length}), retrying.`);
+            continue;
+          }
+          verifiedChart = chart;
+          verifiedPassage = passage;
+          verifiedPassageHi = passageHi;
+          verifiedSummary = chartToTextSummary(chart);
+        } else {
+          // Keep the already-verified chart & questions; only top up the remaining needed questions!
+          const ask = Math.min(10, need + 4);
+          console.log(`  [data_interpretation/${spec.id}] round ${round}: topping up ${ask} more candidates for verified chart (have ${setQuestions.length}/${perSet})...`);
+          const existing = setQuestions.map((q) => q.text);
+          const prompt = buildDiTopupPrompt({
+            spec,
+            periodLabel,
+            chartSummary: verifiedSummary,
+            passage: verifiedPassage,
+            passageHi: verifiedPassageHi,
+            existingQuestions: existing,
+            n: ask,
+          });
+          const rawText = await callGemini(prompt, key, QUANT_TEMPERATURE);
+          const parsed = parseJsonLoose(rawText);
+          rawQs = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.questions) ? parsed.questions : [];
         }
 
         const cleaned = [];
-        const seen = new Set(avoid.map((t) => oneLine(t).toLowerCase()));
         for (const item of rawQs) {
-          const q = cleanQuantQuestion(item, { passage, passageHi, rnd });
+          const q = cleanQuantQuestion(item, { passage: verifiedPassage, passageHi: verifiedPassageHi, rnd });
           if (!q) continue;
           const k = q.text.toLowerCase();
           if (seen.has(k)) continue;
           seen.add(k);
           cleaned.push(q);
         }
-        if (cleaned.length < perSet) continue;
-
-        const chartSummary = chartToTextSummary(chart);
-        const verified = await verifyBatch(cleaned, { key, callGemini, chartSummary });
-        console.log(`  [data_interpretation/${spec.id}] round ${round}: cleaned=${cleaned.length}, verified=${verified.length}/${perSet}`);
-        if (verified.length >= perSet) {
-          setQuestions = verified.slice(0, perSet);
-          verifiedChart = chart;
+        if (!cleaned.length) {
+          console.warn(`  [data_interpretation/${spec.id}] round ${round}: 0 clean candidates, retrying.`);
+          continue;
         }
+
+        console.log(`  [data_interpretation/${spec.id}] round ${round}: verifying ${cleaned.length} candidates...`);
+        const verified = await verifyBatch(cleaned, { key, callGemini, chartSummary: verifiedSummary });
+        for (const q of verified) {
+          if (setQuestions.length < perSet) setQuestions.push(q);
+        }
+        console.log(`  [data_interpretation/${spec.id}] round ${round}: cleaned=${cleaned.length}, verified=${verified.length}, total=${setQuestions.length}/${perSet}`);
       } catch (err) {
         console.warn(`  [data_interpretation/${spec.id}] round ${round} failed: ${err.message}`);
       }
