@@ -307,34 +307,71 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
       child: Scaffold(
         backgroundColor: AppC.bg,
         appBar: AppBar(
-          // Landscape: slim bar that also carries the timer + language toggle,
-          // so the separate header row is not needed and more screen is left.
-          toolbarHeight: land ? 34 : null,
+          // Landscape: slim bar carries title + Q/marks/answered + timer +
+          // palette + language toggle + Submit, keeping the question area clean
+          // (question only, matching Web).
+          toolbarHeight: land ? 38 : null,
+          leadingWidth: land ? 40 : null,
           titleSpacing: land ? 0 : null,
           title: land && total > 0
               ? Row(
                   children: [
-                    Flexible(child: Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16))),
-                    const SizedBox(width: 14),
+                    Flexible(
+                      flex: 2,
+                      child: Text(
+                        test.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      flex: 3,
+                      child: Text(
+                        _marksLine(total, includeAnswered: true),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
                     _timerRow(onBar: true),
                   ],
                 )
               : Text(test.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
-            if (land && total > 0 && _hasHindi) ...[_langToggle(onBar: true), const SizedBox(width: 4)],
             if (total > 0)
               IconButton(
                 tooltip: 'Questions',
                 visualDensity: land ? VisualDensity.compact : null,
-                iconSize: land ? 22 : null,
+                padding: land ? EdgeInsets.zero : null,
+                constraints: land ? const BoxConstraints(minWidth: 34, minHeight: 34) : null,
+                iconSize: land ? 20 : null,
                 icon: const Icon(Icons.grid_view_rounded),
                 onPressed: _openPalette,
               ),
-            TextButton(
-              style: land ? TextButton.styleFrom(minimumSize: const Size(0, 30), tapTargetSize: MaterialTapTargetSize.shrinkWrap) : null,
-              onPressed: _submitting ? null : () => _submit(),
-              child: const Text('Submit'),
+            if (land && total > 0 && _hasHindi) ...[
+              const SizedBox(width: 4),
+              Center(child: _langToggle(onBar: true)),
+            ],
+            const SizedBox(width: 6),
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppC.gold,
+                  foregroundColor: AppC.onGold,
+                  elevation: 0,
+                  padding: EdgeInsets.symmetric(horizontal: land ? 12 : 14, vertical: land ? 4 : 6),
+                  minimumSize: Size(0, land ? 28 : 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: _submitting ? null : () => _submit(),
+                child: Text('Submit', style: TextStyle(fontWeight: FontWeight.w700, fontSize: land ? 12.5 : 13)),
+              ),
             ),
+            const SizedBox(width: 8),
           ],
         ),
         body: total == 0
@@ -390,27 +427,30 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     );
   }
 
-  String _marksLine(int total) {
+  String _marksLine(int total, {bool includeAnswered = false}) {
     final t = widget.test;
-    return 'Q ${_index + 1}/$total  \u2022  +${fmtMarks(t.marksPerQuestion)}'
-        '${t.negativeMarks > 0 ? '  /  \u2212${fmtMarks(t.negativeMarks)}' : ''}';
+    final base = 'Q ${_index + 1}/$total \u2022 +${fmtMarks(t.marksPerQuestion)}'
+        '${t.negativeMarks > 0 ? ' / \u2212${fmtMarks(t.negativeMarks)}' : ''}';
+    if (!includeAnswered) return base;
+    final answered = _answers.where((a) => a != null).length;
+    return '$base \u2022 $answered/$total answered';
   }
 
   Widget _timerRow({bool onBar = false}) {
     final lowTime = _timed && _secondsShown <= 60;
-    // Top bar (landscape) light theme me navy hoti hai, isliye wahan safed/yellow.
-    final cText = onBar ? Colors.white : AppC.text;
+    // Top bar (landscape) dark navy hoti hai, isliye wahan yellow/red.
     final cAccent = onBar ? const Color(0xFFFFFF29) : AppC.accent;
+    final cText = onBar ? cAccent : AppC.text;
     final cRed = onBar ? Colors.redAccent : AppC.red;
-    final cMuted = onBar ? Colors.grey : AppC.muted;
+    final cMuted = onBar ? Colors.white70 : AppC.muted;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.timer_outlined, size: 18, color: lowTime ? cRed : cAccent),
+        Icon(Icons.timer_outlined, size: onBar ? 16 : 18, color: lowTime ? cRed : cAccent),
         const SizedBox(width: 4),
         Text(
           fmtDuration(_secondsShown),
-          style: TextStyle(color: lowTime ? cRed : cText, fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(color: lowTime ? cRed : cText, fontWeight: FontWeight.bold, fontSize: onBar ? 14.5 : 16),
         ),
         if (!_timed) Text('  (no limit)', style: TextStyle(color: cMuted, fontSize: 11)),
       ],
@@ -452,14 +492,12 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
                   children: [
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(14, 6, 12, 6),
+                        padding: const EdgeInsets.fromLTRB(14, 10, 12, 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_marksLine(total), style: TextStyle(color: AppC.muted, fontSize: 12)),
-                            const SizedBox(height: 4),
                             _passageBox(q, compact: true),
-                            MathText(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 15, fontWeight: FontWeight.w600, height: 1.35)),
+                            MathText(mockText(q, _hindi), style: TextStyle(color: AppC.text, fontSize: 15, fontWeight: FontWeight.w600, height: 1.38)),
                           ],
                         ),
                       ),
@@ -523,9 +561,9 @@ class _MockTestAttemptScreenState extends State<MockTestAttemptScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: onBar ? 8 : 12, vertical: onBar ? 4 : 6),
         decoration: BoxDecoration(color: active ? AppC.gold : Colors.transparent, borderRadius: BorderRadius.circular(7)),
-        child: Text(label, style: TextStyle(color: active ? AppC.onGold : (onBar ? Colors.white70 : AppC.text70), fontWeight: FontWeight.bold, fontSize: 13)),
+        child: Text(label, style: TextStyle(color: active ? AppC.onGold : (onBar ? Colors.white70 : AppC.text70), fontWeight: FontWeight.bold, fontSize: onBar ? 12 : 13)),
       ),
     );
   }
