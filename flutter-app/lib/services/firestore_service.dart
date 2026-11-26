@@ -869,7 +869,20 @@ class FirestoreService {
       final key = '$uid|$day|$type';
       final p = await SharedPreferences.getInstance();
       if (p.getString('app_active_ping') == key) return;
-      await _db.collection('students').doc(uid).set({'lastAppDay': day, 'lastApp${type}Day': day}, SetOptions(merge: true));
+      // ONE write per student per day (same as before). Besides the old "last day" fields
+      // (lastAppDay ...: the web admin panel still reads them) it now also keeps a small
+      // per-day history (appDays.d20261125 = true) so "Yesterday" stays correct after the
+      // student opens the app again today. lastSeenDay = last day on App OR Web (unique counts).
+      // Days older than 45 are removed in the same write, so the document stays small.
+      final dk = 'd${day.replaceAll('-', '')}';
+      final old = 'd${dayKey(DateTime.now().subtract(const Duration(days: 45))).replaceAll('-', '')}';
+      await _db.collection('students').doc(uid).set({
+        'lastAppDay': day,
+        'lastApp${type}Day': day,
+        'lastSeenDay': day,
+        'appDays': {dk: true, old: FieldValue.delete()},
+        'app${type}Days': {dk: true, old: FieldValue.delete()},
+      }, SetOptions(merge: true));
       await p.setString('app_active_ping', key);
     } catch (_) {
       // never block the app for a statistics ping
