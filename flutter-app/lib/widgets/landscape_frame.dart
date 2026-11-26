@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
 /// Video player jaisi screens ye counter badhati hain jab tak wo khuli hain;
-/// counter 0 se zyada ho to 4:3 frame band rehta hai (video poori screen le).
+/// counter 0 se zyada ho to landscape frame band rehta hai (video poori screen le).
 final ValueNotifier<int> landscapeFrameBypass = ValueNotifier<int>(0);
 
-/// Landscape me poori app ko 4:3 frame me, beech me dikhata hai (dono taraf
-/// kaali patti). Portrait me kuch nahi badalta. Widget ka tree hamesha ek
-/// jaisa rehta hai, isliye rotate karne par screens ka state nahi khota.
+/// Landscape frame ka width : height ratio. Pehle 4 / 3 tha; ab 16 / 9 (zyada
+/// chauda). Purane look par wapas jaana ho to sirf ye line `4 / 3` kar do.
+const double kLandscapeFrameRatio = 16 / 9;
+
+/// Landscape me poori app ko [kLandscapeFrameRatio] frame me, beech me dikhata
+/// hai (dono taraf kaali patti). Portrait me kuch nahi badalta. Widget ka tree
+/// hamesha ek jaisa rehta hai, isliye rotate karne par screens ka state nahi khota.
 class LandscapeFrame extends StatelessWidget {
   final Widget child;
   const LandscapeFrame({super.key, required this.child});
@@ -18,7 +22,7 @@ class LandscapeFrame extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: landscapeFrameBypass,
       builder: (context, bypass, _) {
-        final frameW = screen.height * 4 / 3;
+        final frameW = screen.height * kLandscapeFrameRatio;
         final framed = screen.width > screen.height && bypass == 0 && screen.width > frameW + 1;
         final w = framed ? frameW : screen.width;
         final data = framed
