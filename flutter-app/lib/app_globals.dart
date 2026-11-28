@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/download_store.dart';
 
 /// Shared keys so push-notification callbacks (which have no BuildContext)
 /// can show a message or open a screen.
@@ -44,6 +45,12 @@ Future<void> clearLocalStudentData() async {
     for (final k in prefs.getKeys().where((k) => k.startsWith('access_code_')).toList()) {
       await prefs.remove(k);
     }
+  } catch (_) {
+    // Best-effort only.
+  }
+  // App ke Downloads me rakhi PDFs (paid batch ki bhi) bhi hata do.
+  try {
+    await DownloadStore.clearAll();
   } catch (_) {
     // Best-effort only.
   }
