@@ -1,11 +1,11 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import '../utils/open_link.dart';
 import '../widgets/space_background.dart';
 import '../app_colors.dart';
+import '../services/download_store.dart';
+import 'downloads_screen.dart';
 
 /// Opens a PDF INSIDE the app (instead of sending the student to Drive / the
 /// browser).
@@ -22,6 +22,9 @@ import '../app_colors.dart';
 /// "open outside the app" button is hidden and the viewer refuses to jump to
 /// Drive's own "open / download" pages, so a student cannot easily copy or
 /// share the link from there. Free PDFs keep the button (default = true).
+///
+/// The Download button saves the PDF INSIDE the app (private app storage, shown
+/// on Home > Downloads) - never to the phone's own storage (same as the Web).
 Future<void> openPdfInApp(
   BuildContext context, {
   required String link,
@@ -134,6 +137,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   int _progress = 0;
   bool _failed = false;
   bool _downloading = false;
+  double _dlProgress = 0; // 0..1 (0 = unknown)
+  bool _saved = false; // already in the app's Downloads
   bool _landscape = false;
   bool _controlsOpen = false;
 
@@ -141,6 +146,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   void initState() {
     super.initState();
     Future.microtask(() => spaceBackgroundPause.value++);
+    DownloadStore.changes.addListener(_checkSaved);
+    _checkSaved();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -172,6 +179,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
 
   @override
   void dispose() {
+    DownloadStore.changes.removeListener(_checkSaved);
     // Give the phone's status/navigation bars back when leaving the PDF.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
     Future.microtask(() => spaceBackgroundPause.value--);
@@ -227,47 +235,98 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     return text;
   }
 
-  String _fileName() {
-    var name = widget.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
-    if (name.isEmpty) name = 'Yash Study Hub PDF';
-    if (!name.toLowerCase().endsWith('.pdf')) name = '$name.pdf';
-    return name;
+  // Is PDF already in the app's Downloads? (changes the download icon)
+  Future<void> _checkSaved() async {
+    try {
+      final it = await DownloadStore.find(widget.originalUrl);
+      final saved = it != null;
+      if (mounted && saved != _saved) setState(() => _saved = saved);
+    } catch (_) {
+      // icon simply stays as it was
+    }
   }
 
-  /// Downloads the PDF and lets the student save it on the phone (the phone's
-  /// own "Save" screen opens - choose Downloads and tap Save).
+  /// Saves the PDF INSIDE the app (private storage -> Home > Downloads).
+  /// It is not written to the phone's own storage / Downloads folder.
   Future<void> _download() async {
     if (_downloading) return;
-    setState(() => _downloading = true);
-    _snack('Downloading... / डाउनलोड हो रहा है...');
+    setState(() {
+      _downloading = true;
+      _dlProgress = 0;
+    });
     try {
-      final res = await http.get(Uri.parse(_downloadUrl())).timeout(const Duration(minutes: 3));
-      final bytes = res.bodyBytes;
-      final isPdf = res.statusCode == 200 &&
-          bytes.length > 4 &&
-          bytes[0] == 0x25 &&
-          bytes[1] == 0x50 &&
-          bytes[2] == 0x44 &&
-          bytes[3] == 0x46; // "%PDF"
-      if (!isPdf) throw Exception('not a pdf');
-      final saved = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save PDF',
-        fileName: _fileName(),
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-        bytes: bytes,
-      );
-      if (saved != null) _snack('PDF saved. / PDF सेव हो गई।');
-    } catch (_) {
-      if (widget.allowExternalOpen && mounted) {
-        // Free PDFs: fall back to the phone's browser download.
-        _snack('Opening in browser to download... / डाउनलोड के लिए ब्राउज़र में खुल रहा है...');
-        await openExternalLink(context, _downloadUrl());
-      } else {
-        _snack('Could not download this PDF. Try again. / PDF डाउनलोड नहीं हुई। दोबारा कोशिश करें।');
+      final existing = await DownloadStore.find(widget.originalUrl);
+      if (existing != null) {
+        if (mounted) setState(() => _saved = true);
+        await _showSavedDialog(existing.title, already: true, offline: existing.isFile);
+        return;
       }
+      _snack('Downloading to App Downloads... / ऐप के Downloads में डाउनलोड हो रहा है...');
+      final res = await DownloadStore.save(
+        url: widget.originalUrl,
+        downloadUrl: _downloadUrl(),
+        title: widget.title,
+        paid: !widget.allowExternalOpen,
+        onProgress: (f) {
+          if (!mounted) return;
+          if ((f - _dlProgress).abs() >= 0.02 || f >= 1) setState(() => _dlProgress = f);
+        },
+      );
+      if (mounted) setState(() => _saved = true);
+      await _showSavedDialog(res.item.title, already: res.already, offline: res.offline);
+    } on DownloadException catch (e) {
+      _snack(e.message);
+    } catch (_) {
+      _snack('Could not download this PDF. Try again. / PDF डाउनलोड नहीं हुई। दोबारा कोशिश करें।');
     } finally {
       if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  Future<void> _showSavedDialog(String title, {required bool already, required bool offline}) async {
+    if (!mounted) return;
+    final openDownloads = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppC.card,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(already ? '📥' : '✅', style: const TextStyle(fontSize: 40)),
+              const SizedBox(height: 8),
+              Text(
+                already ? 'Already in Downloads / पहले से डाउनलोड है' : 'PDF Downloaded / PDF डाउनलोड हो गई',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppC.text, fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(title, textAlign: TextAlign.center, style: TextStyle(color: AppC.text, fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 10),
+              Text(
+                'Ye PDF Home Screen ke \"Downloads\" section mein save ho gayi hai (phone storage mein save nahi hui).\nयह PDF होम स्क्रीन के \"Downloads\" सेक्शन में सेव हो गई है (फ़ोन स्टोरेज में नहीं)।',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppC.text70, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                offline
+                    ? '⚡ Offline ready — bina internet bhi khul jayegi. / बिना इंटरनेट भी खुलेगी।'
+                    : '☁️ Downloads section se seedha khol kar padh sakte hain (internet chahiye). / Downloads से सीधे खोलकर पढ़ सकते हैं (इंटरनेट चाहिए)।',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppC.text54, fontSize: 12, height: 1.35),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('OK / ठीक है')),
+          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('📥 Open Downloads')),
+        ],
+      ),
+    );
+    if (openDownloads == true && mounted) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DownloadsScreen()));
     }
   }
 
@@ -281,12 +340,20 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
 
   Widget _downloadAction() {
     if (_downloading) {
-      return const Padding(
-        padding: EdgeInsets.all(14),
-        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      return Padding(
+        padding: const EdgeInsets.all(14),
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2, value: _dlProgress > 0 && _dlProgress < 1 ? _dlProgress : null),
+        ),
       );
     }
-    return IconButton(tooltip: 'Download PDF', icon: const Icon(Icons.download, color: Colors.white), onPressed: _download);
+    return IconButton(
+      tooltip: 'Download in App / ऐप में डाउनलोड करें',
+      icon: Icon(_saved ? Icons.download_done : Icons.download, color: _saved ? AppC.gold : Colors.white),
+      onPressed: _download,
+    );
   }
 
   // Small floating controls shown in landscape (the top bar is hidden there).

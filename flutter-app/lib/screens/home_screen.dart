@@ -26,6 +26,7 @@ import '../widgets/smart_study_card.dart';
 import '../widgets/exam_boost_card.dart';
 import '../widgets/daily_gyan_card.dart';
 import '../widgets/more_tools_card.dart';
+import '../widgets/downloads_card.dart';
 import 'pdf_library_screen.dart';
 import 'free_mcqs_screen.dart';
 import 'news_screen.dart';
@@ -512,9 +513,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                       ),
 
+                      // Downloads / मेरे डाउनलोड्स - App me download ki gayi PDFs (Web jaisa)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(sidePad, 18, sidePad, 0),
+                        child: DownloadsHomeCard(onOpenLibrary: () => _goTab(2)),
+                      ),
+
                       // Social banner — auto-rotates between Telegram/WhatsApp/YouTube/Instagram/Facebook every 3s
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 22, 14, 0), // grid ke glow se gap
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 0), // Downloads card se gap
                         child: _SocialRotator(cfg: cfg),
                       ),
 
